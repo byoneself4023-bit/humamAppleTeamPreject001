@@ -71,6 +71,7 @@ import MusicLounge from './pages/music/MusicLounge'
 import ExternalMusicSpace from './pages/music/ExternalMusicSpace'
 import MusicHome from './pages/music/MusicHome'
 import GatewayMusicSpace from './pages/music/GatewayMusicSpace'
+import MusicSettings from './pages/music/MusicSettings'
 
 function App() {
     return (
@@ -150,6 +151,7 @@ function App() {
                     <Route path="music/lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
                     <Route path="music/lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
                     <Route path="music/external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
+                    <Route path="music/settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />
 
                     {/* 404 Fallback */}
                     <Route path="*" element={<Error404 />} />
