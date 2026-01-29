@@ -26,6 +26,8 @@ import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import Onboarding from './pages/auth/Onboarding'
 import TidalCallback from './pages/auth/TidalCallback'
+import SpotifyCallback from './pages/auth/SpotifyCallback'
+import YouTubeCallback from './pages/auth/YouTubeCallback'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // AI Studio
@@ -82,8 +84,10 @@ function App() {
                     <Route path="/coming-soon" element={<ComingSoon />} />
                     <Route path="/404" element={<Error404 />} />
 
-                    {/* Tidal Callback */}
+                    {/* OAuth Callbacks */}
                     <Route path="/tidal-callback" element={<TidalCallback />} />
+                    <Route path="/spotify-callback" element={<SpotifyCallback />} />
+                    <Route path="/youtube-callback" element={<YouTubeCallback />} />
 
                     {/* Root redirect to Music Home */}
                     <Route path="/" element={<Navigate to="/music/home" replace />} />
