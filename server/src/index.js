@@ -19,6 +19,7 @@ import pmsRoutes from './routes/pms.js'
 import genresRoutes from './routes/genres.js'
 import statsRoutes from './routes/stats.js'
 import spotifyRoutes from './routes/spotify.js'
+import spotifyBrowserRoutes from './routes/spotifyBrowser.js'
 import youtubeMusicRoutes from './routes/youtubeMusic.js'
 
 dotenv.config()
@@ -82,6 +83,7 @@ app.use('/api/pms', pmsRoutes)
 app.use('/api/genres', genresRoutes)
 app.use('/api/stats', statsRoutes)
 app.use('/api/spotify', spotifyRoutes)
+app.use('/api/spotify/browser', spotifyBrowserRoutes)
 app.use('/api/youtube-music', youtubeMusicRoutes)
 
 // Error handling

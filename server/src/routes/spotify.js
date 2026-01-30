@@ -29,8 +29,16 @@ function generateState() {
 
 // Get redirect URI based on environment
 function getRedirectUri(req) {
+    // Check X-Forwarded headers first (for reverse proxy/Docker environment)
+    const forwardedHost = req.headers['x-forwarded-host']
+    const forwardedProto = req.headers['x-forwarded-proto'] || 'http'
+
+    if (forwardedHost) {
+        return `${forwardedProto}://${forwardedHost}/spotify-callback`
+    }
+
     // Use the origin from the request or fall back to defaults
-    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost:5173'
+    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost'
     return `${origin}/spotify-callback`
 }
 
@@ -483,6 +491,292 @@ router.get('/liked', async (req, res) => {
         })
     } catch (error) {
         console.error('[Spotify] Liked songs error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// ============================================
+// Token-based API (Direct Bearer Token Input)
+// ============================================
+
+// In-memory storage for direct tokens
+let directTokens = {} // { visitorId: { accessToken, connectedAt } }
+
+// POST /api/spotify/token/connect - Connect with direct Bearer token
+router.post('/token/connect', async (req, res) => {
+    const { visitorId, accessToken } = req.body
+
+    if (!accessToken) {
+        return res.status(400).json({ error: 'Access token is required' })
+    }
+
+    const tokenKey = visitorId || 'default'
+
+    try {
+        // Verify token by getting user profile
+        const response = await fetch(`${SPOTIFY_API_URL}/me`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+
+        if (!response.ok) {
+            const error = await response.text()
+            console.error('[Spotify Token] Validation failed:', error)
+            return res.status(401).json({ error: 'Invalid or expired token' })
+        }
+
+        const profile = await response.json()
+
+        // Store the token
+        directTokens[tokenKey] = {
+            accessToken,
+            connectedAt: Date.now()
+        }
+
+        // Also store in userTokens for compatibility
+        userTokens[tokenKey] = {
+            accessToken,
+            refreshToken: null,
+            expiresAt: Date.now() + (3600 * 1000) // Assume 1 hour
+        }
+
+        console.log(`[Spotify Token] Connected: ${profile.display_name}`)
+
+        res.json({
+            success: true,
+            user: {
+                id: profile.id,
+                displayName: profile.display_name,
+                email: profile.email,
+                image: profile.images?.[0]?.url,
+                country: profile.country
+            }
+        })
+    } catch (error) {
+        console.error('[Spotify Token] Connect error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/spotify/token/status - Check token connection status
+router.get('/token/status', async (req, res) => {
+    const { visitorId } = req.query
+    const tokenKey = visitorId || 'default'
+
+    const stored = directTokens[tokenKey]
+    if (!stored) {
+        return res.json({ connected: false })
+    }
+
+    try {
+        // Verify token is still valid
+        const response = await fetch(`${SPOTIFY_API_URL}/me`, {
+            headers: { 'Authorization': `Bearer ${stored.accessToken}` }
+        })
+
+        if (!response.ok) {
+            delete directTokens[tokenKey]
+            delete userTokens[tokenKey]
+            return res.json({ connected: false, error: 'Token expired' })
+        }
+
+        const profile = await response.json()
+
+        res.json({
+            connected: true,
+            user: {
+                id: profile.id,
+                displayName: profile.display_name,
+                image: profile.images?.[0]?.url
+            },
+            connectedAt: stored.connectedAt
+        })
+    } catch (error) {
+        res.json({ connected: false, error: error.message })
+    }
+})
+
+// POST /api/spotify/token/disconnect - Disconnect token
+router.post('/token/disconnect', (req, res) => {
+    const { visitorId } = req.body
+    const tokenKey = visitorId || 'default'
+
+    delete directTokens[tokenKey]
+    delete userTokens[tokenKey]
+
+    res.json({ success: true })
+})
+
+// GET /api/spotify/token/playlists - Get playlists with direct token
+router.get('/token/playlists', async (req, res) => {
+    const { visitorId, limit = 50, offset = 0 } = req.query
+    const tokenKey = visitorId || 'default'
+
+    const stored = directTokens[tokenKey]
+    if (!stored) {
+        return res.status(401).json({ error: 'Not connected. Please enter your Spotify token first.' })
+    }
+
+    try {
+        const response = await fetch(
+            `${SPOTIFY_API_URL}/me/playlists?limit=${limit}&offset=${offset}`,
+            { headers: { 'Authorization': `Bearer ${stored.accessToken}` } }
+        )
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                delete directTokens[tokenKey]
+                return res.status(401).json({ error: 'Token expired. Please reconnect.' })
+            }
+            throw new Error(`Spotify API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        const playlists = data.items.map(p => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            image: p.images?.[0]?.url,
+            trackCount: p.tracks?.total || 0,
+            owner: p.owner?.display_name,
+            public: p.public,
+            externalUrl: p.external_urls?.spotify
+        }))
+
+        res.json({
+            playlists,
+            total: data.total,
+            limit: data.limit,
+            offset: data.offset,
+            hasMore: !!data.next
+        })
+    } catch (error) {
+        console.error('[Spotify Token] Playlists error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// POST /api/spotify/token/import - Import playlist with direct token
+router.post('/token/import', async (req, res) => {
+    const { visitorId, playlistId, userId } = req.body
+    const tokenKey = visitorId || 'default'
+
+    if (!userId) {
+        return res.status(400).json({ error: 'userId is required' })
+    }
+
+    const stored = directTokens[tokenKey]
+    if (!stored) {
+        return res.status(401).json({ error: 'Not connected' })
+    }
+
+    const accessToken = stored.accessToken
+
+    try {
+        // 1. Get playlist info
+        const playlistResponse = await fetch(`${SPOTIFY_API_URL}/playlists/${playlistId}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+
+        if (!playlistResponse.ok) {
+            throw new Error('Failed to fetch playlist')
+        }
+
+        const playlistData = await playlistResponse.json()
+
+        // 2. Get all tracks (handle pagination)
+        let allTracks = []
+        let offset = 0
+        const limit = 100
+
+        while (true) {
+            const tracksResponse = await fetch(
+                `${SPOTIFY_API_URL}/playlists/${playlistId}/tracks?limit=${limit}&offset=${offset}`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
+            )
+
+            if (!tracksResponse.ok) break
+
+            const tracksData = await tracksResponse.json()
+            const tracks = tracksData.items
+                .filter(item => item.track)
+                .map(item => item.track)
+
+            allTracks = allTracks.concat(tracks)
+
+            if (!tracksData.next) break
+            offset += limit
+        }
+
+        console.log(`[Spotify Token] Importing "${playlistData.name}" with ${allTracks.length} tracks`)
+
+        // 3. Create playlist in DB
+        const result = await execute(`
+            INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
+            VALUES (?, ?, ?, ?, 'spotify', ?, 'PMS', 'active')
+        `, [
+            userId,
+            playlistData.name,
+            playlistData.description || '',
+            playlistData.images?.[0]?.url || null,
+            playlistId
+        ])
+
+        const newPlaylistId = result.insertId
+
+        // 4. Insert tracks
+        let importedCount = 0
+        for (let i = 0; i < allTracks.length; i++) {
+            const t = allTracks[i]
+
+            try {
+                let existingTrack = await queryOne(`
+                    SELECT track_id FROM tracks WHERE spotify_id = ? OR (isrc = ? AND isrc IS NOT NULL)
+                `, [t.id, t.external_ids?.isrc])
+
+                let trackId
+
+                if (existingTrack) {
+                    trackId = existingTrack.track_id
+                } else {
+                    const trackResult = await execute(`
+                        INSERT INTO tracks (title, artist, album, duration, isrc, spotify_id, artwork, popularity)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        t.name,
+                        t.artists?.map(a => a.name).join(', '),
+                        t.album?.name,
+                        Math.floor(t.duration_ms / 1000),
+                        t.external_ids?.isrc || null,
+                        t.id,
+                        t.album?.images?.[0]?.url || null,
+                        t.popularity || null
+                    ])
+                    trackId = trackResult.insertId
+                }
+
+                await execute(`
+                    INSERT INTO playlist_tracks (playlist_id, track_id, order_index)
+                    VALUES (?, ?, ?)
+                `, [newPlaylistId, trackId, i])
+
+                importedCount++
+            } catch (trackError) {
+                console.error(`[Spotify Token] Failed to import track "${t.name}":`, trackError.message)
+            }
+        }
+
+        console.log(`[Spotify Token] Import complete: ${importedCount}/${allTracks.length} tracks`)
+
+        res.json({
+            success: true,
+            playlistId: newPlaylistId,
+            title: playlistData.name,
+            importedTracks: importedCount,
+            totalTracks: allTracks.length
+        })
+    } catch (error) {
+        console.error('[Spotify Token] Import error:', error)
         res.status(500).json({ error: error.message })
     }
 })

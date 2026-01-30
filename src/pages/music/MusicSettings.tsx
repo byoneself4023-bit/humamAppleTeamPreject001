@@ -4,13 +4,19 @@ import { spotifyApi, SpotifyPlaylist } from '../../services/api/spotify'
 import { useAuth } from '../../contexts/AuthContext'
 import {
     Music,
-    Link,
     Unlink,
     Download,
     Loader2,
     CheckCircle,
     List,
     Settings,
+    X,
+    AlertCircle,
+    LogIn,
+    Mail,
+    Lock,
+    Eye,
+    EyeOff,
 } from 'lucide-react'
 
 const MusicSettings = () => {
@@ -24,30 +30,17 @@ const MusicSettings = () => {
     const [importingPlaylist, setImportingPlaylist] = useState<string | null>(null)
     const [importedPlaylists, setImportedPlaylists] = useState<Set<string>>(new Set())
 
-    // Check Spotify connection status
-    useEffect(() => {
-        const checkSpotify = async () => {
-            try {
-                const status = await spotifyApi.getAuthStatus()
-                setSpotifyConnected(status.connected)
-                if (status.connected && status.user) {
-                    setSpotifyUser({ displayName: status.user.displayName, image: status.user.image })
-                }
-            } catch (e) {
-                console.error('Spotify status check failed:', e)
-            }
-        }
-        checkSpotify()
+    // Login modal state
+    const [showLoginModal, setShowLoginModal] = useState(false)
+    const [emailInput, setEmailInput] = useState('')
+    const [passwordInput, setPasswordInput] = useState('')
+    const [showPassword, setShowPassword] = useState(false)
+    const [loginLoading, setLoginLoading] = useState(false)
+    const [loginError, setLoginError] = useState('')
 
-        // Listen for login success message
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data?.type === 'SPOTIFY_LOGIN_SUCCESS') {
-                setSpotifyConnected(true)
-                setSpotifyUser({ displayName: event.data.user.displayName, image: event.data.user.image })
-            }
-        }
-        window.addEventListener('message', handleMessage)
-        return () => window.removeEventListener('message', handleMessage)
+    // Check Spotify connection status on mount
+    useEffect(() => {
+        checkSpotifyStatus()
     }, [])
 
     // Load playlists when connected
@@ -57,18 +50,47 @@ const MusicSettings = () => {
         }
     }, [spotifyConnected])
 
-    const handleSpotifyLogin = async () => {
+    const checkSpotifyStatus = async () => {
         try {
-            const authUrl = await spotifyApi.getLoginUrl()
-            window.open(authUrl, 'SpotifyLogin', 'width=500,height=700')
+            const status = await spotifyApi.browserGetStatus()
+            setSpotifyConnected(status.connected)
+            if (status.connected && status.user) {
+                setSpotifyUser({ displayName: status.user.displayName, image: status.user.image })
+            }
         } catch (e) {
+            console.error('Spotify status check failed:', e)
+        }
+    }
+
+    const handleLogin = async () => {
+        if (!emailInput.trim() || !passwordInput.trim()) {
+            setLoginError('이메일과 비밀번호를 입력해주세요')
+            return
+        }
+
+        setLoginLoading(true)
+        setLoginError('')
+
+        try {
+            const response = await spotifyApi.browserLogin(emailInput.trim(), passwordInput)
+            if (response.success) {
+                setSpotifyConnected(true)
+                setSpotifyUser({ displayName: response.user.displayName, image: response.user.image })
+                setShowLoginModal(false)
+                setEmailInput('')
+                setPasswordInput('')
+            }
+        } catch (e: any) {
             console.error('Spotify login failed:', e)
+            setLoginError(e.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+        } finally {
+            setLoginLoading(false)
         }
     }
 
     const handleSpotifyLogout = async () => {
         try {
-            await spotifyApi.logout()
+            await spotifyApi.browserLogout()
             setSpotifyConnected(false)
             setSpotifyUser(null)
             setSpotifyPlaylists([])
@@ -80,10 +102,14 @@ const MusicSettings = () => {
     const loadSpotifyPlaylists = async () => {
         setSpotifyLoading(true)
         try {
-            const response = await spotifyApi.getPlaylists()
+            const response = await spotifyApi.browserGetPlaylists()
             setSpotifyPlaylists(response.playlists)
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to load playlists:', e)
+            if (e.message?.includes('expired') || e.message?.includes('401') || e.message?.includes('Not connected')) {
+                setSpotifyConnected(false)
+                setSpotifyUser(null)
+            }
         } finally {
             setSpotifyLoading(false)
         }
@@ -96,7 +122,7 @@ const MusicSettings = () => {
         }
         setImportingPlaylist(playlist.id)
         try {
-            const result = await spotifyApi.importPlaylist(playlist.id, user.id)
+            const result = await spotifyApi.browserImportPlaylist(playlist.id, user.id)
             if (result.success) {
                 setImportedPlaylists(prev => new Set(prev).add(playlist.id))
                 alert(`"${result.title}" 가져오기 완료! (${result.importedTracks}/${result.totalTracks} 트랙)`)
@@ -138,7 +164,7 @@ const MusicSettings = () => {
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-hud-text-primary">Spotify</h2>
-                            <p className="text-sm text-hud-text-muted">Spotify 플레이리스트를 PMS로 가져오기</p>
+                            <p className="text-sm text-hud-text-muted">Spotify 계정으로 로그인하여 플레이리스트를 가져오기</p>
                         </div>
                     </div>
 
@@ -164,7 +190,7 @@ const MusicSettings = () => {
                                 ) : (
                                     <>
                                         <p className="text-sm text-hud-text-primary">연결 안됨</p>
-                                        <p className="text-xs text-hud-text-muted">Spotify 계정을 연결하세요</p>
+                                        <p className="text-xs text-hud-text-muted">Spotify 계정으로 로그인하세요</p>
                                     </>
                                 )}
                             </div>
@@ -179,11 +205,11 @@ const MusicSettings = () => {
                             </button>
                         ) : (
                             <button
-                                onClick={handleSpotifyLogin}
+                                onClick={() => setShowLoginModal(true)}
                                 className="px-4 py-2 bg-[#1DB954] rounded-lg text-sm text-white font-medium hover:bg-[#1ed760] transition-all flex items-center gap-2"
                             >
-                                <Link className="w-4 h-4" />
-                                연결하기
+                                <LogIn className="w-4 h-4" />
+                                Spotify 로그인
                             </button>
                         )}
                     </div>
@@ -320,6 +346,124 @@ const MusicSettings = () => {
                     </div>
                 </section>
             </main>
+
+            {/* Spotify Login Modal */}
+            {showLoginModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-hud-bg-card border border-hud-border-secondary rounded-xl max-w-md w-full shadow-2xl">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-hud-border-secondary">
+                            <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2">
+                                <div className="w-6 h-6 bg-[#1DB954] rounded flex items-center justify-center">
+                                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
+                                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                                    </svg>
+                                </div>
+                                Spotify 로그인
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowLoginModal(false)
+                                    setEmailInput('')
+                                    setPasswordInput('')
+                                    setLoginError('')
+                                }}
+                                className="text-hud-text-muted hover:text-hud-text-primary"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-4 space-y-4">
+                            {/* Email Input */}
+                            <div>
+                                <label className="block text-sm text-hud-text-secondary mb-2">이메일 또는 사용자명</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hud-text-muted" />
+                                    <input
+                                        type="email"
+                                        value={emailInput}
+                                        onChange={(e) => setEmailInput(e.target.value)}
+                                        placeholder="Spotify 이메일 입력"
+                                        className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg pl-10 pr-4 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954]"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Password Input */}
+                            <div>
+                                <label className="block text-sm text-hud-text-secondary mb-2">비밀번호</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hud-text-muted" />
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={passwordInput}
+                                        onChange={(e) => setPasswordInput(e.target.value)}
+                                        placeholder="비밀번호 입력"
+                                        className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg pl-10 pr-12 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954]"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-hud-text-muted hover:text-hud-text-primary"
+                                    >
+                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Error Message */}
+                            {loginError && (
+                                <div className="flex items-start gap-2 text-hud-accent-error text-sm bg-hud-accent-error/10 rounded-lg p-3">
+                                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                    <span>{loginError}</span>
+                                </div>
+                            )}
+
+                            {/* Info */}
+                            <div className="bg-hud-bg-secondary rounded-lg p-3 text-xs text-hud-text-muted">
+                                <p>* 서버에서 Spotify 웹 브라우저를 통해 로그인합니다.</p>
+                                <p className="mt-1">* 2단계 인증(2FA)이 활성화된 계정은 사용이 제한될 수 있습니다.</p>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="flex gap-3 p-4 border-t border-hud-border-secondary">
+                            <button
+                                onClick={() => {
+                                    setShowLoginModal(false)
+                                    setEmailInput('')
+                                    setPasswordInput('')
+                                    setLoginError('')
+                                }}
+                                className="flex-1 px-4 py-2 bg-hud-bg-secondary rounded-lg text-sm text-hud-text-secondary hover:bg-hud-bg-hover transition-all"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleLogin}
+                                disabled={loginLoading || !emailInput.trim() || !passwordInput.trim()}
+                                className="flex-1 px-4 py-2 bg-[#1DB954] rounded-lg text-sm text-white font-medium hover:bg-[#1ed760] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {loginLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        로그인 중...
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn className="w-4 h-4" />
+                                        로그인
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

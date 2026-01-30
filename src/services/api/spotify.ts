@@ -136,5 +136,88 @@ export const spotifyApi = {
     getLikedSongs: (limit = 50, offset = 0) => {
         const visitorId = getVisitorId()
         return get<SpotifyTracksResponse>(`/spotify/liked?visitorId=${visitorId}&limit=${limit}&offset=${offset}`)
+    },
+
+    // ============================================
+    // Token-based API (Direct Bearer Token Input)
+    // ============================================
+
+    // Connect with direct Bearer token
+    tokenConnect: (accessToken: string) => {
+        const visitorId = getVisitorId()
+        return post<{ success: boolean; user: SpotifyUser }>('/spotify/token/connect', {
+            visitorId,
+            accessToken
+        })
+    },
+
+    // Check token connection status
+    tokenGetStatus: () => {
+        const visitorId = getVisitorId()
+        return get<SpotifyAuthStatus & { connectedAt?: number }>(`/spotify/token/status?visitorId=${visitorId}`)
+    },
+
+    // Disconnect token
+    tokenDisconnect: () => {
+        const visitorId = getVisitorId()
+        return post<{ success: boolean }>('/spotify/token/disconnect', { visitorId })
+    },
+
+    // Get playlists with token
+    tokenGetPlaylists: (limit = 50, offset = 0) => {
+        const visitorId = getVisitorId()
+        return get<SpotifyPlaylistsResponse>(`/spotify/token/playlists?visitorId=${visitorId}&limit=${limit}&offset=${offset}`)
+    },
+
+    // Import playlist with token
+    tokenImportPlaylist: (playlistId: string, userId: number) => {
+        const visitorId = getVisitorId()
+        return post<SpotifyImportResponse>('/spotify/token/import', {
+            visitorId,
+            playlistId,
+            userId
+        })
+    },
+
+    // ============================================
+    // Browser-based API (Playwright Automation)
+    // ============================================
+
+    // Login with email/password via browser automation
+    browserLogin: (email: string, password: string) => {
+        const visitorId = getVisitorId()
+        return post<{ success: boolean; user: SpotifyUser }>('/spotify/browser/login', {
+            visitorId,
+            email,
+            password
+        })
+    },
+
+    // Check browser session status
+    browserGetStatus: () => {
+        const visitorId = getVisitorId()
+        return get<SpotifyAuthStatus & { connectedAt?: number }>(`/spotify/browser/status?visitorId=${visitorId}`)
+    },
+
+    // Logout from browser session
+    browserLogout: () => {
+        const visitorId = getVisitorId()
+        return post<{ success: boolean }>('/spotify/browser/logout', { visitorId })
+    },
+
+    // Get playlists via browser session
+    browserGetPlaylists: (limit = 50, offset = 0) => {
+        const visitorId = getVisitorId()
+        return get<{ playlists: SpotifyPlaylist[]; total: number; hasMore: boolean }>(`/spotify/browser/playlists?visitorId=${visitorId}&limit=${limit}&offset=${offset}`)
+    },
+
+    // Import playlist via browser session
+    browserImportPlaylist: (playlistId: string, userId: number) => {
+        const visitorId = getVisitorId()
+        return post<SpotifyImportResponse>('/spotify/browser/import', {
+            visitorId,
+            playlistId,
+            userId
+        })
     }
 }
