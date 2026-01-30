@@ -12,7 +12,7 @@ export default defineConfig({
     server: {
         host: true,     // 외부 접속 허용 (0.0.0.0)
         port: 5173,     // 포트 번호
-        allowedHosts: ['host.docker.internal', 'localhost'],
+        allowedHosts: true,  // 모든 호스트 허용 (sandbox 환경용)
         proxy: {
             '/api': {
                 target: 'http://localhost:3001',

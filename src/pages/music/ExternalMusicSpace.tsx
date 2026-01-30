@@ -626,6 +626,118 @@ const ExternalMusicSpace = () => {
         }
     }
 
+    // --- iTunes Collection View Detail (Click to open Modal) ---
+    const [viewingCollectionId, setViewingCollectionId] = useState<number | null>(null)
+    
+    const handleViewCollectionDetail = async (collection: ItunesCollection) => {
+        setViewingCollectionId(collection.id)
+        let targetId: number | null = null
+
+        // 1. Find existing playlist by title match
+        const match = playlists.find(p => p.name === collection.title)
+
+        if (match) {
+            targetId = match.id
+        } else {
+            // 2. Import and create playlist if not exists
+            try {
+                showToast(`'${collection.title}' 정보를 저장 중...`, 'success')
+                const albumDetails = await itunesService.getAlbum(collection.id)
+                const result = await playlistsApi.importAlbumAsPlaylist({
+                    title: collection.title,
+                    artist: collection.artist,
+                    coverImage: collection.artwork,
+                    tracks: albumDetails.tracks
+                })
+
+                targetId = result.playlist.id
+
+                // Remove from recommendation lists
+                setRecommendations(prev => prev.filter(r => r.id !== collection.id))
+                setClassicRecs(prev => prev.filter(r => r.id !== collection.id))
+                setJazzRecs(prev => prev.filter(r => r.id !== collection.id))
+                setKpopRecs(prev => prev.filter(r => r.id !== collection.id))
+
+                await fetchPlaylists()
+            } catch (err: any) {
+                // If duplicate (409), try to find the existing one
+                if (err.message?.includes('409') || err.response?.status === 409) {
+                    const refreshed = await playlistsApi.getPlaylists('EMS')
+                    const found = refreshed.playlists.find(p => p.title === collection.title)
+                    if (found) {
+                        targetId = found.id
+                    }
+                } else {
+                    console.error('Import for view failed', err)
+                    showToast('상세 보기 실패', 'error')
+                    setViewingCollectionId(null)
+                    return
+                }
+            }
+        }
+
+        setViewingCollectionId(null)
+
+        // 3. Open modal with the playlist ID
+        if (targetId) {
+            setSelectedDetailId(targetId)
+        }
+    }
+
+    // --- YouTube Playlist View Detail (Click to open Modal) ---
+    const [viewingYoutubeId, setViewingYoutubeId] = useState<string | null>(null)
+    
+    const handleViewYoutubeDetail = async (playlist: YoutubePlaylist) => {
+        setViewingYoutubeId(playlist.id)
+        let targetId: number | null = null
+
+        // 1. Find existing playlist by title match
+        const match = playlists.find(p => p.name === playlist.title)
+
+        if (match) {
+            targetId = match.id
+        } else {
+            // 2. Import playlist if not exists
+            try {
+                showToast(`'${playlist.title}' 정보를 저장 중...`, 'success')
+                const result = await playlistsApi.importPlaylist({
+                    platformPlaylistId: playlist.id,
+                    title: playlist.title,
+                    description: playlist.description || `Imported from YouTube (${playlist.channelTitle})`,
+                    coverImage: playlist.thumbnail,
+                    platform: 'YouTube'
+                })
+
+                targetId = result.playlist.id
+
+                // Remove from search results
+                setYoutubeResults(prev => prev.filter(p => p.id !== playlist.id))
+
+                await fetchPlaylists()
+            } catch (err: any) {
+                if (err.message?.includes('409') || err.response?.status === 409) {
+                    const refreshed = await playlistsApi.getPlaylists('EMS')
+                    const found = refreshed.playlists.find(p => p.title === playlist.title)
+                    if (found) {
+                        targetId = found.id
+                    }
+                } else {
+                    console.error('YouTube import for view failed', err)
+                    showToast('상세 보기 실패', 'error')
+                    setViewingYoutubeId(null)
+                    return
+                }
+            }
+        }
+
+        setViewingYoutubeId(null)
+
+        // 3. Open modal
+        if (targetId) {
+            setSelectedDetailId(targetId)
+        }
+    }
+
     // AI State
     const [isTraining, setIsTraining] = useState(false)
     const [lastTrained, setLastTrained] = useState<Date | null>(null)
@@ -988,7 +1100,11 @@ const ExternalMusicSpace = () => {
                         </h2>
                         <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                             {section.data.map((album) => (
-                                <div key={album.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group">
+                                <div 
+                                    key={album.id} 
+                                    className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group cursor-pointer"
+                                    onClick={() => handleViewCollectionDetail(album)}
+                                >
                                     <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-hud-bg-primary">
                                         {fixImageUrl(album.artwork) ? (
                                             <img
@@ -1001,15 +1117,33 @@ const ExternalMusicSpace = () => {
                                         <div className="w-full h-full flex items-center justify-center">
                                             <Music2 className="w-12 h-12 text-hud-text-muted" />
                                         </div>
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <button
-                                                onClick={() => handleImportAlbum(album)}
-                                                disabled={importingId === album.id}
-                                                className="bg-hud-accent-warning text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all"
-                                            >
-                                                {importingId === album.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <DownloadCloud className="w-4 h-4" />}
-                                                {importingId === album.id ? '가져오는 중...' : '가져오기'}
-                                            </button>
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                            {viewingCollectionId === album.id ? (
+                                                <div className="flex items-center gap-2 text-white">
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                    <span className="font-bold">로딩 중...</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                        상세보기
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleImportAlbum(album)
+                                                        }}
+                                                        disabled={importingId === album.id}
+                                                        className="bg-hud-accent-warning/80 text-hud-bg-primary px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-warning"
+                                                    >
+                                                        {importingId === album.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <DownloadCloud className="w-3 h-3" />}
+                                                        {importingId === album.id ? '가져오는 중...' : '바로 가져오기'}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="font-bold text-hud-text-primary truncate" title={album.title}>{album.title}</div>
@@ -1047,13 +1181,37 @@ const ExternalMusicSpace = () => {
                         {youtubeResults.length > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                                 {youtubeResults.map((playlist) => (
-                                    <div key={playlist.id} className="bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden group hover:border-red-500/50 transition-all">
+                                    <div 
+                                        key={playlist.id} 
+                                        className="bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden group hover:border-red-500/50 transition-all cursor-pointer"
+                                        onClick={() => handleViewYoutubeDetail(playlist)}
+                                    >
                                         <div className="relative aspect-video">
                                             <img src={playlist.thumbnail || ''} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <button onClick={() => handleYoutubeImport(playlist)} disabled={importingYoutubeId === playlist.id} className="bg-red-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-red-600">
-                                                    {importingYoutubeId === playlist.id ? <><Loader2 className="w-4 h-4 animate-spin" /> 가져오는 중...</> : <><DownloadCloud className="w-4 h-4" /> 가져오기</>}
-                                                </button>
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                                {viewingYoutubeId === playlist.id ? (
+                                                    <div className="flex items-center gap-2 text-white">
+                                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                                        <span className="font-bold">로딩 중...</span>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <button className="bg-white text-red-600 px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-gray-100">
+                                                            <Eye className="w-4 h-4" />
+                                                            상세보기
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleYoutubeImport(playlist)
+                                                            }} 
+                                                            disabled={importingYoutubeId === playlist.id} 
+                                                            className="bg-red-500/80 text-white px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-red-600"
+                                                        >
+                                                            {importingYoutubeId === playlist.id ? <><Loader2 className="w-3 h-3 animate-spin" /> 가져오는 중...</> : <><DownloadCloud className="w-3 h-3" /> 바로 가져오기</>}
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="p-3">
