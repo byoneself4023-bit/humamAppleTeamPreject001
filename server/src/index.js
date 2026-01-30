@@ -55,7 +55,13 @@ initDatabase()
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5610', 'http://host.docker.internal:5173'],
+    origin: [
+        'http://localhost',
+        'http://localhost:80',
+        'http://localhost:5173',
+        'http://localhost:5610',
+        'http://host.docker.internal:5173'
+    ],
     credentials: true
 }))
 app.use(express.json())

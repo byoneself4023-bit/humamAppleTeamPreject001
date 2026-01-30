@@ -156,11 +156,10 @@ router.get('/:id', async (req, res) => {
 
         // Process image URL
         let image = playlist.coverImage
-        if (playlist.sourceType === 'Platform' && playlist.externalId && !image?.startsWith('http')) {
-            if (image) {
-                const tidalPath = image.replace(/-/g, '/')
-                image = `https://resources.tidal.com/images/${tidalPath}/640x640.jpg`
-            }
+        // Only convert Tidal UUID images (not local paths or HTTP URLs)
+        if (playlist.sourceType === 'Platform' && playlist.externalId && image && !image.startsWith('http') && !image.startsWith('/')) {
+            const tidalPath = image.replace(/-/g, '/')
+            image = `https://resources.tidal.com/images/${tidalPath}/640x640.jpg`
         }
         playlist.coverImage = image
 
@@ -838,6 +837,52 @@ router.post('/seed', async (req, res) => {
         })
     } catch (error) {
         console.error('[Seed] Error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/playlists/proxy-image - Proxy external images to avoid CORS
+router.get('/proxy-image', async (req, res) => {
+    try {
+        const { url } = req.query
+
+        if (!url || typeof url !== 'string') {
+            return res.status(400).json({ error: 'URL parameter is required' })
+        }
+
+        // Only allow specific domains for security
+        const allowedDomains = [
+            'resources.tidal.com',
+            'i.scdn.co',
+            'is1-ssl.mzstatic.com',
+            'is2-ssl.mzstatic.com',
+            'is3-ssl.mzstatic.com',
+            'is4-ssl.mzstatic.com',
+            'is5-ssl.mzstatic.com'
+        ]
+
+        const urlObj = new URL(url)
+        if (!allowedDomains.includes(urlObj.hostname)) {
+            return res.status(403).json({ error: 'Domain not allowed' })
+        }
+
+        // Fetch the image
+        const response = await fetch(url)
+        if (!response.ok) {
+            return res.status(response.status).json({ error: 'Failed to fetch image' })
+        }
+
+        // Get content type
+        const contentType = response.headers.get('content-type') || 'image/jpeg'
+
+        // Stream the image
+        res.setHeader('Content-Type', contentType)
+        res.setHeader('Cache-Control', 'public, max-age=86400') // Cache for 1 day
+
+        const buffer = await response.arrayBuffer()
+        res.send(Buffer.from(buffer))
+    } catch (error) {
+        console.error('[ProxyImage] Error:', error)
         res.status(500).json({ error: error.message })
     }
 })

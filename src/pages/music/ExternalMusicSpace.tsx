@@ -54,6 +54,19 @@ const mapApiPlaylist = (p: ApiPlaylist): Playlist => {
     }
 }
 
+// Fix image URL (handle Apple Music placeholder URLs and Tidal double slash issue)
+const fixImageUrl = (url?: string, size: number = 300): string | undefined => {
+    if (!url) return undefined
+    let fixed = url
+        .replace('{w}', String(size))
+        .replace('{h}', String(size))
+    // Fix Tidal double slash issue (e.g., /images//images/ -> /images/)
+    fixed = fixed.replace(/\/images\/\/images\//g, '/images/')
+    // Fix any remaining double slashes (except after protocol)
+    fixed = fixed.replace(/([^:])\/\/+/g, '$1/')
+    return fixed
+}
+
 const ExternalMusicSpace = () => {
     const [playlists, setPlaylists] = useState<Playlist[]>([])
     const [loading, setLoading] = useState(true)
@@ -878,14 +891,18 @@ const ExternalMusicSpace = () => {
                                             <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
                                                 {idx + 1}
                                             </div>
-                                            <div className="aspect-square mb-2 rounded-md overflow-hidden bg-gradient-to-br from-green-900/50 to-hud-bg-primary">
-                                                {track.artwork ? (
-                                                    <img src={track.artwork} alt={track.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <Headphones className="w-10 h-10 text-green-500/50" />
-                                                    </div>
-                                                )}
+                                            <div className="aspect-square mb-2 rounded-md overflow-hidden bg-gradient-to-br from-green-900/50 to-hud-bg-primary relative">
+                                                {fixImageUrl(track.artwork) ? (
+                                                    <img
+                                                        src={fixImageUrl(track.artwork)}
+                                                        alt={track.title}
+                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+                                                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                                    />
+                                                ) : null}
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <Headphones className="w-10 h-10 text-green-500/50" />
+                                                </div>
                                             </div>
                                             <div className="font-bold text-hud-text-primary truncate text-sm" title={track.title}>{track.title}</div>
                                             <div className="text-xs text-hud-text-secondary truncate">{track.artist}</div>
@@ -925,14 +942,18 @@ const ExternalMusicSpace = () => {
                                                         onClick={() => setSelectedDetailId(playlist.playlistId)}
                                                         className="min-w-[180px] w-[180px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden hover:border-green-500/50 transition-all cursor-pointer group"
                                                     >
-                                                        <div className="aspect-square relative">
-                                                            {playlist.coverImage ? (
-                                                                <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                                            ) : (
-                                                                <div className="w-full h-full bg-gradient-to-br from-green-900/50 to-hud-bg-primary flex items-center justify-center">
-                                                                    <Disc3 className="w-16 h-16 text-green-500/30" />
-                                                                </div>
-                                                            )}
+                                                        <div className="aspect-square relative bg-gradient-to-br from-green-900/50 to-hud-bg-primary">
+                                                            {fixImageUrl(playlist.coverImage) ? (
+                                                                <img
+                                                                    src={fixImageUrl(playlist.coverImage)}
+                                                                    alt={playlist.title}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+                                                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                                                />
+                                                            ) : null}
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <Disc3 className="w-16 h-16 text-green-500/30" />
+                                                            </div>
                                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                 <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">상세보기</span>
                                                             </div>
@@ -968,8 +989,18 @@ const ExternalMusicSpace = () => {
                         <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                             {section.data.map((album) => (
                                 <div key={album.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group">
-                                    <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                        <img src={album.artwork} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-hud-bg-primary">
+                                        {fixImageUrl(album.artwork) ? (
+                                            <img
+                                                src={fixImageUrl(album.artwork)}
+                                                alt={album.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+                                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                            />
+                                        ) : null}
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <Music2 className="w-12 h-12 text-hud-text-muted" />
+                                        </div>
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <button
                                                 onClick={() => handleImportAlbum(album)}
@@ -1061,7 +1092,17 @@ const ExternalMusicSpace = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                             {trackResults.map((track) => (
                                 <div key={track.id} className="flex items-center gap-3 p-3 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg hover:border-hud-accent-info/50 transition-all">
-                                    <img src={track.artwork} alt={track.title} className="w-12 h-12 rounded object-cover" />
+                                    <div className="w-12 h-12 rounded bg-hud-bg-primary flex items-center justify-center relative overflow-hidden shrink-0">
+                                        {fixImageUrl(track.artwork) && (
+                                            <img
+                                                src={fixImageUrl(track.artwork)}
+                                                alt={track.title}
+                                                className="w-full h-full object-cover absolute inset-0"
+                                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                            />
+                                        )}
+                                        <Music2 className="w-6 h-6 text-hud-text-muted" />
+                                    </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-hud-text-primary truncate">{track.title}</div>
                                         <div className="text-sm text-hud-text-secondary truncate">{track.artist}</div>
@@ -1129,8 +1170,12 @@ const ExternalMusicSpace = () => {
                             <tbody className="divide-y divide-hud-border-secondary">
                                 {filteredPlaylists.length > 0 ? (
                                     filteredPlaylists.map((playlist) => (
-                                        <tr key={playlist.id} className="hover:bg-hud-bg-secondary/50 transition-colors group">
-                                            <td className="p-4">
+                                        <tr
+                                            key={playlist.id}
+                                            className="hover:bg-hud-bg-secondary/50 transition-colors group cursor-pointer"
+                                            onClick={() => setSelectedDetailId(playlist.id)}
+                                        >
+                                            <td className="p-4" onClick={(e) => e.stopPropagation()}>
                                                 <input
                                                     type="checkbox"
                                                     className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
@@ -1138,12 +1183,14 @@ const ExternalMusicSpace = () => {
                                                     onChange={(e) => handleSelectRow(playlist.id, e.target.checked)}
                                                 />
                                             </td>
-                                            <td className="p-4 font-medium text-hud-text-primary">{playlist.name}</td>
+                                            <td className="p-4 font-medium text-hud-text-primary hover:text-hud-accent-primary transition-colors">
+                                                {playlist.name}
+                                            </td>
                                             <td className="p-4 text-hud-text-secondary capitalize">{playlist.source}</td>
                                             <td className="p-4 text-hud-text-secondary">{playlist.trackCount}</td>
                                             <td className="p-4 text-hud-text-muted text-sm">{playlist.addedDate}</td>
                                             <td className="p-4">{getStatusBadge(playlist.status)}</td>
-                                            <td className="p-4 text-right">
+                                            <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                                                 <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => handleAnalyze(playlist.id)}
@@ -1225,7 +1272,17 @@ const ExternalMusicSpace = () => {
                             ) : (
                                 cartTracks.map((track, idx) => (
                                     <div key={`${track.id}-${idx}`} className="flex items-center gap-3 p-3 bg-hud-bg-primary rounded-lg border border-hud-border-secondary">
-                                        <img src={track.artwork} alt={track.title} className="w-10 h-10 rounded object-cover" />
+                                        <div className="w-10 h-10 rounded bg-hud-bg-secondary flex items-center justify-center relative overflow-hidden shrink-0">
+                                            {fixImageUrl(track.artwork) && (
+                                                <img
+                                                    src={fixImageUrl(track.artwork)}
+                                                    alt={track.title}
+                                                    className="w-full h-full object-cover absolute inset-0"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                                />
+                                            )}
+                                            <Music2 className="w-5 h-5 text-hud-text-muted" />
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="font-medium text-hud-text-primary truncate">{track.title}</div>
                                             <div className="text-xs text-hud-text-secondary truncate">{track.artist}</div>

@@ -25,7 +25,52 @@ services:
     networks:
       - musicspace-network
 
-  # Node.js 백엔드
+  # Redis (for JWT refresh tokens)
+  redis:
+    image: redis:7-alpine
+    container_name: musicspace-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - musicspace-network
+
+  # Spring Boot 백엔드 (Java)
+  spring-backend:
+    build:
+      context: ../2TeamFinalProject-BE
+      dockerfile: Dockerfile
+    container_name: musicspace-spring-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-musicspace}
+      DB_PASSWORD: ${DB_PASSWORD:-musicspace123}
+      DB_NAME: ${DB_NAME:-music_space_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-MusicSpaceSecretKeyForJWTAuthentication2024VeryLongKeyHere}
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - musicspace-network
+
+  # Node.js 백엔드 (기존 - 필요시 사용)
   backend:
     build:
       context: ./server
@@ -68,11 +113,13 @@ services:
       - "80:80"
     depends_on:
       - backend
+      - spring-backend
     networks:
       - musicspace-network
 
 volumes:
   mariadb_data:
+  redis_data:
 
 networks:
   musicspace-network:

@@ -17,6 +17,7 @@ async function apiRequest<T>(
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             ...options.headers,
         },
+        credentials: 'include',
     })
 
     if (!response.ok) {
