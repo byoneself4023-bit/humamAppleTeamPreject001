@@ -160,4 +160,9 @@ CREATE TABLE IF NOT EXISTS ems_playlist_for_recommend (
 
 -- Fix authentication plugin for mysql2 compatibility
 ALTER USER 'musicspace'@'%' IDENTIFIED WITH mysql_native_password BY 'musicspace123';
+
+-- 외부 IP 접속 허용 (175.195.36.16)
+CREATE USER IF NOT EXISTS 'musicspace'@'175.195.36.16' IDENTIFIED BY 'musicspace123';
+GRANT ALL PRIVILEGES ON music_space_db.* TO 'musicspace'@'175.195.36.16';
+
 FLUSH PRIVILEGES;
