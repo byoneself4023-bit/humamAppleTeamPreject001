@@ -132,105 +132,105 @@ const MusicLoungeContent = () => {
     }
 
     return (
-        <div className="pb-32 p-4 md:p-6">
-                {/* Hero Section */}
-                <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 relative overflow-hidden">
-                    <div className="relative z-10">
-                        <h1 className="text-4xl font-bold text-hud-accent-primary mb-3">Good Evening!</h1>
-                        <p className="text-lg text-hud-text-secondary mb-6">오늘도 좋은 음악과 함께하세요</p>
+        <div className="p-4 md:p-6 pb-32">
+            {/* Hero Section */}
+            <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 relative overflow-hidden">
+                <div className="relative z-10">
+                    <h1 className="text-4xl font-bold text-hud-accent-primary mb-3">Good Evening!</h1>
+                    <p className="text-lg text-hud-text-secondary mb-6">오늘도 좋은 음악과 함께하세요</p>
 
-                        <div className="flex gap-4">
-                            <button className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all btn-glow">
-                                <Play className="w-5 h-5" fill="currentColor" />
-                                Continue Listening
-                            </button>
-                            <button className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                                <Sparkles className="w-5 h-5" />
-                                Surprise Me
-                            </button>
+                    <div className="flex gap-4">
+                        <button className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all btn-glow">
+                            <Play className="w-5 h-5" fill="currentColor" />
+                            Continue Listening
+                        </button>
+                        <button className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
+                            <Sparkles className="w-5 h-5" />
+                            Surprise Me
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* AI 추천 섹션 */}
+            <section className="mb-8">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
+                            My Playlists
+                            <span className="bg-gradient-to-r from-hud-accent-secondary to-hud-accent-primary px-3 py-1 rounded-full text-xs font-semibold uppercase text-hud-bg-primary">
+                                PMS
+                            </span>
+                        </h2>
+                        <div className="hidden md:flex items-center gap-2 bg-hud-accent-info/10 text-hud-accent-info text-xs px-3 py-1.5 rounded-lg border border-hud-accent-info/20">
+                            <Info size={14} />
+                            <span>PMS에서의 변경(수정/삭제)은 원본 플랫폼(Tidal 등)에 영향을 주지 않습니다.</span>
                         </div>
                     </div>
-                </section>
+                    <a href="/music/external-space" className="text-hud-accent-primary font-medium flex items-center gap-2 hover:text-hud-accent-primary/80 transition-all">
+                        {isSyncing && <RefreshCw className="w-4 h-4 animate-spin" />}
+                        Add More <ArrowRight className="w-4 h-4" />
+                    </a>
+                </div>
 
-                {/* AI 추천 섹션 */}
-                <section className="mb-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
-                                My Playlists
-                                <span className="bg-gradient-to-r from-hud-accent-secondary to-hud-accent-primary px-3 py-1 rounded-full text-xs font-semibold uppercase text-hud-bg-primary">
-                                    PMS
-                                </span>
-                            </h2>
-                            <div className="hidden md:flex items-center gap-2 bg-hud-accent-info/10 text-hud-accent-info text-xs px-3 py-1.5 rounded-lg border border-hud-accent-info/20">
-                                <Info size={14} />
-                                <span>PMS에서의 변경(수정/삭제)은 원본 플랫폼(Tidal 등)에 영향을 주지 않습니다.</span>
-                            </div>
-                        </div>
-                        <a href="/music/external-space" className="text-hud-accent-primary font-medium flex items-center gap-2 hover:text-hud-accent-primary/80 transition-all">
-                            {isSyncing && <RefreshCw className="w-4 h-4 animate-spin" />}
-                            Add More <ArrowRight className="w-4 h-4" />
+                {loading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 text-hud-accent-primary animate-spin" />
+                    </div>
+                ) : playlists.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {playlists.map((playlist, index) => (
+                            <PlaylistCard
+                                key={playlist.id}
+                                title={playlist.title}
+                                trackCount={playlist.trackCount || 0}
+                                confidenceScore={playlist.aiScore ? Math.round(Number(playlist.aiScore)) : undefined}
+                                coverImage={playlist.coverImage}
+                                icon={getIcon(index)}
+                                onClick={() => handlePlaylistClick(playlist.id)}
+                                onEdit={(e) => handleEditClick(e, playlist)}
+                                onDelete={(e) => handleDeleteClick(e, playlist)}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="hud-card rounded-xl p-8 text-center">
+                        <Music className="w-16 h-16 text-hud-text-muted mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-hud-text-primary mb-2">플레이리스트가 없습니다</h3>
+                        <p className="text-hud-text-secondary mb-4">The Cargo에서 플레이리스트를 가져와 시작하세요</p>
+                        <a
+                            href="/music/external-space"
+                            className="inline-flex items-center gap-2 bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold hover:bg-hud-accent-primary/90 transition-all"
+                        >
+                            <ArrowRight className="w-5 h-5" />
+                            The Cargo로 이동
                         </a>
                     </div>
+                )}
+            </section>
 
-                    {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 text-hud-accent-primary animate-spin" />
-                        </div>
-                    ) : playlists.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {playlists.map((playlist, index) => (
-                                <PlaylistCard
-                                    key={playlist.id}
-                                    title={playlist.title}
-                                    trackCount={playlist.trackCount || 0}
-                                    confidenceScore={playlist.aiScore ? Math.round(Number(playlist.aiScore)) : undefined}
-                                    coverImage={playlist.coverImage}
-                                    icon={getIcon(index)}
-                                    onClick={() => handlePlaylistClick(playlist.id)}
-                                    onEdit={(e) => handleEditClick(e, playlist)}
-                                    onDelete={(e) => handleDeleteClick(e, playlist)}
-                                />
+            {/* Stats Sidebar */}
+            {playlists.length > 0 && (
+                <section className="grid lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-3 hud-card hud-card-bottom rounded-xl p-6">
+                        <h3 className="text-lg font-bold text-hud-text-primary mb-6">Your Stats</h3>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {[
+                                { value: playlists.length.toString(), label: 'Total Playlists', color: 'text-hud-accent-primary' },
+                                { value: playlists.reduce((sum, p) => sum + (p.trackCount || 0), 0).toString(), label: 'Total Tracks', color: 'text-hud-accent-secondary' },
+                                { value: playlists.filter(p => p.status === 'PRP').length.toString(), label: 'Verified', color: 'text-hud-accent-info' },
+                                { value: playlists.filter(p => Number(p.aiScore) > 80).length.toString(), label: 'High Score', color: 'text-hud-accent-success' }
+                            ].map((stat) => (
+                                <div key={stat.label} className="text-center">
+                                    <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
+                                    <div className="text-xs text-hud-text-muted uppercase tracking-wider">{stat.label}</div>
+                                </div>
                             ))}
                         </div>
-                    ) : (
-                        <div className="hud-card rounded-xl p-8 text-center">
-                            <Music className="w-16 h-16 text-hud-text-muted mx-auto mb-4" />
-                            <h3 className="text-xl font-bold text-hud-text-primary mb-2">플레이리스트가 없습니다</h3>
-                            <p className="text-hud-text-secondary mb-4">The Cargo에서 플레이리스트를 가져와 시작하세요</p>
-                            <a
-                                href="/music/external-space"
-                                className="inline-flex items-center gap-2 bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold hover:bg-hud-accent-primary/90 transition-all"
-                            >
-                                <ArrowRight className="w-5 h-5" />
-                                The Cargo로 이동
-                            </a>
-                        </div>
-                    )}
+                    </div>
                 </section>
-
-                {/* Stats Sidebar */}
-                {playlists.length > 0 && (
-                    <section className="grid lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-3 hud-card hud-card-bottom rounded-xl p-6">
-                            <h3 className="text-lg font-bold text-hud-text-primary mb-6">Your Stats</h3>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                {[
-                                    { value: playlists.length.toString(), label: 'Total Playlists', color: 'text-hud-accent-primary' },
-                                    { value: playlists.reduce((sum, p) => sum + (p.trackCount || 0), 0).toString(), label: 'Total Tracks', color: 'text-hud-accent-secondary' },
-                                    { value: playlists.filter(p => p.status === 'PRP').length.toString(), label: 'Verified', color: 'text-hud-accent-info' },
-                                    { value: playlists.filter(p => Number(p.aiScore) > 80).length.toString(), label: 'High Score', color: 'text-hud-accent-success' }
-                                ].map((stat) => (
-                                    <div key={stat.label} className="text-center">
-                                        <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-                                        <div className="text-xs text-hud-text-muted uppercase tracking-wider">{stat.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )}
+            )}
 
             <MusicPlayer />
 

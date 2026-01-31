@@ -1,12 +1,23 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
-import { tidalApi } from '../../services/api/tidal'
+import { post } from '../../services/api'
+
+// Get visitorId for session management
+const getVisitorId = () => {
+    let visitorId = localStorage.getItem('tidal_visitor_id')
+    if (!visitorId) {
+        visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        localStorage.setItem('tidal_visitor_id', visitorId)
+    }
+    return visitorId
+}
 
 const TidalCallback = () => {
     const [searchParams] = useSearchParams()
     const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
     const [errorMsg, setErrorMsg] = useState('')
+    const [user, setUser] = useState<{ username: string } | null>(null)
     const isExchanging = useRef(false) // Flag to ensure handleExchange runs only once
 
     // Check if this is a popup window
@@ -33,13 +44,19 @@ const TidalCallback = () => {
 
     const handleExchange = async (code: string) => {
         try {
-            const response = await tidalApi.exchangeCode(code)
+            const visitorId = getVisitorId()
+            const redirectUri = `${window.location.origin}/tidal-callback`
+            const response = await post<any>('/tidal/auth/exchange', { code, visitorId, redirectUri })
             if (response.success) {
                 setStatus('success')
+                if (response.user) {
+                    setUser({ username: response.user.username || 'Tidal User' })
+                }
 
                 const messageData = {
                     type: 'TIDAL_LOGIN_SUCCESS',
                     response,
+                    visitorId,
                     timestamp: Date.now()
                 }
 
@@ -84,12 +101,15 @@ const TidalCallback = () => {
 
                 {status === 'success' && (
                     <div className="flex flex-col items-center gap-4">
-                        <CheckCircle className="w-12 h-12 text-hud-accent-success" />
-                        <h2 className="text-xl font-bold text-hud-accent-success">Login Successful!</h2>
+                        <CheckCircle className="w-12 h-12 text-teal-400" />
+                        <h2 className="text-xl font-bold text-teal-400">연결 성공!</h2>
+                        {user && (
+                            <p className="text-hud-text-primary">환영합니다, {user.username}님!</p>
+                        )}
                         <p className="text-hud-text-secondary">이 창은 자동으로 닫힙니다.</p>
                         <button
                             onClick={() => window.close()}
-                            className="mt-2 bg-hud-accent-success text-white px-4 py-2 rounded-lg hover:bg-hud-accent-success/90"
+                            className="mt-2 bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-900"
                         >
                             창 닫기
                         </button>

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext'
 import MainLayout from './layouts/MainLayout'
 import MusicLayout from './layouts/MusicLayout'
+import MusicHomeLayout from './layouts/MusicHomeLayout'
 
 // Dashboard
 import Dashboard from './pages/dashboard/Dashboard'
@@ -72,6 +73,7 @@ import MusicLounge from './pages/music/MusicLounge'
 import ExternalMusicSpace from './pages/music/ExternalMusicSpace'
 import MusicHome from './pages/music/MusicHome'
 import GatewayMusicSpace from './pages/music/GatewayMusicSpace'
+import MusicConnections from './pages/music/MusicConnections'
 import MusicSettings from './pages/music/MusicSettings'
 
 function App() {
@@ -147,12 +149,17 @@ function App() {
                         <Route path="chart/chartjs" element={<ChartJs />} />
                     </Route>
 
-                    {/* Music Pages (with MusicLayout) */}
-                    <Route path="/music" element={<MusicLayout />}>
+                    {/* Music Home (without sidebar) */}
+                    <Route path="/music" element={<MusicHomeLayout />}>
                         <Route path="home" element={<MusicHome />} />
+                    </Route>
+
+                    {/* Music Pages (with sidebar) */}
+                    <Route path="/music" element={<MusicLayout />}>
                         <Route path="lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
                         <Route path="lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
                         <Route path="external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
+                        <Route path="connections" element={<ProtectedRoute><MusicConnections /></ProtectedRoute>} />
                         <Route path="settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />
                     </Route>
 

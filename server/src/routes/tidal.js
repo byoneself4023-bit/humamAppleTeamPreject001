@@ -1,5 +1,6 @@
 import express from 'express'
 import crypto from 'crypto'
+import { query, queryOne, execute } from '../config/db.js'
 
 const router = express.Router()
 
@@ -12,6 +13,10 @@ let tokenExpiry = null
 let userToken = null
 let userTokenExpiry = null
 let pkceVerifier = null // Store PKCE code_verifier
+
+// Per-visitor token storage for multi-user support
+let visitorTokens = {} // { visitorId: { accessToken, refreshToken, expiresAt, userId, countryCode } }
+let visitorPkceVerifiers = {} // { visitorId: codeVerifier }
 
 // PKCE Helper Functions
 function generateCodeVerifier() {
@@ -189,7 +194,15 @@ router.post('/auth/token', async (req, res) => {
 // GET /api/tidal/auth/login - Redirect to Tidal Login (with PKCE)
 router.get('/auth/login', (req, res) => {
     const clientId = process.env.TIDAL_CLIENT_ID
-    const redirectUri = 'http://localhost:5173/tidal-callback'
+    // Get redirect URI from request info
+    let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost:5173'
+
+    // Fix: Force localhost:5173 for localhost to match whitelist
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        origin = 'http://localhost:5173'
+    }
+
+    const redirectUri = `${origin}/tidal-callback`
 
     // Generate PKCE code_verifier and code_challenge
     pkceVerifier = generateCodeVerifier()
@@ -210,12 +223,25 @@ router.get('/auth/login', (req, res) => {
 // POST /api/tidal/auth/exchange - Exchange Code for Token (with PKCE)
 router.post('/auth/exchange', async (req, res) => {
     try {
-        const { code } = req.body
+        const { code, visitorId, redirectUri: clientRedirectUri } = req.body
         const clientId = process.env.TIDAL_CLIENT_ID
         const clientSecret = process.env.TIDAL_CLIENT_SECRET
-        const redirectUri = 'http://localhost:5173/tidal-callback'
 
-        if (!pkceVerifier) {
+        // Get redirect URI - use client-provided or default
+        const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost:5173'
+        const redirectUri = clientRedirectUri || `${origin}/tidal-callback`
+
+        // Get PKCE verifier - check visitor-specific first, then global
+        let codeVerifier = null
+        if (visitorId && visitorPkceVerifiers[visitorId]) {
+            codeVerifier = visitorPkceVerifiers[visitorId]
+            delete visitorPkceVerifiers[visitorId]
+        } else if (pkceVerifier) {
+            codeVerifier = pkceVerifier
+            pkceVerifier = null
+        }
+
+        if (!codeVerifier) {
             return res.status(400).json({ success: false, error: 'PKCE verifier not found. Please restart login flow.' })
         }
 
@@ -227,11 +253,8 @@ router.post('/auth/exchange', async (req, res) => {
                 'Authorization': `Basic ${credentials}`,
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}&code_verifier=${pkceVerifier}`
+            body: `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}&code_verifier=${codeVerifier}`
         })
-
-        // Clear the verifier after use
-        pkceVerifier = null
 
         const data = await response.json()
 
@@ -266,9 +289,22 @@ router.post('/auth/exchange', async (req, res) => {
             console.warn('[Tidal] Session fetch failed:', sessionResp.status)
         }
 
+        // Store token for this visitor
+        if (visitorId) {
+            visitorTokens[visitorId] = {
+                accessToken: token,
+                refreshToken: data.refresh_token,
+                expiresAt: Date.now() + (data.expires_in * 1000),
+                userId: user.userId,
+                countryCode: user.countryCode,
+                username: user.username
+            }
+        }
+
         res.json({
             success: true,
             user,
+            visitorId,
             access_token: token,
             refresh_token: data.refresh_token,
             expires_in: data.expires_in
@@ -282,7 +318,27 @@ router.post('/auth/exchange', async (req, res) => {
 // GET /api/tidal/auth/status - Check auth status
 router.get('/auth/status', async (req, res) => {
     try {
-        // Just verify if we can get a token (client or user)
+        const { visitorId } = req.query
+
+        // Check visitor-specific token first
+        if (visitorId && visitorTokens[visitorId]) {
+            const tokens = visitorTokens[visitorId]
+            if (Date.now() < tokens.expiresAt) {
+                return res.json({
+                    authenticated: true,
+                    userConnected: true,
+                    user: {
+                        userId: tokens.userId,
+                        countryCode: tokens.countryCode,
+                        username: tokens.username || 'Tidal User'
+                    }
+                })
+            } else {
+                delete visitorTokens[visitorId]
+            }
+        }
+
+        // Fallback to global user token
         const hasUserToken = !!(userToken && userTokenExpiry && Date.now() < userTokenExpiry)
 
         if (!hasUserToken) {
@@ -299,6 +355,239 @@ router.get('/auth/status', async (req, res) => {
             authenticated: false,
             error: error.message
         })
+    }
+})
+
+// GET /api/tidal/auth/login-url - Get OAuth URL for popup login
+router.get('/auth/login-url', (req, res) => {
+    try {
+        const clientId = process.env.TIDAL_CLIENT_ID
+        const { visitorId } = req.query
+
+        if (!clientId) {
+            return res.status(503).json({ error: 'Tidal client ID not configured' })
+        }
+
+        // Get redirect URI from request origin
+        // Get redirect URI from request info
+        let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost:5173'
+
+        // Fix: If on Docker (localhost:80), force localhost:5173 to match Tidal Portal whitelist
+        // This allows the login page to load (fixes 11102), even if the redirect might need port mapping adjustment later.
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+            origin = 'http://localhost:5173'
+        }
+
+        const redirectUri = `${origin}/tidal-callback`
+
+        // Generate PKCE
+        const codeVerifier = generateCodeVerifier()
+        const codeChallenge = generateCodeChallenge(codeVerifier)
+
+        // Store verifier for this visitor
+        if (visitorId) {
+            visitorPkceVerifiers[visitorId] = codeVerifier
+        } else {
+            pkceVerifier = codeVerifier
+        }
+
+        const scopes = ['r_usr', 'w_usr', 'w_sub'].join(' ')
+
+        const authUrl = `https://login.tidal.com/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
+
+        res.json({ authUrl })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// POST /api/tidal/auth/logout - Logout user
+router.post('/auth/logout', (req, res) => {
+    const { visitorId } = req.body
+
+    if (visitorId && visitorTokens[visitorId]) {
+        delete visitorTokens[visitorId]
+    }
+
+    // Also clear global token
+    userToken = null
+    userTokenExpiry = null
+
+    res.json({ success: true })
+})
+
+// GET /api/tidal/user/playlists - Get user's playlists
+router.get('/user/playlists', async (req, res) => {
+    try {
+        const { visitorId } = req.query
+
+        let token = null
+        let countryCode = 'US'
+
+        // Get visitor-specific token
+        if (visitorId && visitorTokens[visitorId]) {
+            const tokens = visitorTokens[visitorId]
+            if (Date.now() < tokens.expiresAt) {
+                token = tokens.accessToken
+                countryCode = tokens.countryCode || 'US'
+            }
+        }
+
+        // Fallback to global user token
+        if (!token && userToken && userTokenExpiry && Date.now() < userTokenExpiry) {
+            token = userToken
+        }
+
+        if (!token) {
+            return res.status(401).json({ error: 'Not authenticated. Please connect Tidal first.' })
+        }
+
+        const playlists = await fetchTidalPlaylists(token)
+
+        // Format playlists for frontend
+        const formattedPlaylists = playlists.map(p => ({
+            uuid: p.uuid,
+            title: p.title,
+            numberOfTracks: p.numberOfTracks || 0,
+            trackCount: p.numberOfTracks || 0,
+            image: p.squareImage ? `https://resources.tidal.com/images/${p.squareImage.replace(/-/g, '/')}/320x320.jpg` : null,
+            description: p.description
+        }))
+
+        res.json({ playlists: formattedPlaylists })
+    } catch (error) {
+        console.error('[Tidal] User playlists error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// POST /api/tidal/import - Import playlist to PMS
+router.post('/import', async (req, res) => {
+    try {
+        const { visitorId, playlistId, userId } = req.body
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' })
+        }
+
+        let token = null
+        let countryCode = 'KR'
+
+        // Get visitor-specific token
+        if (visitorId && visitorTokens[visitorId]) {
+            const tokens = visitorTokens[visitorId]
+            if (Date.now() < tokens.expiresAt) {
+                token = tokens.accessToken
+                countryCode = tokens.countryCode || 'KR'
+            }
+        }
+
+        // Fallback to global user token
+        if (!token && userToken && userTokenExpiry && Date.now() < userTokenExpiry) {
+            token = userToken
+        }
+
+        if (!token) {
+            return res.status(401).json({ error: 'Not authenticated' })
+        }
+
+        // 1. Get playlist info
+        const playlistResponse = await fetch(`${TIDAL_API_URL}/playlists/${playlistId}?countryCode=${countryCode}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.tidal.v1+json'
+            }
+        })
+
+        if (!playlistResponse.ok) {
+            throw new Error('Failed to fetch playlist info')
+        }
+
+        const playlist = await playlistResponse.json()
+
+        // 2. Get playlist tracks
+        const tracks = await fetchTidalPlaylistTracks(token, playlistId, countryCode)
+
+        console.log(`[Tidal] Importing playlist "${playlist.title}" with ${tracks.length} tracks`)
+
+        // 3. Create playlist in DB
+        const coverImage = playlist.squareImage
+            ? `https://resources.tidal.com/images/${playlist.squareImage.replace(/-/g, '/')}/320x320.jpg`
+            : null
+
+        const result = await execute(`
+            INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
+            VALUES (?, ?, ?, ?, 'tidal', ?, 'PMS', 'active')
+        `, [
+            userId,
+            playlist.title,
+            playlist.description || '',
+            coverImage,
+            playlistId
+        ])
+
+        const newPlaylistId = result.insertId
+
+        // 4. Insert tracks
+        let importedCount = 0
+        for (let i = 0; i < tracks.length; i++) {
+            const item = tracks[i]
+            const track = item.item || item
+
+            if (!track || !track.title) continue
+
+            try {
+                const artist = track.artist?.name || track.artists?.[0]?.name || 'Unknown'
+                const artwork = track.album?.cover
+                    ? `https://resources.tidal.com/images/${track.album.cover.replace(/-/g, '/')}/320x320.jpg`
+                    : null
+
+                // Check if track already exists
+                let existingTrack = await queryOne(`
+                    SELECT track_id FROM tracks WHERE tidal_id = ?
+                `, [track.id?.toString()])
+
+                let trackId
+
+                if (existingTrack) {
+                    trackId = existingTrack.track_id
+                } else {
+                    const trackResult = await execute(`
+                        INSERT INTO tracks (title, artist, tidal_id, artwork, duration)
+                        VALUES (?, ?, ?, ?, ?)
+                    `, [
+                        track.title,
+                        artist,
+                        track.id?.toString(),
+                        artwork,
+                        track.duration || null
+                    ])
+                    trackId = trackResult.insertId
+                }
+
+                await execute(`
+                    INSERT INTO playlist_tracks (playlist_id, track_id, order_index)
+                    VALUES (?, ?, ?)
+                `, [newPlaylistId, trackId, i])
+
+                importedCount++
+            } catch (trackError) {
+                console.error(`[Tidal] Failed to import track "${track.title}":`, trackError.message)
+            }
+        }
+
+        console.log(`[Tidal] Import complete: ${importedCount}/${tracks.length} tracks`)
+
+        res.json({
+            success: true,
+            playlistId: newPlaylistId,
+            title: playlist.title,
+            importedTracks: importedCount,
+            totalTracks: tracks.length
+        })
+    } catch (error) {
+        console.error('[Tidal] Import error:', error)
+        res.status(500).json({ error: error.message })
     }
 })
 

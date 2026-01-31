@@ -123,13 +123,27 @@ const MusicSidebar = () => {
                 <div className="px-3">
                     <div className="text-xs text-hud-text-muted uppercase tracking-wider mb-3 px-3">설정</div>
                     <nav className="space-y-1">
-                        <Link to="/music/settings" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary transition-all">
-                            <Settings className="w-5 h-5" />
-                            <span>Settings</span>
-                        </Link>
-                        <Link to="/music/connections" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary transition-all">
+                        <Link
+                            to="/music/connections"
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/connections')
+                                ? 'menu-active text-hud-accent-primary'
+                                : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
+                            }`}
+                        >
                             <Plug className="w-5 h-5" />
                             <span>Connections</span>
+                        </Link>
+                        <Link
+                            to="/music/settings"
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/settings')
+                                ? 'menu-active text-hud-accent-primary'
+                                : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
+                            }`}
+                        >
+                            <Settings className="w-5 h-5" />
+                            <span>Settings</span>
                         </Link>
                     </nav>
                 </div>

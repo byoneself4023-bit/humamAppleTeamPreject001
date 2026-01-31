@@ -261,3 +261,20 @@ EMS 특화 기능
 자동 업데이트: 매일 새벽 자동 수집
 중복 제거: 이미 PMS에 있는 곡 필터링
 일괄 분석: 모든 플레이리스트 한 번에 AI 필터링
+
+
+
+## 학습관련 API
+**GMS용 EMS 테이블 생성 - ems_playlist_for_recommend 테이블 생성 (주요필드 : playlist_id, user_id, created_at, updated_at, status = valid or invalid)**
+### Spring Boot API 
+    1. successFirstModel(userid):void - Spring Boot API => makeEmsPlaylistsForRecommend 호출
+    2. makeEmsPlaylistsForRecommend(userid, recommendCount=3):Array - Spring Boot API - userid를 위한 EMS Playlist를 recommentCount개 만들고 startEvaluationEMSPlaylist() FastAPI 호출
+    
+    3. sendRecommendTracts(userid, tracts):Array - Spring Boot API - 학습 끝 - recommend tract 전달 받는다. .....
+
+### FastAPI
+    1. startMakeModel(userid):void - FastAPI - 모델 생성 후 회원의 플레이리스트로 학습, 완료시 Spring Boot successFirstModel 호출
+    2. startEvaluationEMSPlaylist(userid):Array - FastAPI - userid의 EMS Playlist를 평가 필터링후 결과 배열로 리턴 
+    
+-------------------------------------------------------------------
+회원가입성공 -> PMS 생성 완료 -> FastAPI startMakeModel(userid): 모델 학습 생성 완료 ->S pring Boot successFirstModel(userid) -> makeEmsPlaylistsForRecommend(userid) -> startEvaluationEMSPlaylist 호출(userid) -> sendRecommendTracts(userid, tracts) 호출
