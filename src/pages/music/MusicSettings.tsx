@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import MusicSidebar from '../../components/music/MusicSidebar'
 import { spotifyApi, SpotifyPlaylist } from '../../services/api/spotify'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -136,11 +135,7 @@ const MusicSettings = () => {
     }
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg">
-            <MusicSidebar />
-
-            {/* Main Content */}
-            <main className="ml-0 md:ml-64 p-4 md:p-6">
+        <div className="p-4 md:p-6">
                 {/* Header */}
                 <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8">
                     <div className="flex items-center gap-4">
@@ -345,7 +340,6 @@ const MusicSettings = () => {
                         </a>
                     </div>
                 </section>
-            </main>
 
             {/* Spotify Login Modal */}
             {showLoginModal && (

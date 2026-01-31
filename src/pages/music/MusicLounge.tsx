@@ -1,4 +1,3 @@
-import MusicSidebar from '../../components/music/MusicSidebar'
 import MusicPlayer from '../../components/music/MusicPlayer'
 import PlaylistCard from '../../components/music/PlaylistCard'
 import TrackListOverlay from '../../components/music/TrackListOverlay'
@@ -133,11 +132,7 @@ const MusicLoungeContent = () => {
     }
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg pb-32">
-            <MusicSidebar />
-
-            {/* Main Content */}
-            <main className="ml-0 md:ml-64 p-4 md:p-6">
+        <div className="pb-32 p-4 md:p-6">
                 {/* Hero Section */}
                 <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 relative overflow-hidden">
                     <div className="relative z-10">
@@ -236,7 +231,6 @@ const MusicLoungeContent = () => {
                         </div>
                     </section>
                 )}
-            </main>
 
             <MusicPlayer />
 

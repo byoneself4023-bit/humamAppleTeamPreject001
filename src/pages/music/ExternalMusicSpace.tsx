@@ -1,4 +1,3 @@
-import MusicSidebar from '../../components/music/MusicSidebar'
 import UploadZone from '../../components/music/UploadZone'
 import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
 import { Filter, Search, Brain, Eye, Trash2, ArrowRight, RefreshCw, Link as LinkIcon, CheckCircle, AlertCircle, Loader2, Music2, ExternalLink, Sparkles, ShoppingBag, X, Save } from 'lucide-react'
@@ -628,7 +627,7 @@ const ExternalMusicSpace = () => {
 
     // --- iTunes Collection View Detail (Click to open Modal) ---
     const [viewingCollectionId, setViewingCollectionId] = useState<number | null>(null)
-    
+
     const handleViewCollectionDetail = async (collection: ItunesCollection) => {
         setViewingCollectionId(collection.id)
         let targetId: number | null = null
@@ -686,7 +685,7 @@ const ExternalMusicSpace = () => {
 
     // --- YouTube Playlist View Detail (Click to open Modal) ---
     const [viewingYoutubeId, setViewingYoutubeId] = useState<string | null>(null)
-    
+
     const handleViewYoutubeDetail = async (playlist: YoutubePlaylist) => {
         setViewingYoutubeId(playlist.id)
         let targetId: number | null = null
@@ -868,10 +867,7 @@ const ExternalMusicSpace = () => {
     )
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg">
-            <MusicSidebar />
-
-            <main className="ml-0 md:ml-64 p-4 md:p-6">
+        <div className="p-4 md:p-6">
                 {/* Header */}
                 <header className="mb-8">
                     <h1 className="text-3xl font-bold text-hud-accent-warning mb-2">The Cargo</h1>
@@ -906,7 +902,7 @@ const ExternalMusicSpace = () => {
                                 <div key={song.id} className="min-w-[160px] w-[160px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-pink-500/50 transition-all group">
                                     <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
                                         <img src={song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300')} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <button
                                                 onClick={() => addToCart({
                                                     id: parseInt(song.id),
@@ -947,7 +943,7 @@ const ExternalMusicSpace = () => {
                                 <div key={playlist.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-rose-500/50 transition-all group flex flex-col">
                                     <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
                                         <img src={playlist.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400')} alt={playlist.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <button
                                                 onClick={() => handleViewDetail(playlist.id, playlist.attributes.name, 'playlists')}
                                                 className="bg-rose-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-rose-600"
@@ -1066,7 +1062,7 @@ const ExternalMusicSpace = () => {
                                                             <div className="w-full h-full flex items-center justify-center">
                                                                 <Disc3 className="w-16 h-16 text-green-500/30" />
                                                             </div>
-                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                 <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">상세보기</span>
                                                             </div>
                                                         </div>
@@ -1100,8 +1096,8 @@ const ExternalMusicSpace = () => {
                         </h2>
                         <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
                             {section.data.map((album) => (
-                                <div 
-                                    key={album.id} 
+                                <div
+                                    key={album.id}
                                     className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group cursor-pointer"
                                     onClick={() => handleViewCollectionDetail(album)}
                                 >
@@ -1117,32 +1113,19 @@ const ExternalMusicSpace = () => {
                                         <div className="w-full h-full flex items-center justify-center">
                                             <Music2 className="w-12 h-12 text-hud-text-muted" />
                                         </div>
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                             {viewingCollectionId === album.id ? (
                                                 <div className="flex items-center gap-2 text-white">
                                                     <Loader2 className="w-5 h-5 animate-spin" />
                                                     <span className="font-bold">로딩 중...</span>
                                                 </div>
                                             ) : (
-                                                <>
-                                                    <button
-                                                        className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                        상세보기
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleImportAlbum(album)
-                                                        }}
-                                                        disabled={importingId === album.id}
-                                                        className="bg-hud-accent-warning/80 text-hud-bg-primary px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-warning"
-                                                    >
-                                                        {importingId === album.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <DownloadCloud className="w-3 h-3" />}
-                                                        {importingId === album.id ? '가져오는 중...' : '바로 가져오기'}
-                                                    </button>
-                                                </>
+                                                <button
+                                                    className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    상세보기
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -1181,36 +1164,24 @@ const ExternalMusicSpace = () => {
                         {youtubeResults.length > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                                 {youtubeResults.map((playlist) => (
-                                    <div 
-                                        key={playlist.id} 
+                                    <div
+                                        key={playlist.id}
                                         className="bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden group hover:border-red-500/50 transition-all cursor-pointer"
                                         onClick={() => handleViewYoutubeDetail(playlist)}
                                     >
                                         <div className="relative aspect-video">
                                             <img src={playlist.thumbnail || ''} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                                                 {viewingYoutubeId === playlist.id ? (
                                                     <div className="flex items-center gap-2 text-white">
                                                         <Loader2 className="w-5 h-5 animate-spin" />
                                                         <span className="font-bold">로딩 중...</span>
                                                     </div>
                                                 ) : (
-                                                    <>
-                                                        <button className="bg-white text-red-600 px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-gray-100">
-                                                            <Eye className="w-4 h-4" />
-                                                            상세보기
-                                                        </button>
-                                                        <button 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleYoutubeImport(playlist)
-                                                            }} 
-                                                            disabled={importingYoutubeId === playlist.id} 
-                                                            className="bg-red-500/80 text-white px-3 py-1.5 rounded-full text-sm font-bold flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-red-600"
-                                                        >
-                                                            {importingYoutubeId === playlist.id ? <><Loader2 className="w-3 h-3 animate-spin" /> 가져오는 중...</> : <><DownloadCloud className="w-3 h-3" /> 바로 가져오기</>}
-                                                        </button>
-                                                    </>
+                                                    <button className="bg-white text-red-600 px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-gray-100">
+                                                        <Eye className="w-4 h-4" />
+                                                        상세보기
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
@@ -1387,7 +1358,6 @@ const ExternalMusicSpace = () => {
                         </table>
                     </div>
                 </section>
-            </main>
 
             {/* Floating Cart Button */}
             <div className="fixed bottom-8 right-8 z-50">

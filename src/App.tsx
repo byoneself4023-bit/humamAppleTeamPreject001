@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import MainLayout from './layouts/MainLayout'
+import MusicLayout from './layouts/MusicLayout'
 
 // Dashboard
 import Dashboard from './pages/dashboard/Dashboard'
@@ -146,12 +147,14 @@ function App() {
                         <Route path="chart/chartjs" element={<ChartJs />} />
                     </Route>
 
-                    {/* Music Pages */}
-                    <Route path="music/home" element={<MusicHome />} />
-                    <Route path="music/lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
-                    <Route path="music/lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
-                    <Route path="music/external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
-                    <Route path="music/settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />
+                    {/* Music Pages (with MusicLayout) */}
+                    <Route path="/music" element={<MusicLayout />}>
+                        <Route path="home" element={<MusicHome />} />
+                        <Route path="lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
+                        <Route path="lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
+                        <Route path="external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
+                        <Route path="settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />
+                    </Route>
 
                     {/* 404 Fallback */}
                     <Route path="*" element={<Error404 />} />

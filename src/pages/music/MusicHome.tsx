@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom'
-import { Music, Users, Disc, Crown, Star, TrendingUp, ArrowRight, Play, Heart, Sparkles, Loader2, RefreshCw, LogIn, UserPlus, LogOut, User } from 'lucide-react'
+import { Music, Users, Disc, Crown, Star, TrendingUp, ArrowRight, Play, Heart, Sparkles, Loader2, RefreshCw } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { playlistsApi, Playlist } from '../../services/api/playlists'
 import { tidalApi } from '../../services/api/tidal'
 import { itunesService } from '../../services/api/itunes'
 import { youtubeApi } from '../../services/api/youtube'
 import { statsApi, BestArtist, BestPlaylist, BestTrack, BestAlbum, HomeStats } from '../../services/api/stats'
-import { useAuth } from '../../contexts/AuthContext'
 
 interface TopTrack {
     title: string
@@ -14,7 +13,6 @@ interface TopTrack {
 }
 
 const MusicHome = () => {
-    const { user, isAuthenticated, logout } = useAuth()
     const [loading, setLoading] = useState(true)
     const [seeding, setSeeding] = useState(false)
     const [stats, setStats] = useState<HomeStats>({ totalPlaylists: 0, totalTracks: 0, aiPending: 0, likes: 0 })
@@ -195,7 +193,7 @@ const MusicHome = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-hud-bg-primary hud-grid-bg flex items-center justify-center">
+            <div className="flex items-center justify-center py-20">
                 <div className="text-center">
                     <Loader2 className="w-12 h-12 text-hud-accent-primary animate-spin mx-auto mb-4" />
                     <p className="text-hud-text-secondary">음악 데이터 로딩 중...</p>
@@ -205,51 +203,7 @@ const MusicHome = () => {
     }
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg">
-            {/* Header */}
-            <header className="bg-hud-bg-secondary/80 backdrop-blur-md border-b border-hud-border-secondary sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Music className="w-8 h-8 text-hud-accent-primary" />
-                        <span className="text-2xl font-bold text-hud-accent-primary text-glow">MusicSpace</span>
-                    </div>
-                    <nav className="hidden md:flex items-center gap-6">
-                        <Link to="/" className="text-hud-accent-primary font-medium">HOME</Link>
-                        <Link to="/music/lounge" className="text-hud-text-secondary hover:text-hud-accent-success transition-colors">PMS</Link>
-                        <Link to="/music/lab" className="text-hud-text-secondary hover:text-hud-accent-warning transition-colors">GMS</Link>
-                        <Link to="/music/external-space" className="text-hud-text-secondary hover:text-hud-accent-info transition-colors">EMS</Link>
-                        <div className="flex items-center gap-3 ml-4 pl-4 border-l border-hud-border-secondary">
-                            {isAuthenticated ? (
-                                <>
-                                    <div className="flex items-center gap-2 text-hud-text-secondary">
-                                        <div className="w-8 h-8 bg-gradient-to-br from-hud-accent-primary to-hud-accent-info rounded-full flex items-center justify-center">
-                                            <User className="w-4 h-4 text-white" />
-                                        </div>
-                                        <span className="text-hud-text-primary font-medium">{user?.name}</span>
-                                    </div>
-                                    <button
-                                        onClick={logout}
-                                        className="flex items-center gap-1.5 text-hud-text-muted hover:text-hud-accent-danger transition-colors"
-                                    >
-                                        <LogOut className="w-4 h-4" /> 로그아웃
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <Link to="/login" className="flex items-center gap-1.5 text-hud-text-secondary hover:text-hud-accent-primary transition-colors">
-                                        <LogIn className="w-4 h-4" /> 로그인
-                                    </Link>
-                                    <Link to="/register" className="flex items-center gap-1.5 bg-hud-accent-primary text-hud-bg-primary px-3 py-1.5 rounded-lg font-medium hover:bg-hud-accent-primary/90 transition-all">
-                                        <UserPlus className="w-4 h-4" /> 회원가입
-                                    </Link>
-                                </>
-                            )}
-                        </div>
-                    </nav>
-                </div>
-            </header>
-
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Hero Section */}
                 <section className="hud-card hud-card-bottom rounded-xl p-6 md:p-10 mb-8 bg-gradient-to-br from-hud-accent-info/20 to-hud-accent-primary/10">
                     <div className="flex flex-col md:flex-row items-center gap-6">
@@ -543,7 +497,6 @@ const MusicHome = () => {
                         ))}
                     </div>
                 </section>
-            </main>
         </div>
     )
 }

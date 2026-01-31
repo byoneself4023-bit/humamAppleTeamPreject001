@@ -1,4 +1,3 @@
-import MusicSidebar from '../../components/music/MusicSidebar'
 import { Brain, Check, X, Play, Pause, SkipForward, Music, Star, ArrowRight, Eye, ThumbsUp, ThumbsDown, Sparkles, Filter, Loader2 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { playlistsApi, Playlist } from '../../services/api/playlists'
@@ -54,10 +53,7 @@ const GatewayMusicSpace = () => {
     const highScorePlaylists = playlists.filter(p => Number(p.aiScore) >= 85)
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg">
-            <MusicSidebar />
-
-            <main className="ml-0 md:ml-64 p-4 md:p-6">
+        <div className="p-4 md:p-6">
                 {/* Header */}
                 <header className="mb-6">
                     <h1 className="text-2xl md:text-3xl font-bold text-hud-accent-warning mb-2">The Lab (GMS)</h1>
@@ -251,7 +247,6 @@ const GatewayMusicSpace = () => {
                         </div>
                     </section>
                 )}
-            </main>
         </div>
     )
 }
