@@ -15,17 +15,25 @@ const MusicHeader = () => {
 
     return (
         <header className="bg-hud-bg-secondary/80 backdrop-blur-md border-b border-hud-border-secondary sticky top-0 z-40 md:ml-64">
-            <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-end">
+            <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                {/* <div className="flex items-center gap-4">
+                    <Link to="/" className="flex items-center gap-2">
+                        <img src="/vite.svg" alt="MusicSpace" className="w-8 h-8" />
+                        <span className="text-xl font-bold bg-gradient-to-r from-hud-accent-primary to-hud-accent-info bg-clip-text text-transparent hidden sm:block">
+                            MusicSpace
+                        </span>
+                    </Link>
+                </div> */}
+
                 <nav className="flex items-center gap-6">
                     {navItems.map((item) => (
                         <Link
                             key={item.path}
                             to={item.path}
-                            className={`font-medium transition-colors ${
-                                location.pathname === item.path
-                                    ? item.color
-                                    : 'text-hud-text-secondary hover:' + item.color
-                            }`}
+                            className={`font-medium transition-colors ${location.pathname === item.path
+                                ? item.color
+                                : 'text-hud-text-secondary hover:' + item.color
+                                }`}
                         >
                             {item.label}
                         </Link>

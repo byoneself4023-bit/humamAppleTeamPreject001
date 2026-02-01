@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, ExternalLink, Loader2, AlertCircle, Music, Copy, Check, Smartphone, Globe } from 'lucide-react'
+import { X, ExternalLink, Loader2, Check, Copy } from 'lucide-react'
 import { tidalApi } from '../../services/api/tidal'
-import Button from '../common/Button'
 
 interface TidalLoginModalProps {
     isOpen: boolean
@@ -15,9 +14,11 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
     const [userCode, setUserCode] = useState<string | null>(null)
     const [verificationUri, setVerificationUri] = useState<string | null>(null)
     const [expiresIn, setExpiresIn] = useState<number>(0)
+    const [copied, setCopied] = useState(false)
 
     const pollTimerRef = useRef<NodeJS.Timeout | null>(null)
     const isMounted = useRef(true)
+    const hasInitialized = useRef(false)
 
     useEffect(() => {
         isMounted.current = true
@@ -29,10 +30,13 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
 
     useEffect(() => {
         if (isOpen) {
-            resetState()
+            if (!hasInitialized.current && !userCode) {
+                initDeviceAuth()
+            }
         } else {
             stopPolling()
             resetState()
+            hasInitialized.current = false
         }
     }, [isOpen])
 
@@ -41,9 +45,9 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
         setError(null)
         setUserCode(null)
         setVerificationUri(null)
+        setExpiresIn(0)
     }
 
-    const [copied, setCopied] = useState(false)
     const handleCopyCode = () => {
         if (userCode) {
             navigator.clipboard.writeText(userCode)
@@ -61,6 +65,7 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
 
     const initDeviceAuth = async () => {
         try {
+            hasInitialized.current = true
             setLoading(true)
             setError(null)
 
@@ -85,8 +90,10 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
             }
         } catch (err: any) {
             if (isMounted.current) {
+                console.error("Device Auth Init Failed:", err);
                 setError(err.message || 'Failed to initialize Tidal login')
                 setLoading(false)
+                hasInitialized.current = false // Allow retry
             }
         }
     }
@@ -105,9 +112,9 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
                         onClose()
                     }
                 } else if (response.error && response.error !== 'authorization_pending') {
-                    stopPolling()
-                    if (isMounted.current) {
-                        setError(response.error_description || response.error)
+                    // Only stop on fatal errors
+                    if (response.error !== 'slow_down') {
+                        // console.warn('Polling status:', response.error)
                     }
                 }
             } catch (err) {
@@ -116,78 +123,11 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
         }, intervalSeconds * 1000)
     }
 
-    // Web Flow (Popup) Support
-    useEffect(() => {
-        const handleLoginSuccess = (data: any) => {
-            onSuccess(data)
-            onClose()
-            // Clear the storage item
-            localStorage.removeItem('tidal_login_result')
-        }
-
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data?.type === 'TIDAL_LOGIN_SUCCESS') {
-                handleLoginSuccess(event.data.response)
-            }
-        }
-
-        const handleStorage = (event: StorageEvent) => {
-            if (event.key === 'tidal_login_result' && event.newValue) {
-                try {
-                    const data = JSON.parse(event.newValue)
-                    if (data.type === 'TIDAL_LOGIN_SUCCESS') {
-                        handleLoginSuccess(data.response)
-                    }
-                } catch (e) {
-                    console.error('Failed to parse storage data', e)
-                }
-            }
-        }
-
-        window.addEventListener('message', handleMessage)
-        window.addEventListener('storage', handleStorage)
-
-        // Also check if result is already there (if the window was opened/closed quickly)
-        const existingResult = localStorage.getItem('tidal_login_result')
-        if (existingResult) {
-            try {
-                const data = JSON.parse(existingResult)
-                if (data.type === 'TIDAL_LOGIN_SUCCESS') {
-                    // Check if message is fresh (last 30 seconds)
-                    if (Date.now() - data.timestamp < 30000) {
-                        handleLoginSuccess(data.response)
-                    }
-                }
-            } catch (e) { }
-        }
-
-        return () => {
-            window.removeEventListener('message', handleMessage)
-            window.removeEventListener('storage', handleStorage)
-        }
-    }, [onSuccess, onClose])
-
-    const handleWebLogin = () => {
-        const width = 600
-        const height = 800
-        const left = window.screen.width / 2 - width / 2
-        const top = window.screen.height / 2 - height / 2
-
-        // Clear any old results before starting
-        localStorage.removeItem('tidal_login_result')
-
-        window.open(
-            `${window.location.origin}/api/tidal/auth/login`,
-            'TidalLogin',
-            `width=${width},height=${height},top=${top},left=${left},noopener,noreferrer`
-        )
-    }
-
     if (!isOpen) return null
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-hud-bg-card border border-hud-border-secondary rounded-xl max-w-md w-full shadow-2xl relative overflow-hidden">
+            <div className="bg-hud-bg-card border border-hud-border-secondary rounded-xl max-w-md w-full shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="p-6 border-b border-hud-border-secondary flex items-center justify-between">
                     <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
                         <div className="w-8 h-8 bg-black text-white rounded flex items-center justify-center font-bold font-serif">T</div>
@@ -198,91 +138,65 @@ const TidalLoginModal = ({ isOpen, onClose, onSuccess }: TidalLoginModalProps) =
                     </button>
                 </div>
 
-                <div className="p-2 space-y-6">
+                <div className="p-6 flex flex-col items-center min-h-[300px] justify-center">
                     {loading ? (
-                        <div className="py-20 flex flex-col items-center justify-center gap-4">
+                        <div className="flex flex-col items-center gap-4">
                             <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
-                            <p className="text-gray-400 animate-pulse">인증 정보를 가져오는 중...</p>
+                            <p className="text-gray-400 animate-pulse">인증 코드를 생성하고 있습니다...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center gap-4 text-center">
+                            <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center text-red-500">
+                                <X size={24} />
+                            </div>
+                            <p className="text-red-400">{error}</p>
+                            <button
+                                onClick={() => initDeviceAuth()}
+                                className="px-4 py-2 bg-hud-bg-secondary hover:bg-hud-bg-primary border border-hud-border-secondary rounded text-sm text-hud-text-primary transition-colors"
+                            >
+                                다시 시도
+                            </button>
                         </div>
                     ) : userCode ? (
-                        <div className="flex flex-col items-center py-4 animate-in fade-in zoom-in duration-300">
-                            <div className="mb-6 text-center">
-                                <p className="text-cyan-400 font-medium mb-1">복사된 코드를 아래 링크에서 입력하세요</p>
-                                <p className="text-xs text-gray-500">인증이 완료되면 이 창은 자동으로 닫힙니다</p>
+                        <div className="flex flex-col items-center w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="text-center mb-6">
+                                <h3 className="text-lg font-medium text-white mb-2">기기 인증 코드</h3>
+                                <p className="text-sm text-gray-400">
+                                    아래 코드를 Tidal 인증 페이지에 입력하세요.
+                                </p>
                             </div>
 
-                            <div className="relative group w-full max-w-[280px] mb-8">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                                <div className="relative bg-black rounded-xl p-6 border border-white/10 flex flex-col items-center">
-                                    <span className="text-4xl font-black text-white tracking-[0.2em] font-mono leading-none">
+                            <div className="relative group w-full max-w-[240px] mb-8">
+                                <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
+                                <div className="relative bg-black rounded-lg p-6 border border-white/10 flex flex-col items-center">
+                                    <span className="text-3xl font-black text-white tracking-[0.2em] font-mono">
                                         {userCode}
                                     </span>
-                                    <button
-                                        onClick={handleCopyCode}
-                                        className={`mt-4 w-full py-2 rounded-lg flex items-center justify-center gap-2 transition-all ${copied ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/5 hover:bg-white/10 text-gray-400 border-white/10'} border`}
-                                    >
-                                        {copied ? <Check size={16} /> : <Copy size={16} />}
-                                        <span className="text-sm font-medium">{copied ? '복사 완료' : '코드 복사'}</span>
-                                    </button>
                                 </div>
+                                <button
+                                    onClick={handleCopyCode}
+                                    className="absolute -right-12 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white transition-colors"
+                                    title="Copy Code"
+                                >
+                                    {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
+                                </button>
                             </div>
 
                             <a
-                                href={verificationUri || '#'}
+                                href={verificationUri || 'https://link.tidal.com'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="group/link flex items-center gap-2 py-3 px-8 bg-white text-black rounded-lg font-bold hover:bg-cyan-50 transition-all text-base"
+                                className="w-full py-3 bg-white text-black rounded font-bold hover:bg-cyan-50 transition-colors flex items-center justify-center gap-2 mb-4"
                             >
-                                Tidal 인증 사이트로 이동
-                                <ExternalLink size={18} className="group-hover/link:translate-x-1 group-hover/link:-translate-y-1 transition-transform" />
+                                Tidal 로그인 페이지 열기 <ExternalLink size={16} />
                             </a>
 
-                            <button
-                                onClick={() => { setUserCode(null); stopPolling(); }}
-                                className="mt-8 text-sm text-gray-500 hover:text-white transition-colors"
-                            >
-                                다른 방법으로 로그인
-                            </button>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <Loader2 size={12} className="animate-spin" />
+                                <span>로그인 확인 중입니다...</span>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4 py-2">
-                            {/* Device Auth - Recommended */}
-                            <button
-                                onClick={initDeviceAuth}
-                                className="group relative flex flex-col items-start p-6 bg-[#1a1a1a] rounded-2xl border border-white/5 hover:border-cyan-500/50 transition-all text-left"
-                            >
-                                <div className="absolute top-4 right-4 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold px-2 py-1 rounded">권장</div>
-                                <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <Smartphone className="w-6 h-6 text-cyan-400" />
-                                </div>
-                                <h3 className="text-lg font-bold text-white mb-2">기기 코드로 로그인</h3>
-                                <p className="text-sm text-gray-400 leading-relaxed">
-                                    가장 안정적인 방식입니다. 표시되는 6자리 코드를 입력하여 안전하게 연동하세요.
-                                </p>
-                            </button>
-
-                            {/* Web Auth */}
-                            <button
-                                onClick={handleWebLogin}
-                                className="group flex flex-col items-start p-6 bg-[#1a1a1a] rounded-2xl border border-white/5 hover:border-white/20 transition-all text-left"
-                            >
-                                <div className="w-12 h-12 bg-gray-500/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <Globe className="w-6 h-6 text-gray-400" />
-                                </div>
-                                <h3 className="text-lg font-bold text-white mb-2">웹 브라우저로 로그인</h3>
-                                <p className="text-sm text-gray-400 leading-relaxed">
-                                    팝업창을 통해 평소처럼 아이디/비밀번호로 로그인합니다.
-                                </p>
-                            </button>
-
-                            {error && (
-                                <div className="mt-2 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-500 text-sm">
-                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                                    <span>{error}</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    ) : null}
                 </div>
             </div>
         </div>

@@ -3,7 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import Button from '../../components/common/Button'
 import TidalLoginModal from '../../components/auth/TidalLoginModal'
-import { login } from '../../services/api/auth'
+import { login, setAuthProvider } from '../../services/api/auth'
+import { tidalApi } from '../../services/api/tidal'
 import { useAuth } from '../../contexts/AuthContext'
 
 const Login = () => {
@@ -41,8 +42,26 @@ const Login = () => {
         }
     }
 
-    const handleTidalSuccess = (userData: any) => {
-        setUser(userData)
+    const handleTidalSuccess = async (response: any) => {
+        // Sync Tidal playlists if token is available
+        if (response.accessToken) {
+            try {
+                await tidalApi.syncTidal({
+                    tidalAuthData: {
+                        access_token: response.accessToken,
+                        refresh_token: response.refreshToken,
+                        expires_in: response.expiresIn
+                    }
+                })
+            } catch (e) {
+                console.error("Tidal sync failed", e)
+            }
+        }
+
+        // Handle user data structure (backend returns { success: true, user: {...}, ... })
+        const user = response.user || response
+        setUser(user)
+        setAuthProvider('tidal')
         navigate(from, { replace: true })
         setIsTidalModalOpen(false)
     }

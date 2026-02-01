@@ -106,5 +106,10 @@ export const tidalApi = {
     }> => {
         const visitorId = getVisitorId()
         return post('/tidal/import', { visitorId, playlistId, userId })
+    },
+
+    // Sync Tidal playlists
+    syncTidal: async (data: { tidalAuthData: { access_token: string; refresh_token?: string; expires_in?: number } }) => {
+        return post('/tidal/sync', data)
     }
 }

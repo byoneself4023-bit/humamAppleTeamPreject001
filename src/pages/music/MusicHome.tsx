@@ -204,299 +204,299 @@ const MusicHome = () => {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Hero Section */}
-                <section className="hud-card hud-card-bottom rounded-xl p-6 md:p-10 mb-8 bg-gradient-to-br from-hud-accent-info/20 to-hud-accent-primary/10">
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                        <div className="flex-1">
-                            <h1 className="text-3xl md:text-4xl font-bold text-hud-text-primary mb-3">Welcome Back!</h1>
-                            <p className="text-hud-text-secondary mb-6">오늘의 추천 음악을 확인하고 새로운 발견을 시작하세요</p>
-                            <div className="flex flex-wrap gap-3">
-                                <Link to="/music/lounge" className="bg-hud-accent-primary text-hud-bg-primary px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all btn-glow">
-                                    <Play className="w-4 h-4" fill="currentColor" /> 음악 감상하기
-                                </Link>
-                                <Link to="/music/lab" className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                                    <Sparkles className="w-4 h-4" /> 새 추천 확인
-                                </Link>
-                            </div>
-                        </div>
-                        <div className="w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-hud-accent-primary to-hud-accent-info rounded-2xl flex items-center justify-center">
-                            <Music className="w-16 h-16 md:w-20 md:h-20 text-white" />
-                        </div>
-                    </div>
-                </section>
-
-                {/* Quick Stats */}
-                <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                    {[
-                        { label: '총 플레이리스트', value: stats.totalPlaylists.toLocaleString(), icon: Disc, color: 'hud-accent-primary' },
-                        { label: '저장된 트랙', value: stats.totalTracks.toLocaleString(), icon: Music, color: 'hud-accent-secondary' },
-                        { label: 'AI 추천 대기', value: stats.aiPending.toLocaleString(), icon: Sparkles, color: 'hud-accent-warning' },
-                        { label: '좋아요', value: stats.likes.toLocaleString(), icon: Heart, color: 'hud-accent-danger' },
-                    ].map((stat) => (
-                        <div key={stat.label} className="hud-card hud-card-bottom rounded-xl p-4 text-center">
-                            <stat.icon className={`w-6 h-6 mx-auto mb-2 text-${stat.color}`} />
-                            <div className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</div>
-                            <div className="text-xs text-hud-text-muted">{stat.label}</div>
-                        </div>
-                    ))}
-                </section>
-
-                {/* Empty State - Show if no data */}
-                {stats.totalPlaylists === 0 && (
-                    <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 text-center border-2 border-dashed border-hud-border-secondary">
-                        <Music className="w-16 h-16 text-hud-text-muted mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-hud-text-primary mb-2">아직 음악 데이터가 없습니다</h3>
-                        <p className="text-hud-text-secondary mb-6">외부 플랫폼에서 플레이리스트를 가져와서 시작하세요</p>
-                        <div className="flex justify-center gap-4">
-                            <button
-                                onClick={handleForceSeed}
-                                disabled={seeding}
-                                className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all"
-                            >
-                                {seeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                                {seeding ? '데이터 로드 중...' : '자동으로 데이터 불러오기'}
-                            </button>
-                            <Link to="/music/external-space" className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                                <ArrowRight className="w-5 h-5" /> EMS로 이동
+            {/* Hero Section */}
+            <section className="hud-card hud-card-bottom rounded-xl p-6 md:p-10 mb-8 bg-gradient-to-br from-hud-accent-info/20 to-hud-accent-primary/10">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="flex-1">
+                        <h1 className="text-3xl md:text-4xl font-bold text-hud-text-primary mb-3">Welcome Back!</h1>
+                        <p className="text-hud-text-secondary mb-6">오늘의 추천 음악을 확인하고 새로운 발견을 시작하세요</p>
+                        <div className="flex flex-wrap gap-3">
+                            <Link to="/music/lounge" className="bg-hud-accent-primary text-hud-bg-primary px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all btn-glow">
+                                <Play className="w-4 h-4" fill="currentColor" /> 음악 감상하기
+                            </Link>
+                            <Link to="/music/lab" className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
+                                <Sparkles className="w-4 h-4" /> 새 추천 확인
                             </Link>
                         </div>
-                    </section>
-                )}
-
-                {/* Best Artists */}
-                <section className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
-                            <Users className="w-5 h-5 text-hud-accent-primary" /> 인기 아티스트
-                        </h2>
-                        <a href="#" className="text-hud-accent-primary text-sm flex items-center gap-1 hover:underline">
-                            전체보기 <ArrowRight className="w-4 h-4" />
-                        </a>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                        {(bestArtists.length > 0 ? bestArtists : [
-                            { name: 'IU', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
-                            { name: 'BTS', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
-                            { name: 'NewJeans', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
-                            { name: 'Aespa', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
-                            { name: 'BLACKPINK', playCount: 0, viewCount: 0, likeCount: 0, image: undefined }
-                        ]).map((artist, idx) => (
-                            <div key={artist.name} className="hud-card hud-card-bottom rounded-xl p-4 text-center hover:scale-105 transition-transform cursor-pointer group">
-                                <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-hud-bg-secondary shadow-lg relative">
-                                    {artist.image ? (
-                                        <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary flex items-center justify-center text-white font-bold text-xl">
-                                            {artist.name.charAt(0)}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="font-medium text-hud-text-primary text-sm truncate px-2">{artist.name}</div>
-                                <div className="text-xs text-hud-text-muted">
-                                    {artist.playCount > 0 ? `${artist.playCount.toLocaleString()} plays` : `#${idx + 1}`}
-                                </div>
-                            </div>
-                        ))}
+                    <div className="w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-hud-accent-primary to-hud-accent-info rounded-2xl flex items-center justify-center">
+                        <Music className="w-16 h-16 md:w-20 md:h-20 text-white" />
                     </div>
-                </section>
+                </div>
+            </section>
 
-                {/* Platform Best 5 */}
-                <section className="mb-8">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                        <TrendingUp className="w-5 h-5 text-hud-accent-warning" /> 플랫폼별 베스트 5
-                    </h2>
-                    <div className="grid md:grid-cols-3 gap-4">
-                        {[
-                            { name: 'Tidal', color: 'from-blue-500 to-cyan-400', tracks: tidalTracks },
-                            { name: 'YouTube Music', color: 'from-red-500 to-red-600', tracks: youtubeTracks },
-                            { name: 'Apple Music', color: 'from-pink-500 to-rose-500', tracks: appleTracks },
-                        ].map((platform) => (
-                            <div key={platform.name} className="hud-card hud-card-bottom rounded-xl overflow-hidden">
-                                <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold`}>
-                                    {platform.name} Top 5
-                                </div>
-                                <div className="p-4 space-y-2">
-                                    {platform.tracks.length > 0 ? platform.tracks.map((track, idx) => (
-                                        <div key={`${track.title}-${idx}`} className="flex items-center gap-3 text-sm">
-                                            <span className="w-5 h-5 bg-hud-bg-secondary rounded-full flex items-center justify-center text-xs font-medium text-hud-text-muted">{idx + 1}</span>
-                                            <span className="text-hud-text-primary truncate flex-1">{track.title} - {track.artist}</span>
-                                        </div>
-                                    )) : (
-                                        <div className="text-hud-text-muted text-sm text-center py-4">데이터 로딩 중...</div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+            {/* Quick Stats */}
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {[
+                    { label: '총 플레이리스트', value: stats.totalPlaylists.toLocaleString(), icon: Disc, color: 'hud-accent-primary' },
+                    { label: '저장된 트랙', value: stats.totalTracks.toLocaleString(), icon: Music, color: 'hud-accent-secondary' },
+                    { label: 'AI 추천 대기', value: stats.aiPending.toLocaleString(), icon: Sparkles, color: 'hud-accent-warning' },
+                    { label: '좋아요', value: stats.likes.toLocaleString(), icon: Heart, color: 'hud-accent-danger' },
+                ].map((stat) => (
+                    <div key={stat.label} className="hud-card hud-card-bottom rounded-xl p-4 text-center">
+                        <stat.icon className={`w-6 h-6 mx-auto mb-2 text-${stat.color}`} />
+                        <div className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</div>
+                        <div className="text-xs text-hud-text-muted">{stat.label}</div>
                     </div>
-                </section>
+                ))}
+            </section>
 
-                {/* Platform Playlists */}
-                {gmsPlaylists.length > 0 && (
-                    <section className="mb-8">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                            <Disc className="w-5 h-5 text-hud-accent-info" /> 플랫폼 추천 플레이리스트
-                        </h2>
-                        <div className="grid gap-6">
-                            {[
-                                { name: 'Tidal', label: 'Tidal에서 지금 핫한', prefix: 'tidal_', color: 'from-blue-500 to-cyan-400', borderColor: 'border-blue-500' },
-                                { name: 'Apple Music', label: 'Apple Music 인기 앨범', prefix: 'itunes_', color: 'from-pink-500 to-rose-500', borderColor: 'border-pink-500' },
-                                { name: 'Spotify', label: 'Spotify 추천 플리', prefix: 'spotify_', color: 'from-green-500 to-emerald-400', borderColor: 'border-green-500' },
-                                { name: 'YouTube', label: 'YouTube 뮤직 Pick', prefix: 'youtube_', color: 'from-red-500 to-red-600', borderColor: 'border-red-500' },
-                            ].map((platform) => {
-                                const allPlatformPlaylists = gmsPlaylists.filter(p => p.externalId?.startsWith(platform.prefix))
-                                // 랜덤으로 5개 선택
-                                const platformPlaylists = getRandomItems(allPlatformPlaylists, 5)
-                                if (platformPlaylists.length === 0) return null
-                                return (
-                                    <div key={platform.name} className={`hud-card hud-card-bottom rounded-xl overflow-hidden border-l-4 ${platform.borderColor}`}>
-                                        <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold flex items-center gap-2`}>
-                                            <Disc className="w-5 h-5" />
-                                            {platform.label}
-                                        </div>
-                                        <div className="p-4">
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                                                {platformPlaylists.map((playlist) => (
-                                                    <Link
-                                                        key={playlist.id}
-                                                        to={`/music/lab`}
-                                                        className="group cursor-pointer"
-                                                    >
-                                                        <div className="aspect-square bg-hud-bg-secondary rounded-lg overflow-hidden mb-2 relative">
-                                                            {playlist.coverImage ? (
-                                                                <img
-                                                                    src={playlist.coverImage}
-                                                                    alt={playlist.title}
-                                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                                                />
-                                                            ) : (
-                                                                <div className={`w-full h-full bg-gradient-to-br ${platform.color} flex items-center justify-center`}>
-                                                                    <Music className="w-8 h-8 text-white/70" />
-                                                                </div>
-                                                            )}
-                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <Play className="w-8 h-8 text-white" fill="white" />
-                                                            </div>
-                                                        </div>
-                                                        <h4 className="text-sm font-medium text-hud-text-primary truncate">{playlist.title}</h4>
-                                                        <p className="text-xs text-hud-text-muted truncate">{playlist.description}</p>
-                                                    </Link>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </section>
-                )}
-
-                {/* Recommended Playlists */}
-                <section className="mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
-                            <Star className="w-5 h-5 text-hud-accent-success" /> 추천 플레이리스트 {recommendedPlaylists.length > 0 ? `${recommendedPlaylists.length}선` : ''}
-                        </h2>
-                        <Link to="/music/lab" className="text-hud-accent-primary text-sm flex items-center gap-1 hover:underline">
-                            GMS에서 더보기 <ArrowRight className="w-4 h-4" />
+            {/* Empty State - Show if no data */}
+            {stats.totalPlaylists === 0 && (
+                <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 text-center border-2 border-dashed border-hud-border-secondary">
+                    <Music className="w-16 h-16 text-hud-text-muted mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-hud-text-primary mb-2">아직 음악 데이터가 없습니다</h3>
+                    <p className="text-hud-text-secondary mb-6">외부 플랫폼에서 플레이리스트를 가져와서 시작하세요</p>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={handleForceSeed}
+                            disabled={seeding}
+                            className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all"
+                        >
+                            {seeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                            {seeding ? '데이터 로드 중...' : '자동으로 데이터 불러오기'}
+                        </button>
+                        <Link to="/music/external-space" className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
+                            <ArrowRight className="w-5 h-5" /> EMS로 이동
                         </Link>
                     </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {recommendedPlaylists.length > 0 ? recommendedPlaylists.map((playlist) => (
-                            <div key={playlist.id} className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group">
-                                <div className="w-full aspect-video bg-gradient-to-br from-hud-accent-success to-hud-accent-primary rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                                    {playlist.coverImage ? (
-                                        <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Music className="w-12 h-12 text-white/50" />
-                                    )}
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Play className="w-10 h-10 text-white" fill="white" />
-                                    </div>
-                                </div>
-                                <h3 className="font-semibold text-hud-text-primary mb-1 truncate">{playlist.title}</h3>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-hud-text-muted">{playlist.trackCount || 0} tracks</span>
-                                    <span className="bg-hud-accent-success/20 text-hud-accent-success px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
-                                        <Star className="w-3 h-3" fill="currentColor" /> {playlist.aiScore || 85}%
-                                    </span>
-                                </div>
-                            </div>
-                        )) : emsPlaylists.length > 0 ? emsPlaylists.slice(0, 3).map((playlist) => (
-                            <div key={playlist.id} className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group">
-                                <div className="w-full aspect-video bg-gradient-to-br from-hud-accent-warning to-orange-400 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                                    {playlist.coverImage ? (
-                                        <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Music className="w-12 h-12 text-white/50" />
-                                    )}
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Play className="w-10 h-10 text-white" fill="white" />
-                                    </div>
-                                </div>
-                                <h3 className="font-semibold text-hud-text-primary mb-1 truncate">{playlist.title}</h3>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-hud-text-muted">{playlist.trackCount || 0} tracks</span>
-                                    <span className="bg-hud-accent-warning/20 text-hud-accent-warning px-2 py-0.5 rounded-full text-xs font-semibold">
-                                        EMS
-                                    </span>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="col-span-3 text-center py-8 text-hud-text-muted">
-                                <p>아직 플레이리스트가 없습니다. EMS에서 음악을 가져와보세요!</p>
-                                <Link to="/music/external-space" className="inline-flex items-center gap-2 mt-4 text-hud-accent-primary hover:underline">
-                                    EMS로 이동 <ArrowRight className="w-4 h-4" />
-                                </Link>
-                            </div>
-                        )}
-                    </div>
                 </section>
+            )}
 
-                {/* Best of Best */}
-                <section className="hud-card hud-card-bottom rounded-xl p-6 border-l-4 border-hud-accent-warning">
-                    <h2 className="text-xl font-bold text-hud-accent-warning flex items-center gap-2 mb-6">
-                        <Crown className="w-6 h-6" /> BEST OF BEST
+            {/* Best Artists */}
+            <section className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
+                        <Users className="w-5 h-5 text-hud-accent-primary" /> 인기 아티스트
                     </h2>
-                    <div className="grid sm:grid-cols-4 gap-6">
-                        {[
-                            {
-                                type: '플레이리스트',
-                                name: bestPlaylists[0]?.title || [...pmsPlaylists, ...gmsPlaylists, ...emsPlaylists][0]?.title || 'K-POP Hits',
-                                sub: bestPlaylists[0] ? `${bestPlaylists[0].playCount.toLocaleString()} plays` : `${[...pmsPlaylists, ...gmsPlaylists, ...emsPlaylists][0]?.trackCount || 0} tracks`,
-                                icon: Disc
-                            },
-                            {
-                                type: '트랙',
-                                name: bestTracks[0]?.title || tidalTracks[0]?.title || 'Super Shy',
-                                sub: bestTracks[0] ? `${bestTracks[0].playCount.toLocaleString()} plays` : (tidalTracks[0]?.artist || 'NewJeans'),
-                                icon: Music
-                            },
-                            {
-                                type: '앨범',
-                                name: bestAlbums[0]?.title || appleTracks[0]?.title || 'The Astronaut',
-                                sub: bestAlbums[0] ? `${bestAlbums[0].playCount.toLocaleString()} plays` : (appleTracks[0]?.artist || 'Jin'),
-                                icon: Disc
-                            },
-                            {
-                                type: '아티스트',
-                                name: bestArtists[0]?.name || 'NewJeans',
-                                sub: bestArtists[0] ? `${bestArtists[0].playCount.toLocaleString()} plays` : '#1',
-                                icon: Users
-                            },
-                        ].map((item) => (
-                            <div key={item.type} className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-gradient-to-br from-hud-accent-warning to-orange-400 rounded-xl flex items-center justify-center">
-                                    <item.icon className="w-7 h-7 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-xs text-hud-accent-warning font-semibold uppercase">{item.type}</div>
-                                    <div className="font-semibold text-hud-text-primary truncate">{item.name}</div>
-                                    <div className="text-sm text-hud-text-muted">{item.sub}</div>
-                                </div>
+                    <a href="#" className="text-hud-accent-primary text-sm flex items-center gap-1 hover:underline">
+                        전체보기 <ArrowRight className="w-4 h-4" />
+                    </a>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    {(bestArtists.length > 0 ? bestArtists : [
+                        { name: 'IU', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
+                        { name: 'BTS', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
+                        { name: 'NewJeans', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
+                        { name: 'Aespa', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
+                        { name: 'BLACKPINK', playCount: 0, viewCount: 0, likeCount: 0, image: undefined }
+                    ]).map((artist, idx) => (
+                        <div key={artist.name} className="hud-card hud-card-bottom rounded-xl p-4 text-center hover:scale-105 transition-transform cursor-pointer group">
+                            <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-hud-bg-secondary shadow-lg relative">
+                                {artist.image ? (
+                                    <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary flex items-center justify-center text-white font-bold text-xl">
+                                        {artist.name.charAt(0)}
+                                    </div>
+                                )}
                             </div>
-                        ))}
+                            <div className="font-medium text-hud-text-primary text-sm truncate px-2">{artist.name}</div>
+                            <div className="text-xs text-hud-text-muted">
+                                {artist.playCount > 0 ? `${artist.playCount.toLocaleString()} plays` : `#${idx + 1}`}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Platform Best 5 */}
+            <section className="mb-8">
+                <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2 mb-4">
+                    <TrendingUp className="w-5 h-5 text-hud-accent-warning" /> 플랫폼별 베스트 5
+                </h2>
+                <div className="grid md:grid-cols-3 gap-4">
+                    {[
+                        { name: 'Tidal', color: 'from-blue-500 to-cyan-400', tracks: tidalTracks },
+                        { name: 'YouTube Music', color: 'from-red-500 to-red-600', tracks: youtubeTracks },
+                        { name: 'Apple Music', color: 'from-pink-500 to-rose-500', tracks: appleTracks },
+                    ].map((platform) => (
+                        <div key={platform.name} className="hud-card hud-card-bottom rounded-xl overflow-hidden">
+                            <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold`}>
+                                {platform.name} Top 5
+                            </div>
+                            <div className="p-4 space-y-2">
+                                {platform.tracks.length > 0 ? platform.tracks.map((track, idx) => (
+                                    <div key={`${track.title}-${idx}`} className="flex items-center gap-3 text-sm">
+                                        <span className="w-5 h-5 bg-hud-bg-secondary rounded-full flex items-center justify-center text-xs font-medium text-hud-text-muted">{idx + 1}</span>
+                                        <span className="text-hud-text-primary truncate flex-1">{track.title} - {track.artist}</span>
+                                    </div>
+                                )) : (
+                                    <div className="text-hud-text-muted text-sm text-center py-4">데이터 로딩 중...</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Platform Playlists */}
+            {gmsPlaylists.length > 0 && (
+                <section className="mb-8">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2 mb-4">
+                        <Disc className="w-5 h-5 text-hud-accent-info" /> 플랫폼 추천 플레이리스트
+                    </h2>
+                    <div className="grid gap-6">
+                        {[
+                            { name: 'Tidal', label: 'Tidal에서 지금 핫한', prefix: 'tidal_', color: 'from-blue-500 to-cyan-400', borderColor: 'border-blue-500' },
+                            { name: 'Apple Music', label: 'Apple Music 인기 앨범', prefix: 'itunes_', color: 'from-pink-500 to-rose-500', borderColor: 'border-pink-500' },
+                            { name: 'Spotify', label: 'Spotify 추천 플리', prefix: 'spotify_', color: 'from-green-500 to-emerald-400', borderColor: 'border-green-500' },
+                            { name: 'YouTube', label: 'YouTube 뮤직 Pick', prefix: 'youtube_', color: 'from-red-500 to-red-600', borderColor: 'border-red-500' },
+                        ].map((platform) => {
+                            const allPlatformPlaylists = gmsPlaylists.filter(p => p.externalId?.startsWith(platform.prefix))
+                            // 랜덤으로 5개 선택
+                            const platformPlaylists = getRandomItems(allPlatformPlaylists, 5)
+                            if (platformPlaylists.length === 0) return null
+                            return (
+                                <div key={platform.name} className={`hud-card hud-card-bottom rounded-xl overflow-hidden border-l-4 ${platform.borderColor}`}>
+                                    <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold flex items-center gap-2`}>
+                                        <Disc className="w-5 h-5" />
+                                        {platform.label}
+                                    </div>
+                                    <div className="p-4">
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                            {platformPlaylists.map((playlist) => (
+                                                <Link
+                                                    key={playlist.id}
+                                                    to={`/music/lab`}
+                                                    className="group cursor-pointer"
+                                                >
+                                                    <div className="aspect-square bg-hud-bg-secondary rounded-lg overflow-hidden mb-2 relative">
+                                                        {playlist.coverImage ? (
+                                                            <img
+                                                                src={playlist.coverImage}
+                                                                alt={playlist.title}
+                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                                            />
+                                                        ) : (
+                                                            <div className={`w-full h-full bg-gradient-to-br ${platform.color} flex items-center justify-center`}>
+                                                                <Music className="w-8 h-8 text-white/70" />
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Play className="w-8 h-8 text-white" fill="white" />
+                                                        </div>
+                                                    </div>
+                                                    <h4 className="text-sm font-medium text-hud-text-primary truncate">{playlist.title}</h4>
+                                                    <p className="text-xs text-hud-text-muted truncate">{playlist.description}</p>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                 </section>
+            )}
+
+            {/* Recommended Playlists */}
+            <section className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
+                        <Star className="w-5 h-5 text-hud-accent-success" /> 추천 플레이리스트 {recommendedPlaylists.length > 0 ? `${recommendedPlaylists.length}선` : ''}
+                    </h2>
+                    <Link to="/music/lab" className="text-hud-accent-primary text-sm flex items-center gap-1 hover:underline">
+                        GMS에서 더보기 <ArrowRight className="w-4 h-4" />
+                    </Link>
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recommendedPlaylists.length > 0 ? recommendedPlaylists.map((playlist) => (
+                        <div key={playlist.id} className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group">
+                            <div className="w-full aspect-video bg-gradient-to-br from-hud-accent-success to-hud-accent-primary rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
+                                {playlist.coverImage ? (
+                                    <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover" />
+                                ) : (
+                                    <Music className="w-12 h-12 text-white/50" />
+                                )}
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Play className="w-10 h-10 text-white" fill="white" />
+                                </div>
+                            </div>
+                            <h3 className="font-semibold text-hud-text-primary mb-1 truncate">{playlist.title}</h3>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-hud-text-muted">{playlist.trackCount || 0} tracks</span>
+                                <span className="bg-hud-accent-success/20 text-hud-accent-success px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1">
+                                    <Star className="w-3 h-3" fill="currentColor" /> {playlist.aiScore || 85}%
+                                </span>
+                            </div>
+                        </div>
+                    )) : emsPlaylists.length > 0 ? emsPlaylists.slice(0, 3).map((playlist) => (
+                        <div key={playlist.id} className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group">
+                            <div className="w-full aspect-video bg-gradient-to-br from-hud-accent-warning to-orange-400 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
+                                {playlist.coverImage ? (
+                                    <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover" />
+                                ) : (
+                                    <Music className="w-12 h-12 text-white/50" />
+                                )}
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Play className="w-10 h-10 text-white" fill="white" />
+                                </div>
+                            </div>
+                            <h3 className="font-semibold text-hud-text-primary mb-1 truncate">{playlist.title}</h3>
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-hud-text-muted">{playlist.trackCount || 0} tracks</span>
+                                <span className="bg-hud-accent-warning/20 text-hud-accent-warning px-2 py-0.5 rounded-full text-xs font-semibold">
+                                    EMS
+                                </span>
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="col-span-3 text-center py-8 text-hud-text-muted">
+                            <p>아직 플레이리스트가 없습니다. EMS에서 음악을 가져와보세요!</p>
+                            <Link to="/music/external-space" className="inline-flex items-center gap-2 mt-4 text-hud-accent-primary hover:underline">
+                                EMS로 이동 <ArrowRight className="w-4 h-4" />
+                            </Link>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Best of Best */}
+            <section className="hud-card hud-card-bottom rounded-xl p-6 border-l-4 border-hud-accent-warning">
+                <h2 className="text-xl font-bold text-hud-accent-warning flex items-center gap-2 mb-6">
+                    <Crown className="w-6 h-6" /> BEST OF BEST
+                </h2>
+                <div className="grid sm:grid-cols-4 gap-6">
+                    {[
+                        {
+                            type: '플레이리스트',
+                            name: bestPlaylists[0]?.title || [...pmsPlaylists, ...gmsPlaylists, ...emsPlaylists][0]?.title || 'K-POP Hits',
+                            sub: bestPlaylists[0] ? `${bestPlaylists[0].playCount.toLocaleString()} plays` : `${[...pmsPlaylists, ...gmsPlaylists, ...emsPlaylists][0]?.trackCount || 0} tracks`,
+                            icon: Disc
+                        },
+                        {
+                            type: '트랙',
+                            name: bestTracks[0]?.title || tidalTracks[0]?.title || 'Super Shy',
+                            sub: bestTracks[0] ? `${bestTracks[0].playCount.toLocaleString()} plays` : (tidalTracks[0]?.artist || 'NewJeans'),
+                            icon: Music
+                        },
+                        {
+                            type: '앨범',
+                            name: bestAlbums[0]?.title || appleTracks[0]?.title || 'The Astronaut',
+                            sub: bestAlbums[0] ? `${bestAlbums[0].playCount.toLocaleString()} plays` : (appleTracks[0]?.artist || 'Jin'),
+                            icon: Disc
+                        },
+                        {
+                            type: '아티스트',
+                            name: bestArtists[0]?.name || 'NewJeans',
+                            sub: bestArtists[0] ? `${bestArtists[0].playCount.toLocaleString()} plays` : '#1',
+                            icon: Users
+                        },
+                    ].map((item) => (
+                        <div key={item.type} className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-gradient-to-br from-hud-accent-warning to-orange-400 rounded-xl flex items-center justify-center">
+                                <item.icon className="w-7 h-7 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-xs text-hud-accent-warning font-semibold uppercase">{item.type}</div>
+                                <div className="font-semibold text-hud-text-primary truncate">{item.name}</div>
+                                <div className="text-sm text-hud-text-muted">{item.sub}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
         </div>
     )
 }

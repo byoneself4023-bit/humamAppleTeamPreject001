@@ -18,7 +18,7 @@ services:
       - ./music_space_db_dump.sql:/docker-entrypoint-initdb.d/init.sql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,8 +58,16 @@ services:
       DB_NAME: ${DB_NAME:-music_space_db}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-MusicSpaceSecretKeyForJWTAuthentication2024VeryLongKeyHere}
+      JWT_SECRET: ${JWT_SECRET:-MusicSpaceSecretKeyForJWTAuthentication2024VeryLongKeyHereNeedAtLeast256BitsForHS256Algorithm}
       SERVER_PORT: 8080
+      TIDAL_CLIENT_ID: ${TIDAL_CLIENT_ID:-}
+      TIDAL_CLIENT_SECRET: ${TIDAL_CLIENT_SECRET:-}
+      TIDAL_REDIRECT_URI: ${TIDAL_REDIRECT_URI:-http://localhost/tidal-callback}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      YOUTUBE_KEY: ${YOUTUBE_KEY:-}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
     ports:
       - "8080:8080"
     depends_on:
@@ -116,12 +124,15 @@ services:
     depends_on:
       - backend
       - spring-backend
+    volumes:
+      - ./public/images:/usr/share/nginx/html/images
     networks:
       - musicspace-network
 
 volumes:
   mariadb_data:
   redis_data:
+
 
 networks:
   musicspace-network:

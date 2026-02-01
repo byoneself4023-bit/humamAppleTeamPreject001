@@ -352,7 +352,7 @@ const MusicConnections = () => {
             )
 
             // Listen for login success message
-            const handleMessage = (event: MessageEvent) => {
+            const handleMessage = async (event: MessageEvent) => {
                 if (event.data?.type === 'TIDAL_LOGIN_SUCCESS') {
                     setTidalConnected(true)
                     if (event.data.response?.user) {
@@ -361,6 +361,24 @@ const MusicConnections = () => {
                             userId: event.data.response.user.userId
                         })
                     }
+
+                    // Sync playlists
+                    if (event.data.response?.accessToken) {
+                        try {
+                            await tidalApi.syncTidal({
+                                tidalAuthData: {
+                                    access_token: event.data.response.accessToken,
+                                    refresh_token: event.data.response.refreshToken,
+                                    expires_in: event.data.response.expiresIn
+                                }
+                            })
+                            // Reload playlists after sync
+                            loadTidalPlaylists()
+                        } catch (e) {
+                            console.error('Tidal sync failed:', e)
+                        }
+                    }
+
                     setTidalConnecting(false)
                     window.removeEventListener('message', handleMessage)
                 }

@@ -10,10 +10,70 @@ export default defineConfig({
         },
     },
     server: {
-        host: true,     // 외부 접속 허용 (0.0.0.0)
-        port: 5173,     // 포트 번호
-        allowedHosts: true,  // 모든 호스트 허용 (sandbox 환경용)
+        host: true,
+        port: 5173,
+        allowedHosts: true,
         proxy: {
+            '/api/auth': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/tidal': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/playlists': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/genres': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/analysis': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/pms': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/ems': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/itunes': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/spotify': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/youtube': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/youtube-music': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/training': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
             '/api': {
                 target: 'http://localhost:3001',
                 changeOrigin: true,
@@ -44,7 +104,7 @@ export default defineConfig({
     },
     optimizeDeps: {
         esbuildOptions: {
-            target: 'esnext'
+            target: 'esnext' // Allow top-level await
         }
     }
 })

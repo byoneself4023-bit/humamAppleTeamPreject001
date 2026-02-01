@@ -28,6 +28,7 @@ export interface RegisterRequest {
 // Token management
 const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
+const PROVIDER_KEY = 'auth_provider'
 
 export function getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY)
@@ -40,6 +41,7 @@ export function setToken(token: string): void {
 export function removeToken(): void {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    localStorage.removeItem(PROVIDER_KEY)
 }
 
 export function getStoredUser(): User | null {
@@ -56,18 +58,28 @@ export function setStoredUser(user: User): void {
     localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
+export function getAuthProvider(): string | null {
+    return localStorage.getItem(PROVIDER_KEY)
+}
+
+export function setAuthProvider(provider: string): void {
+    localStorage.setItem(PROVIDER_KEY, provider)
+}
+
 // API calls
 export async function login(data: LoginRequest): Promise<AuthResponse> {
     const response = await post<AuthResponse>('/auth/login', data)
     setToken(response.token)
     setStoredUser(response.user)
+    setAuthProvider('local')
     return response
 }
 
 export async function register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await post<AuthResponse>('/auth/register', data)
+    const response = await post<AuthResponse>('/auth/register', data) // Using /auth/register to match existing proxy/backend
     setToken(response.token)
     setStoredUser(response.user)
+    setAuthProvider('local')
     return response
 }
 
@@ -75,6 +87,15 @@ export async function getCurrentUser(): Promise<{ user: User }> {
     const token = getToken()
     if (!token) {
         throw new Error('No token')
+    }
+
+    const provider = getAuthProvider()
+    if (provider === 'tidal') {
+        const storedUser = getStoredUser()
+        if (storedUser) {
+            return { user: storedUser }
+        }
+        throw new Error('No stored Tidal user')
     }
 
     const response = await fetch(`${API_BASE_URL}/auth/me`, {

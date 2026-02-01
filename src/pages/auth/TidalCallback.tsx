@@ -45,7 +45,10 @@ const TidalCallback = () => {
     const handleExchange = async (code: string) => {
         try {
             const visitorId = getVisitorId()
-            const redirectUri = `${window.location.origin}/tidal-callback`
+            // Docker/Nginx environment running on port 80 usually is http
+            // Force http if on localhost to match backend expectation
+            const origin = window.location.origin.replace('https://', 'http://');
+            const redirectUri = `${origin}/tidal-callback`
             const response = await post<any>('/tidal/auth/exchange', { code, visitorId, redirectUri })
             if (response.success) {
                 setStatus('success')
