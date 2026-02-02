@@ -53,7 +53,11 @@ export const tidalApi = {
 
     // Search playlists
     searchPlaylists: (query: string = 'K-POP', limit: number = 10) =>
-        get<TidalSearchResponse>(`/tidal/search/playlists?query=${encodeURIComponent(query)}&limit=${limit}`),
+        get<TidalSearchResponse>(`/tidal/search?query=${encodeURIComponent(query)}&type=PLAYLISTS&limit=${limit}`),
+
+    // Search tracks (New)
+    searchTracks: (query: string, limit: number = 5) =>
+        get<{ tracks: any[] }>(`/tidal/search?query=${encodeURIComponent(query)}&type=TRACKS&limit=${limit}`),
 
     // Get featured playlists by genre
     getFeatured: () => get<TidalFeaturedResponse>('/tidal/featured'),

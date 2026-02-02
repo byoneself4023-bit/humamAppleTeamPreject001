@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { MusicProvider } from './context/MusicContext'
 import MainLayout from './layouts/MainLayout'
 import MusicLayout from './layouts/MusicLayout'
 import MusicHomeLayout from './layouts/MusicHomeLayout'
@@ -79,94 +80,96 @@ import MusicSettings from './pages/music/MusicSettings'
 function App() {
     return (
         <AuthProvider>
-            <Router>
-                <Routes>
-                    {/* Auth Pages (No Layout) */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
-                    <Route path="/coming-soon" element={<ComingSoon />} />
-                    <Route path="/404" element={<Error404 />} />
+            <MusicProvider>
+                <Router>
+                    <Routes>
+                        {/* Auth Pages (No Layout) */}
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+                        <Route path="/coming-soon" element={<ComingSoon />} />
+                        <Route path="/404" element={<Error404 />} />
 
-                    {/* OAuth Callbacks */}
-                    <Route path="/tidal-callback" element={<TidalCallback />} />
-                    <Route path="/spotify-callback" element={<SpotifyCallback />} />
-                    <Route path="/youtube-callback" element={<YouTubeCallback />} />
+                        {/* OAuth Callbacks */}
+                        <Route path="/tidal-callback" element={<TidalCallback />} />
+                        <Route path="/spotify-callback" element={<SpotifyCallback />} />
+                        <Route path="/youtube-callback" element={<YouTubeCallback />} />
 
-                    {/* Root redirect to Music Home */}
-                    <Route path="/" element={<Navigate to="/music/home" replace />} />
+                        {/* Root redirect to Music Home */}
+                        <Route path="/" element={<Navigate to="/music/home" replace />} />
 
-                    {/* Main Layout Pages (Protected) */}
-                    <Route path="/dashboard" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                        <Route index element={<Dashboard />} />
-                        <Route path="analytics" element={<Analytics />} />
+                        {/* Main Layout Pages (Protected) */}
+                        <Route path="/dashboard" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                            <Route index element={<Dashboard />} />
+                            <Route path="analytics" element={<Analytics />} />
 
-                        {/* Email */}
-                        <Route path="email/inbox" element={<EmailInbox />} />
-                        <Route path="email/compose" element={<EmailCompose />} />
-                        <Route path="email/detail/:id" element={<EmailDetail />} />
+                            {/* Email */}
+                            <Route path="email/inbox" element={<EmailInbox />} />
+                            <Route path="email/compose" element={<EmailCompose />} />
+                            <Route path="email/detail/:id" element={<EmailDetail />} />
 
-                        {/* Core Pages */}
-                        <Route path="widgets" element={<Widgets />} />
-                        <Route path="profile" element={<Profile />} />
-                        <Route path="calendar" element={<Calendar />} />
-                        <Route path="settings" element={<Settings />} />
-                        <Route path="scrum-board" element={<ScrumBoard />} />
-                        <Route path="products" element={<Products />} />
-                        <Route path="pricing" element={<Pricing />} />
-                        <Route path="gallery" element={<Gallery />} />
+                            {/* Core Pages */}
+                            <Route path="widgets" element={<Widgets />} />
+                            <Route path="profile" element={<Profile />} />
+                            <Route path="calendar" element={<Calendar />} />
+                            <Route path="settings" element={<Settings />} />
+                            <Route path="scrum-board" element={<ScrumBoard />} />
+                            <Route path="products" element={<Products />} />
+                            <Route path="pricing" element={<Pricing />} />
+                            <Route path="gallery" element={<Gallery />} />
 
-                        {/* AI Studio */}
-                        <Route path="ai/chat" element={<AiChat />} />
-                        <Route path="ai/image-generator" element={<AiImageGenerator />} />
+                            {/* AI Studio */}
+                            <Route path="ai/chat" element={<AiChat />} />
+                            <Route path="ai/image-generator" element={<AiImageGenerator />} />
 
-                        {/* POS System */}
-                        <Route path="pos/customer-order" element={<PosCustomerOrder />} />
-                        <Route path="pos/kitchen-order" element={<PosKitchenOrder />} />
-                        <Route path="pos/counter-checkout" element={<PosCounterCheckout />} />
-                        <Route path="pos/table-booking" element={<PosTableBooking />} />
-                        <Route path="pos/menu-stock" element={<PosMenuStock />} />
+                            {/* POS System */}
+                            <Route path="pos/customer-order" element={<PosCustomerOrder />} />
+                            <Route path="pos/kitchen-order" element={<PosKitchenOrder />} />
+                            <Route path="pos/counter-checkout" element={<PosCounterCheckout />} />
+                            <Route path="pos/table-booking" element={<PosTableBooking />} />
+                            <Route path="pos/menu-stock" element={<PosMenuStock />} />
 
-                        {/* UI Components */}
-                        <Route path="ui/bootstrap" element={<UiBootstrap />} />
-                        <Route path="ui/buttons" element={<UiButtons />} />
-                        <Route path="ui/card" element={<UiCard />} />
-                        <Route path="ui/icons" element={<UiIcons />} />
-                        <Route path="ui/modal-notification" element={<UiModalNotification />} />
-                        <Route path="ui/typography" element={<UiTypography />} />
-                        <Route path="ui/tabs-accordions" element={<UiTabsAccordions />} />
+                            {/* UI Components */}
+                            <Route path="ui/bootstrap" element={<UiBootstrap />} />
+                            <Route path="ui/buttons" element={<UiButtons />} />
+                            <Route path="ui/card" element={<UiCard />} />
+                            <Route path="ui/icons" element={<UiIcons />} />
+                            <Route path="ui/modal-notification" element={<UiModalNotification />} />
+                            <Route path="ui/typography" element={<UiTypography />} />
+                            <Route path="ui/tabs-accordions" element={<UiTabsAccordions />} />
 
-                        {/* Forms */}
-                        <Route path="form/elements" element={<FormElements />} />
-                        <Route path="form/plugins" element={<FormPlugins />} />
-                        <Route path="form/wizards" element={<FormWizards />} />
+                            {/* Forms */}
+                            <Route path="form/elements" element={<FormElements />} />
+                            <Route path="form/plugins" element={<FormPlugins />} />
+                            <Route path="form/wizards" element={<FormWizards />} />
 
-                        {/* Tables */}
-                        <Route path="table/elements" element={<TableElements />} />
-                        <Route path="table/plugins" element={<TablePlugins />} />
+                            {/* Tables */}
+                            <Route path="table/elements" element={<TableElements />} />
+                            <Route path="table/plugins" element={<TablePlugins />} />
 
-                        {/* Charts */}
-                        <Route path="chart/chartjs" element={<ChartJs />} />
-                    </Route>
+                            {/* Charts */}
+                            <Route path="chart/chartjs" element={<ChartJs />} />
+                        </Route>
 
-                    {/* Music Home (without sidebar) */}
-                    <Route path="/music" element={<MusicHomeLayout />}>
-                        <Route path="home" element={<MusicHome />} />
-                    </Route>
+                        {/* Music Home (without sidebar) */}
+                        <Route path="/music" element={<MusicHomeLayout />}>
+                            <Route path="home" element={<MusicHome />} />
+                        </Route>
 
-                    {/* Music Pages (with sidebar) */}
-                    <Route path="/music" element={<MusicLayout />}>
-                        <Route path="lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
-                        <Route path="lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
-                        <Route path="external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
-                        <Route path="connections" element={<ProtectedRoute><MusicConnections /></ProtectedRoute>} />
-                        <Route path="settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />
-                    </Route>
+                        {/* Music Pages (with sidebar) */}
+                        <Route path="/music" element={<MusicLayout />}>
+                            <Route path="lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
+                            <Route path="lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
+                            <Route path="external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
+                            <Route path="connections" element={<ProtectedRoute><MusicConnections /></ProtectedRoute>} />
+                            <Route path="settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />
+                        </Route>
 
-                    {/* 404 Fallback */}
-                    <Route path="*" element={<Error404 />} />
-                </Routes>
-            </Router>
+                        {/* 404 Fallback */}
+                        <Route path="*" element={<Error404 />} />
+                    </Routes>
+                </Router>
+            </MusicProvider>
         </AuthProvider>
     )
 }

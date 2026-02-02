@@ -1,5 +1,6 @@
 import UploadZone from '../../components/music/UploadZone'
 import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
+import MusicPlayer from '../../components/music/MusicPlayer'
 import { Filter, Search, Brain, Eye, Trash2, ArrowRight, RefreshCw, Link as LinkIcon, CheckCircle, AlertCircle, Loader2, Music2, ExternalLink, Sparkles, ShoppingBag, X, Save } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { playlistsApi, analysisApi, Playlist as ApiPlaylist } from '../../services/api/playlists'
@@ -55,15 +56,21 @@ const mapApiPlaylist = (p: ApiPlaylist): Playlist => {
 
 // Fix image URL (handle Apple Music placeholder URLs and Tidal double slash issue)
 const fixImageUrl = (url?: string, size: number = 300): string | undefined => {
-    if (!url) return undefined
-    let fixed = url
-        .replace('{w}', String(size))
-        .replace('{h}', String(size))
-    // Fix Tidal double slash issue (e.g., /images//images/ -> /images/)
-    fixed = fixed.replace(/\/images\/\/images\//g, '/images/')
-    // Fix any remaining double slashes (except after protocol)
-    fixed = fixed.replace(/([^:])\/\/+/g, '$1/')
-    return fixed
+    if (!url || typeof url !== 'string') return undefined
+    try {
+        let fixed = url
+            .replace(/{w}/g, String(size))
+            .replace(/{h}/g, String(size))
+            .replace(/{c}/g, 'bb')
+            .replace(/{f}/g, 'jpg')
+        // Fix Tidal double slash issue (e.g., /images//images/ -> /images/)
+        fixed = fixed.replace(/\/images\/\/images\//g, '/images/')
+        // Fix any remaining double slashes (except after protocol)
+        fixed = fixed.replace(/([^:])\/\/+/g, '$1/')
+        return fixed
+    } catch {
+        return undefined
+    }
 }
 
 const ExternalMusicSpace = () => {
@@ -110,24 +117,32 @@ const ExternalMusicSpace = () => {
         setTimeout(() => setToast(null), 3000)
     }
 
+    // Track if seed has already been attempted to prevent duplicate calls
+    const [seedAttempted, setSeedAttempted] = useState(false)
+
     // Fetch playlists from API
-    const fetchPlaylists = useCallback(async () => {
+    const fetchPlaylists = useCallback(async (skipSeed = false) => {
         try {
             setLoading(true)
             setError(null)
 
-            // Auto-seed on first load (imports Tidal/iTunes playlists if empty)
-            try {
-                const seedResult = await playlistsApi.seedPlaylists()
-                if (seedResult.imported > 0) {
-                    showToast(`${seedResult.imported}개 플레이리스트 자동 로드 완료!`, 'success')
+            // Auto-seed on first load only (imports Tidal/iTunes playlists if empty)
+            if (!skipSeed && !seedAttempted) {
+                setSeedAttempted(true)
+                try {
+                    const seedResult = await playlistsApi.seedPlaylists()
+                    if (seedResult?.imported && seedResult.imported > 0) {
+                        showToast(`${seedResult.imported}개 플레이리스트 자동 로드 완료!`, 'success')
+                    }
+                } catch (seedErr) {
+                    console.log('Seed skipped:', seedErr)
                 }
-            } catch (seedErr) {
-                console.log('Seed skipped:', seedErr)
             }
 
             const response = await playlistsApi.getPlaylists('EMS')
-            setPlaylists(response.playlists.map(mapApiPlaylist))
+            // Safe null check to prevent crash
+            const playlists = response?.playlists || []
+            setPlaylists(playlists.map(mapApiPlaylist))
         } catch (err) {
             console.error('Failed to fetch playlists:', err)
             setError('플레이리스트를 불러오는데 실패했습니다')
@@ -135,7 +150,7 @@ const ExternalMusicSpace = () => {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [seedAttempted])
 
 
     // Check Connections
@@ -196,7 +211,7 @@ const ExternalMusicSpace = () => {
                                 platformPlaylistId: playlist.id,
                                 title: playlist.attributes.name,
                                 description: playlist.attributes.editorialNotes?.short || 'Apple Music Auto-Import',
-                                coverImage: playlist.attributes.artwork?.url.replace('{w}', '600').replace('{h}', '600'),
+                                coverImage: playlist.attributes.artwork?.url.replace('{w}', '600').replace('{h}', '600').replace('{c}', 'bb').replace('{f}', 'jpg'),
                                 platform: 'Apple Music'
                             })
                             importedCount++
@@ -210,7 +225,7 @@ const ExternalMusicSpace = () => {
                                             title: t.attributes.name,
                                             artist: t.attributes.artistName,
                                             album: t.attributes.albumName || '',
-                                            artwork: t.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300'),
+                                            artwork: t.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg'),
                                             externalMetadata: {
                                                 appleMusicId: t.id,
                                                 previewUrl: (t.attributes.previews && t.attributes.previews[0]) ? t.attributes.previews[0].url : undefined
@@ -235,7 +250,7 @@ const ExternalMusicSpace = () => {
                                 sourceType: 'Platform',
                                 spaceType: 'EMS',
                                 status: 'PTP',
-                                coverImage: data.songs[0].attributes.artwork?.url.replace('{w}', '600').replace('{h}', '600')
+                                coverImage: data.songs[0].attributes.artwork?.url.replace('{w}', '600').replace('{h}', '600').replace('{c}', 'bb').replace('{f}', 'jpg')
                             })
 
                             for (const song of data.songs) {
@@ -243,7 +258,7 @@ const ExternalMusicSpace = () => {
                                     title: song.attributes.name,
                                     artist: song.attributes.artistName,
                                     album: song.attributes.albumName,
-                                    artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300'),
+                                    artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg'),
                                     externalMetadata: {
                                         appleMusicId: song.id,
                                         previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
@@ -256,7 +271,7 @@ const ExternalMusicSpace = () => {
 
                     if (importedCount > 0) {
                         showToast(`Apple Music 데이터 ${importedCount}개 세트 DB 저장 완료`, 'success')
-                        fetchPlaylists() // Refresh UI list
+                        fetchPlaylists(true) // Refresh UI list, skip seeding
                     }
                     setIsAutoImporting(false)
                 }
@@ -347,7 +362,7 @@ const ExternalMusicSpace = () => {
                     if (err.response?.status !== 409) console.error(err)
                 }
             }
-            await fetchPlaylists()
+            await fetchPlaylists(true)
         } catch (err) {
             console.error('Tidal Sync failed:', err)
         } finally {
@@ -376,7 +391,7 @@ const ExternalMusicSpace = () => {
                     if (err.response?.status !== 409) console.error(err)
                 }
             }
-            if (importedCount > 0) await fetchPlaylists()
+            if (importedCount > 0) await fetchPlaylists(true)
         } catch (err) {
             console.error('YouTube Sync failed:', err)
         } finally {
@@ -422,10 +437,12 @@ const ExternalMusicSpace = () => {
         setIsYoutubeSearching(true)
         try {
             const response = await youtubeApi.searchPlaylists(youtubeSearchTerm)
-            setYoutubeResults(response.playlists)
+            // Safe null check
+            setYoutubeResults(response?.playlists || [])
         } catch (err) {
             console.error('YouTube search failed:', err)
             showToast('YouTube 검색 실패', 'error')
+            setYoutubeResults([]) // Clear results on error
         } finally {
             setIsYoutubeSearching(false)
         }
@@ -442,7 +459,7 @@ const ExternalMusicSpace = () => {
                 platform: 'YouTube'
             })
             showToast(`'${playlist.title}' 플레이리스트를 가져왔습니다.`, 'success')
-            fetchPlaylists()
+            fetchPlaylists(true) // Skip seeding
             setYoutubeResults(prev => prev.filter(p => p.id !== playlist.id))
         } catch (err: any) {
             if (err.message?.includes('409')) {
@@ -507,7 +524,7 @@ const ExternalMusicSpace = () => {
             showToast(`'${title}' 생성 완료 (${successCount}곡)`, 'success')
             setCartTracks([])
             setIsCartOpen(false)
-            fetchPlaylists()
+            fetchPlaylists(true) // Skip seeding
 
         } catch (err) {
             console.error('Save cart failed', err)
@@ -550,7 +567,7 @@ const ExternalMusicSpace = () => {
                 const createResult = await playlistsApi.create({
                     title: title,
                     description: item?.attributes?.editorialNotes?.short || `Imported from Apple Music (${type})`,
-                    coverImage: item?.attributes?.artwork?.url.replace('{w}', '600').replace('{h}', '600'),
+                    coverImage: item?.attributes?.artwork?.url.replace('{w}', '600').replace('{h}', '600').replace('{c}', 'bb').replace('{f}', 'jpg'),
                     sourceType: 'Platform',
                     spaceType: 'EMS',
                     status: 'PTP'
@@ -576,7 +593,7 @@ const ExternalMusicSpace = () => {
                                     title: t.attributes.name,
                                     artist: t.attributes.artistName,
                                     album: t.attributes.albumName || '',
-                                    artwork: t.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300'),
+                                    artwork: t.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg'),
                                     externalMetadata: {
                                         appleMusicId: t.id,
                                         previewUrl: (t.attributes.previews && t.attributes.previews[0]) ? t.attributes.previews[0].url : undefined
@@ -589,7 +606,7 @@ const ExternalMusicSpace = () => {
                     if (addedCount > 0) showToast(`${addedCount}곡 상세 정보 저장 완료`, 'success')
                 }
 
-                await fetchPlaylists()
+                await fetchPlaylists(true)
                 setSelectedDetailId(targetId)
 
             } catch (e) {
@@ -616,7 +633,7 @@ const ExternalMusicSpace = () => {
             setJazzRecs(prev => prev.filter(r => r.id !== collection.id))
             setKpopRecs(prev => prev.filter(r => r.id !== collection.id))
 
-            fetchPlaylists()
+            fetchPlaylists(true)
         } catch (err) {
             console.error('Import failed', err)
             showToast('앨범 가져오기 실패', 'error')
@@ -626,10 +643,14 @@ const ExternalMusicSpace = () => {
     }
 
     // --- iTunes Collection View Detail (Click to open Modal) ---
-    const [viewingCollectionId, setViewingCollectionId] = useState<number | null>(null)
+    const [viewingCollectionId, setViewingCollectionId] = useState<number | null>(null) // Keep for compatibility if needed, but unused for UI now
+    const [isModalLoading, setIsModalLoading] = useState(false)
 
     const handleViewCollectionDetail = async (collection: ItunesCollection) => {
-        setViewingCollectionId(collection.id)
+        // Open modal immediately in loading state
+        setIsModalLoading(true)
+        setSelectedDetailId(null) // Ensure explicitly null initially
+
         let targetId: number | null = null
 
         // 1. Find existing playlist by title match
@@ -640,7 +661,7 @@ const ExternalMusicSpace = () => {
         } else {
             // 2. Import and create playlist if not exists
             try {
-                showToast(`'${collection.title}' 정보를 저장 중...`, 'success')
+                // showToast(`'${collection.title}' 정보를 저장 중...`, 'success') // Optional: suppress toast to limit noise
                 const albumDetails = await itunesService.getAlbum(collection.id)
                 const result = await playlistsApi.importAlbumAsPlaylist({
                     title: collection.title,
@@ -651,13 +672,13 @@ const ExternalMusicSpace = () => {
 
                 targetId = result.playlist.id
 
-                // Remove from recommendation lists
+                // Remove from recommendation lists silently
                 setRecommendations(prev => prev.filter(r => r.id !== collection.id))
                 setClassicRecs(prev => prev.filter(r => r.id !== collection.id))
                 setJazzRecs(prev => prev.filter(r => r.id !== collection.id))
                 setKpopRecs(prev => prev.filter(r => r.id !== collection.id))
 
-                await fetchPlaylists()
+                fetchPlaylists(true) // Background refresh
             } catch (err: any) {
                 // If duplicate (409), try to find the existing one
                 if (err.message?.includes('409') || err.response?.status === 409) {
@@ -669,18 +690,17 @@ const ExternalMusicSpace = () => {
                 } else {
                     console.error('Import for view failed', err)
                     showToast('상세 보기 실패', 'error')
-                    setViewingCollectionId(null)
+                    setIsModalLoading(false)
                     return
                 }
             }
         }
 
-        setViewingCollectionId(null)
-
-        // 3. Open modal with the playlist ID
+        // 3. Update modal with the playlist ID
         if (targetId) {
             setSelectedDetailId(targetId)
         }
+        setIsModalLoading(false)
     }
 
     // --- YouTube Playlist View Detail (Click to open Modal) ---
@@ -712,7 +732,7 @@ const ExternalMusicSpace = () => {
                 // Remove from search results
                 setYoutubeResults(prev => prev.filter(p => p.id !== playlist.id))
 
-                await fetchPlaylists()
+                await fetchPlaylists(true)
             } catch (err: any) {
                 if (err.message?.includes('409') || err.response?.status === 409) {
                     const refreshed = await playlistsApi.getPlaylists('EMS')
@@ -756,17 +776,21 @@ const ExternalMusicSpace = () => {
         }
     }
 
+    // Ref to track if sync has already been triggered to prevent infinite loop
+    const [tidalSyncDone, setTidalSyncDone] = useState(false)
+
     useEffect(() => {
         const syncAndTrain = async () => {
-            if (tidalConnected && !syncing) {
+            if (tidalConnected && !syncing && !tidalSyncDone) {
+                setTidalSyncDone(true)
                 await handleTidalSync()
                 await trainModel()
             }
         }
-        if (tidalUserLoggedIn) {
+        if (tidalUserLoggedIn && !tidalSyncDone) {
             syncAndTrain()
         }
-    }, [tidalUserLoggedIn])
+    }, [tidalUserLoggedIn, tidalConnected, syncing, tidalSyncDone])
 
     // Analyze Playlist
     const handleAnalyze = async (id: number) => {
@@ -781,7 +805,7 @@ const ExternalMusicSpace = () => {
                 setPlaylists(prev => prev.filter(p => p.id !== id))
             } else {
                 showToast(`AI 분석 완료: ${result.grade}등급 (${result.score}점) - 보류됨`, 'success')
-                fetchPlaylists()
+                fetchPlaylists(true)
             }
 
         } catch (err) {
@@ -853,7 +877,7 @@ const ExternalMusicSpace = () => {
                 }
 
                 showToast(`'${playlistName}' 생성 완료 (${successCount}/${tracksToImport.length}곡)`, 'success')
-                fetchPlaylists()
+                fetchPlaylists(true)
             } catch (err) {
                 console.error('File import failed:', err)
                 showToast('파일 가져오기 실패', 'error')
@@ -901,7 +925,7 @@ const ExternalMusicSpace = () => {
                         {newReleases.songs.map((song) => (
                             <div key={song.id} className="min-w-[160px] w-[160px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-pink-500/50 transition-all group">
                                 <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                    <img src={song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300')} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <img src={song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg')} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <button
                                             onClick={() => addToCart({
@@ -909,7 +933,7 @@ const ExternalMusicSpace = () => {
                                                 title: song.attributes.name,
                                                 artist: song.attributes.artistName || 'Unknown',
                                                 album: song.attributes.name,
-                                                artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300') || '',
+                                                artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg') || '',
                                                 url: song.attributes.url,
                                                 date: song.attributes.releaseDate || '',
                                                 audio: '',
@@ -942,7 +966,7 @@ const ExternalMusicSpace = () => {
                         {newReleases.albums.map((album: any) => (
                             <div key={album.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-purple-500/50 transition-all group flex flex-col">
                                 <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                    <img src={album.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400')} alt={album.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <img src={album.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400').replace('{c}', 'bb').replace('{f}', 'jpg')} alt={album.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <button
                                             onClick={() => handleViewDetail(album.id, album.attributes.name, 'albums')}
@@ -1001,17 +1025,17 @@ const ExternalMusicSpace = () => {
                         <div>
                             <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
                                 <Disc3 className="w-6 h-6 text-green-500 animate-spin" style={{ animationDuration: '3s' }} />
-                                {spotifySpecial.event.title}
+                                {spotifySpecial.event?.title || 'Special Event'}
                             </h2>
-                            <p className="text-hud-text-secondary mt-1">{spotifySpecial.event.subtitle}</p>
+                            <p className="text-hud-text-secondary mt-1">{spotifySpecial.event?.subtitle || 'Featured Playlists'}</p>
                         </div>
                         <div className="flex gap-4 text-sm">
                             <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
-                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats.totalPlaylists}</div>
+                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats?.totalPlaylists || 0}</div>
                                 <div className="text-hud-text-muted text-xs">플레이리스트</div>
                             </div>
                             <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
-                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats.totalTracks}</div>
+                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats?.totalTracks || 0}</div>
                                 <div className="text-hud-text-muted text-xs">트랙</div>
                             </div>
                         </div>
@@ -1066,7 +1090,7 @@ const ExternalMusicSpace = () => {
                                 <Disc3 className="w-5 h-5 text-green-500" />
                                 카테고리별 플레이리스트
                             </h3>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 {Object.entries(spotifySpecial.categories).map(([category, categoryPlaylists]: [string, any[]]) => (
                                     <div key={category} className="bg-hud-bg-primary/50 rounded-lg p-4 border border-hud-border-secondary">
                                         <h4 className="font-bold text-green-400 mb-3 flex items-center gap-2">
@@ -1145,19 +1169,12 @@ const ExternalMusicSpace = () => {
                                         <Music2 className="w-12 h-12 text-hud-text-muted" />
                                     </div>
                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                        {viewingCollectionId === album.id ? (
-                                            <div className="flex items-center gap-2 text-white">
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                <span className="font-bold">로딩 중...</span>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                                상세보기
-                                            </button>
-                                        )}
+                                        <button
+                                            className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            상세보기
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="font-bold text-hud-text-primary truncate" title={album.title}>{album.title}</div>
@@ -1472,13 +1489,18 @@ const ExternalMusicSpace = () => {
             )}
 
             {/* Modals */}
-            {selectedDetailId && (
+            {(selectedDetailId || isModalLoading) && (
                 <PlaylistDetailModal
                     playlistId={selectedDetailId}
-                    isOpen={!!selectedDetailId}
-                    onClose={() => setSelectedDetailId(null)}
+                    isOpen={true}
+                    onClose={() => {
+                        setSelectedDetailId(null)
+                        setIsModalLoading(false)
+                    }}
                 />
             )}
+
+            <MusicPlayer />
         </div>
     )
 }

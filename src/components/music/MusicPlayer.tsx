@@ -100,9 +100,15 @@ const MusicPlayer = () => {
                         <Music className="w-5 h-5" />
                     )}
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-hud-text-primary line-clamp-1">{currentTrack.title}</h4>
                     <p className="text-xs text-hud-text-muted line-clamp-1">{currentTrack.artist}</p>
+                    {/* Error Message Display */}
+                    {audioState.error && (
+                        <p className="text-xs text-red-400 line-clamp-1 mt-0.5 animate-pulse">
+                            ⚠️ {audioState.error}
+                        </p>
+                    )}
                 </div>
             </div>
 

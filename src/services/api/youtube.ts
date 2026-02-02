@@ -46,6 +46,12 @@ export const youtubeApi = {
             `/youtube/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
         ),
 
+    // Search for videos (Returns 'playlists' key due to backend legacy)
+    searchVideos: (query: string, maxResults = 1) =>
+        get<{ playlists: { id: string, title: string, channelTitle: string }[] }>(
+            `/youtube/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`
+        ),
+
     // Get featured/trending playlists (for auto-discovery)
     getPlaylists: (maxResults = 10) =>
         get<{ playlists: YoutubePlaylist[] }>(`/youtube/playlists?maxResults=${maxResults}`),

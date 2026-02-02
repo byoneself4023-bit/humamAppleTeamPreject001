@@ -1,5 +1,6 @@
 import ReactPlayer from 'react-player'
 import { API_BASE_URL } from '../api/index'
+import { youtubeApi } from '../api/youtube'
 import * as TidalAdapter from './TidalPlayerAdapter'
 
 // Audio Source Types
@@ -132,81 +133,133 @@ class AudioService {
     }
 
     public async resolveAndPlay(track: any) {
-        let url = track.url
-        let error = null
+        let url: string | null = null
+        let error: string | null = null
         const sourceType = this.getSourceType(track)
 
-        // 1. Native Tidal Playback
-        if (sourceType === 'TIDAL') {
-            // Logic to use Tidal SDK will go here
-            // For now, we will mark it as TIDAL source so the UI knows
-            // We need to implement the actual SDK integration using the user's token
-            console.log('[AudioService] Attempting Tidal Native Playback for:', track.title)
+        console.log(`[AudioService] Resolving playback for: "${track.title}" by ${track.artist}`)
 
-            // Check if we have a stored Tidal Token (from login)
-            const tidalToken = localStorage.getItem('tidal_token') || localStorage.getItem('auth_token') // Allow falling back to main token if it wraps tidal
-
-            // Try to play nativly
-            const success = await TidalAdapter.playTidalTrack(track.sourceId || track.id)
-
-            if (success) {
-                this.updateState({
-                    sourceType: 'TIDAL',
-                    isBuffering: false,
-                    isPlaying: true, // Auto start
-                    error: null
-                })
-                return 'TIDAL_NATIVE'
-            } else {
-                console.warn('[AudioService] Tidal Native playback failed, falling back to Smart Match')
-                // Fall through to fallback logic below
-            }
-        }
-
-        // 2. Existing Logic (File / iTunes / YouTube)
-        if (!url) {
-            if (track.externalMetadata?.youtubeId) {
-                url = `https://www.youtube.com/watch?v=${track.externalMetadata.youtubeId}`
-            } else if (track.externalMetadata?.previewUrl) {
-                url = track.externalMetadata.previewUrl
-            }
-        }
-
-        // 3. Smart Match (Fallback if NOT Tidal or if Tidal failed)
-        if (!url && sourceType !== 'TIDAL') {
-            this.updateState({ isBuffering: true, error: null })
-            try {
-                const query = `${track.artist} - ${track.title} audio`
-                const response = await fetch(`${API_BASE_URL}/youtube/search?query=${encodeURIComponent(query)}`)
-                if (response.ok) {
-                    const data = await response.json()
-                    if (data.youtubeId) {
-                        url = `https://www.youtube.com/watch?v=${data.youtubeId}`
-                        console.log(`[SmartMatch] Resolved: ${track.title} -> ${url}`)
-                    }
-                }
-            } catch (e) {
-                console.error('[SmartMatch] Failed:', e)
-                error = 'Failed to find track'
-            }
-        }
-
-        if (url) {
+        // === PRIORITY 1: iTunes Preview (Fastest, most reliable) ===
+        const previewUrl = track.externalMetadata?.previewUrl || track.previewUrl || track.audio
+        if (previewUrl && previewUrl.includes('audio-ssl.itunes.apple.com')) {
+            console.log('[AudioService] Using iTunes Preview URL')
             this.updateState({
-                sourceType: this.getSourceType(track) === 'TIDAL' ? 'YOUTUBE' : this.getSourceType(url), // Fallback happens here if needed
+                sourceType: 'ITUNES_PREVIEW',
+                isBuffering: true,
+                error: null
+            })
+            return previewUrl
+        }
+
+        // === PRIORITY 2: Existing YouTube ID ===
+        if (track.externalMetadata?.youtubeId) {
+            url = `https://www.youtube.com/watch?v=${track.externalMetadata.youtubeId}`
+            console.log('[AudioService] Using stored YouTube ID:', track.externalMetadata.youtubeId)
+            this.updateState({
+                sourceType: 'YOUTUBE',
                 isBuffering: true,
                 error: null
             })
             return url
-        } else if (sourceType === 'TIDAL') {
-            // If we returned 'TIDAL_NATIVE' above, we wouldn't be here. 
-            // If we are here, it means we lack a token or implementation.
-            this.updateState({ error: 'Tidal login required for high quality playback', isPlaying: false, isBuffering: false })
-            return null
-        } else {
-            this.updateState({ error: error || 'No playable source found', isPlaying: false, isBuffering: false })
-            return null
         }
+
+        // === PRIORITY 3: Direct URL ===
+        if (track.url) {
+            if (track.url.includes('youtube.com') || track.url.includes('youtu.be')) {
+                console.log('[AudioService] Using direct YouTube URL')
+                this.updateState({ sourceType: 'YOUTUBE', isBuffering: true, error: null })
+                return track.url
+            }
+            if (track.url.includes('audio-ssl.itunes.apple.com')) {
+                console.log('[AudioService] Using direct iTunes URL')
+                this.updateState({ sourceType: 'ITUNES_PREVIEW', isBuffering: true, error: null })
+                return track.url
+            }
+        }
+
+        // === PRIORITY 4: Tidal Native Playback (If logged in) ===
+        const tidalToken = localStorage.getItem('tidal_token')
+        if ((sourceType === 'TIDAL' || tidalToken)) {
+            console.log('[AudioService] Attempting Tidal Playback...')
+            try {
+                const player = await TidalAdapter.initTidalPlayer()
+                if (player) {
+                    let tidalId = track.sourceId || track.externalMetadata?.tidalId
+
+                    // Search if no ID
+                    if (!tidalId) {
+                        try {
+                            const query = `${track.artist} - ${track.title}`
+                            const { tidalApi } = await import('../api/tidal')
+                            const searchRes = await tidalApi.searchTracks(query, 1)
+                            if (searchRes.tracks && searchRes.tracks.length > 0) {
+                                tidalId = searchRes.tracks[0].id
+                                console.log(`[AudioService] Found on Tidal: ${tidalId}`)
+                            }
+                        } catch (e) {
+                            console.warn('[AudioService] Tidal search failed:', e)
+                        }
+                    }
+
+                    if (tidalId) {
+                        const success = await TidalAdapter.playTidalTrack(tidalId)
+                        if (success) {
+                            this.updateState({
+                                sourceType: 'TIDAL',
+                                isBuffering: false,
+                                isPlaying: true,
+                                error: null
+                            })
+                            return 'TIDAL_NATIVE'
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[AudioService] Tidal playback failed:', e)
+            }
+        }
+
+        // === PRIORITY 5: YouTube Smart Match (Fallback) ===
+        this.updateState({ isBuffering: true, error: null })
+        const searchQueries = [
+            `${track.artist} - ${track.title} audio`,
+            `${track.title} ${track.artist}`,
+            `${track.title} official audio`
+        ]
+
+        for (const query of searchQueries) {
+            try {
+                console.log(`[SmartMatch] Trying: "${query}"`)
+                const response = await youtubeApi.searchVideos(query, 1)
+
+                if (response?.playlists && response.playlists.length > 0) {
+                    const video = response.playlists[0]
+                    url = `https://www.youtube.com/watch?v=${video.id}`
+                    console.log(`[SmartMatch] Found: ${url}`)
+                    this.updateState({
+                        sourceType: 'YOUTUBE',
+                        isBuffering: true,
+                        error: null
+                    })
+                    return url
+                }
+            } catch (e) {
+                console.warn(`[SmartMatch] Query failed: "${query}"`, e)
+            }
+        }
+
+        // === NO SOURCE FOUND ===
+        const errorMsg = sourceType === 'TIDAL'
+            ? 'Tidal 로그인이 필요합니다'
+            : `"${track.title}" 재생 소스를 찾을 수 없습니다`
+
+        console.error('[AudioService] No playable source found')
+        this.updateState({
+            error: errorMsg,
+            isPlaying: false,
+            isBuffering: false
+        })
+        return null
     }
 }
 

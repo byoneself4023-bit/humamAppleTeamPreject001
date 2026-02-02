@@ -75,6 +75,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./public/uploads:/app/uploads
     networks:
       - musicspace-network
 
@@ -126,6 +128,7 @@ services:
       - spring-backend
     volumes:
       - ./public/images:/usr/share/nginx/html/images
+      - ./public/uploads:/usr/share/nginx/html/uploads
     networks:
       - musicspace-network
 
