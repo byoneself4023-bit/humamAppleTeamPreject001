@@ -1,150 +1,83 @@
-import { get } from './index'
 
-// Apple Music Web API Token (Public Token extracted from Web Player)
-// Note: This token might expire. If it does, it needs to be updated from music.apple.com network tab.
-const APPLE_MUSIC_TOKEN = 'eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IldlYlBsYXlLaWQifQ.eyJpc3MiOiJBTVBXZWJQbGF5IiwiaWF0IjoxNzY4NTIxMTkyLCJleHAiOjE3NzU3Nzg3OTIsInJvb3RfaHR0cHNfb3JpZ2luIjpbImFwcGxlLmNvbSJdfQ.iZTD-bdGzofBHTdPBDcuXR8SGhObN6HYWBgYfPteY_457FtNd1xb-V6NZSuJgSyVcOzJh8LEIZWXHDD48UMP6Q'
+const DEVELOPER_TOKEN = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IldlYlBsYXlLaWQifQ.eyJpc3MiOiJBTVBXZWJQbGF5IiwiaWF0IjoxNzY4NTIxMTkyLCJleHAiOjE3NzU3Nzg3OTIsInJvb3RfaHR0cHNfb3JpZ2luIjpbImFwcGxlLmNvbSJdfQ.iZTD-bdGzofBHTdPBDcuXR8SGhObN6HYWBgYfPteY_457FtNd1xb-V6NZSuJgSyVcOzJh8LEIZWXHDD48UMP6Q"
+// Token provided by user
+const APPLE_MUSIC_TOKEN = DEVELOPER_TOKEN
 
-// Use local proxy to avoid CORS
-const BASE_URL = '/apple-proxy'
-
-// Types
+// Types based on usage in ExternalMusicSpace.tsx and API response
 export interface AppleMusicItem {
     id: string
-    type: 'albums' | 'playlists' | 'songs'
-    href: string
+    type: 'songs' | 'albums' | 'playlists'
     attributes: {
         name: string
-        artistName?: string
-        artwork?: {
-            url: string
-            width: number
-            height: number
-        }
+        artistName: string
+        albumName?: string
+        artwork?: { url: string }
+        editorialNotes?: { short: string }
+        previews?: { url: string }[]
         url: string
-        playParams?: {
-            id: string
-            kind: string
-        }
         releaseDate?: string
-        trackCount?: number
-        editorialNotes?: {
-            standard: string
-            short: string
-        }
-        previews?: { url: string }[] // Add previews array
     }
 }
 
-export interface AppleMusicGrouping {
-    id: string
-    type: 'groupings'
-    attributes: {
-        name: string
-        title?: string
-    }
-    relationships?: {
-        tabs?: {
-            data: any[]
-        }
-        grouping?: {
-            data: any[]
-        }
-        contents?: { // Sometimes content is here
-             data: AppleMusicItem[]
-        }
-    }
-    views?: { // Often editorial content is in views
-        [key: string]: {
-            data: AppleMusicItem[]
-            attributes?: { title: string }
-        }
-    }
-}
-
-// Custom Fetcher for Apple Music API
-const fetchApple = async <T>(endpoint: string): Promise<T> => {
-    const url = `${BASE_URL}${endpoint}`
-    
+// Internal helper for raw fetch
+const fetchApple = async (url: string) => {
     const response = await fetch(url, {
         headers: {
-            'Authorization': `Bearer ${APPLE_MUSIC_TOKEN}`,
-            'Accept-Language': 'ko-KR'
-            // Origin headers are handled by Vite proxy
-        }
-    })
+            "authorization": `Bearer ${APPLE_MUSIC_TOKEN}`,
+            "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\""
+        },
+        referrer: "https://music.apple.com/",
+        method: "GET",
+        mode: "cors",
+        credentials: "include"
+    });
 
     if (!response.ok) {
-        throw new Error(`Apple Music API Error: ${response.statusText}`)
+        throw new Error(`Apple API Error: ${response.status}`)
     }
 
     return response.json()
 }
 
+export const appleApi = {
+    getEditorialGroupings: async () => {
+        const url = `/apple-proxy/editorial/kr/groupings?art%5Burl%5D=c%2Cf&extend=artistUrl%2CeditorialArtwork%2CplainEditorialNotes&extend%5Bstation-events%5D=editorialVideo&fields%5Balbums%5D=artistName%2CartistUrl%2Cartwork%2CcontentRating%2CeditorialArtwork%2CplainEditorialNotes%2Cname%2CplayParams%2CreleaseDate%2Curl%2CtrackCount&fields%5Bartists%5D=name%2Curl%2Cartwork%2CeditorialArtwork&format%5Bresources%5D=map&include%5Balbums%5D=artists&include%5Bmusic-videos%5D=artists&include%5Bsongs%5D=artists&include%5Bstations%5D=events%2Cradio-show&l=ko&name=music&omit%5Bresource%3Aartists%5D=autos&platform=web&relate%5Bsongs%5D=albums&tabs=subscriber`
+        return fetchApple(url)
+    }
+}
+
+// Re-implement appleMusicApi for compatibility with ExternalMusicSpace.tsx
 export const appleMusicApi = {
-    // Get New Releases / Browse Data
     getNewReleases: async () => {
         try {
-            // User provided URL for 'New Music' grouping
-            const data: any = await fetchApple('/editorial/kr/groupings?name=new-music&l=ko&platform=web')
-            
-            const tabs = data.data?.[0]?.relationships?.tabs?.data || []
-            let songs: AppleMusicItem[] = []
-            let playlists: AppleMusicItem[] = []
-            
-            // Extract from editorial content
-            for (const tab of tabs) {
-                 const children = tab.relationships?.children?.data || []
-                 for (const child of children) {
-                     if (child.relationships?.contents?.data) {
-                         const contents = child.relationships.contents.data
-                         
-                         const songItems = contents.filter((i: any) => i.type === 'songs')
-                         const playlistItems = contents.filter((i: any) => i.type === 'playlists')
-                         
-                         if (songItems.length > 0) songs = [...songs, ...songItems]
-                         if (playlistItems.length > 0) playlists = [...playlists, ...playlistItems]
-                     }
-                 }
-            }
-            
-            // Fallback to charts if empty
-            if (songs.length === 0 || playlists.length === 0) {
-                 const chartData: any = await fetchApple('/catalog/kr/charts?types=songs,playlists&limit=20')
-                 if (songs.length === 0) songs = chartData.results.songs?.[0]?.data || []
-                 if (playlists.length === 0) playlists = chartData.results.playlists?.[0]?.data || []
-            }
+            // Use the editorial endpoint to simulate new releases data via the proxy
+            const response = await appleApi.getEditorialGroupings()
+            const resources = response.resources || {}
 
-            return {
-                songs: songs.slice(0, 20),
-                playlists: playlists.slice(0, 10), // Top 10 Playlists
-                albums: [] 
-            }
+            // Extract items from resources (Editorial often returns Albums)
+            // Use defaults if undefined to prevent iteratior errors
+            const songs = Object.values(resources.songs || {}) as AppleMusicItem[]
+            const playlists = Object.values(resources.playlists || {}) as AppleMusicItem[]
+            const albums = Object.values(resources.albums || {}) as AppleMusicItem[]
+
+            return { songs, playlists, albums }
         } catch (e) {
-            console.warn('Apple Music fetch failed, trying fallback chart', e)
-            try {
-                const chartData: any = await fetchApple('/catalog/kr/charts?types=songs,playlists&limit=20')
-                return {
-                    songs: chartData.results.songs?.[0]?.data || [],
-                    playlists: chartData.results.playlists?.[0]?.data || [],
-                    albums: []
-                }
-            } catch (err) {
-                console.error('All Apple Music fetches failed', err)
-                return { songs: [], playlists: [], albums: [] }
-            }
+            console.error("Apple Music Fetch Error", e);
+            return { songs: [], playlists: [], albums: [] };
         }
     },
 
-    // Search using the official API (Better than iTunes Search API)
-    search: async (term: string) => {
-        const termEncoded = encodeURIComponent(term)
-        const data: any = await fetchApple(`/catalog/kr/search?term=${termEncoded}&types=artists,albums,playlists,songs&limit=5`)
-        return data.results
-    },
-    
-    // Get Playlist/Album Tracks
-    getTracks: async (id: string, type: 'albums' | 'playlists') => {
-        const data: any = await fetchApple(`/catalog/kr/${type}/${id}/tracks`)
-        return data.data
+    getTracks: async (id: string, type: 'playlists' | 'albums') => {
+        try {
+            const url = `/apple-proxy/catalog/kr/${type}/${id}/tracks`
+            const response = await fetchApple(url)
+
+            return (response.data || []) as AppleMusicItem[]
+        } catch (e) {
+            console.warn(`Failed to fetch tracks for ${type}/${id}`, e)
+            return []
+        }
     }
 }

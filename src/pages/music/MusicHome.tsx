@@ -88,7 +88,7 @@ const MusicHome = () => {
                     const details: any = await tidalApi.getPlaylistItems(firstPlaylist.uuid)
                     setTidalTracks((details.items || []).slice(0, 5).map((t: any) => ({
                         title: t.title || t.name || 'Unknown',
-                        artist: t.artist || t.artists?.[0]?.name || 'Unknown'
+                        artist: (typeof t.artist === 'string' ? t.artist : t.artist?.name) || t.artists?.[0]?.name || 'Unknown'
                     })))
                 } else {
                     // Fallback if no featured playlists
@@ -102,6 +102,13 @@ const MusicHome = () => {
                 }
             } catch (e) {
                 console.log('Tidal tracks fetch failed:', e)
+                setTidalTracks([
+                    { title: 'Super Shy', artist: 'NewJeans' },
+                    { title: 'Seven', artist: 'Jung Kook' },
+                    { title: 'ETA', artist: 'NewJeans' },
+                    { title: 'I AM', artist: 'IVE' },
+                    { title: 'Fast Forward', artist: 'Jeon Somi' }
+                ])
             }
 
             // Apple Music: Use iTunes Search API for "Top Songs" (simulated by searching popular keywords)
@@ -141,9 +148,24 @@ const MusicHome = () => {
                         { title: 'Fast Forward', artist: 'Jeon Somi' },
                         { title: 'Love Lee', artist: 'AKMU' }
                     ])
+                } else {
+                    setYoutubeTracks([
+                        { title: 'Seven (feat. Latto)', artist: 'Jung Kook' },
+                        { title: 'Super Shy', artist: 'NewJeans' },
+                        { title: 'Vampire', artist: 'Olivia Rodrigo' },
+                        { title: 'Fast Forward', artist: 'Jeon Somi' },
+                        { title: 'Love Lee', artist: 'AKMU' }
+                    ])
                 }
             } catch (e) {
                 console.log('YouTube tracks fetch failed:', e)
+                setYoutubeTracks([
+                    { title: 'Seven (feat. Latto)', artist: 'Jung Kook' },
+                    { title: 'Super Shy', artist: 'NewJeans' },
+                    { title: 'Vampire', artist: 'Olivia Rodrigo' },
+                    { title: 'Fast Forward', artist: 'Jeon Somi' },
+                    { title: 'Love Lee', artist: 'AKMU' }
+                ])
             }
 
             // 4. Load best stats from our DB
@@ -309,7 +331,11 @@ const MusicHome = () => {
                     {[
                         { name: 'Tidal', color: 'from-blue-500 to-cyan-400', tracks: tidalTracks },
                         { name: 'YouTube Music', color: 'from-red-500 to-red-600', tracks: youtubeTracks },
-                        { name: 'Apple Music', color: 'from-pink-500 to-rose-500', tracks: appleTracks },
+                        {
+                            name: 'GMS Best',
+                            color: 'from-orange-500 to-amber-500',
+                            tracks: bestTracks.map(t => ({ title: t.title, artist: t.artist }))
+                        },
                     ].map((platform) => (
                         <div key={platform.name} className="hud-card hud-card-bottom rounded-xl overflow-hidden">
                             <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold`}>
@@ -339,7 +365,7 @@ const MusicHome = () => {
                     <div className="grid gap-6">
                         {[
                             { name: 'Tidal', label: 'Tidal에서 지금 핫한', prefix: 'tidal_', color: 'from-blue-500 to-cyan-400', borderColor: 'border-blue-500' },
-                            { name: 'Apple Music', label: 'Apple Music 인기 앨범', prefix: 'itunes_', color: 'from-pink-500 to-rose-500', borderColor: 'border-pink-500' },
+                            // Apple Music removed
                             { name: 'Spotify', label: 'Spotify 추천 플리', prefix: 'spotify_', color: 'from-green-500 to-emerald-400', borderColor: 'border-green-500' },
                             { name: 'YouTube', label: 'YouTube 뮤직 Pick', prefix: 'youtube_', color: 'from-red-500 to-red-600', borderColor: 'border-red-500' },
                         ].map((platform) => {

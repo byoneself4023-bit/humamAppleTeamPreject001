@@ -868,496 +868,527 @@ const ExternalMusicSpace = () => {
 
     return (
         <div className="p-4 md:p-6">
-                {/* Header */}
-                <header className="mb-8">
-                    <h1 className="text-3xl font-bold text-hud-accent-warning mb-2">The Cargo</h1>
-                    <p className="text-hud-text-secondary mb-6">외부에서 가져온 검증되지 않은 플레이리스트를 수집하고 관리합니다</p>
+            {/* Header */}
+            <header className="mb-8">
+                <h1 className="text-3xl font-bold text-hud-accent-warning mb-2">The Cargo</h1>
+                <p className="text-hud-text-secondary mb-6">외부에서 가져온 검증되지 않은 플레이리스트를 수집하고 관리합니다</p>
 
-                    <div className="flex gap-3">
-                        <button className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                            <Filter className="w-4 h-4" />
-                            Advanced Filter
-                        </button>
-                        <button
-                            onClick={() => document.getElementById('fileInput')?.click()}
-                            className="bg-hud-accent-warning text-hud-bg-primary px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-warning/90 transition-all">
-                            <LinkIcon className="w-4 h-4" />
-                            Upload Files
-                        </button>
+                <div className="flex gap-3">
+                    <button className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
+                        <Filter className="w-4 h-4" />
+                        Advanced Filter
+                    </button>
+                    <button
+                        onClick={() => document.getElementById('fileInput')?.click()}
+                        className="bg-hud-accent-warning text-hud-bg-primary px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-warning/90 transition-all">
+                        <LinkIcon className="w-4 h-4" />
+                        Upload Files
+                    </button>
+                </div>
+            </header>
+
+            <UploadZone onFilesSelected={handleFileUpload} />
+
+            {/* New Releases */}
+            {newReleases.songs.length > 0 && (
+                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
+                        <Sparkles className="w-5 h-5 text-pink-500" />
+                        최신 인기 차트 (Apple Music Top 10)
+                        <span className="text-sm font-normal text-hud-text-muted ml-2">(KR Store Real-time)</span>
+                    </h2>
+                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
+                        {newReleases.songs.map((song) => (
+                            <div key={song.id} className="min-w-[160px] w-[160px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-pink-500/50 transition-all group">
+                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
+                                    <img src={song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300')} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                            onClick={() => addToCart({
+                                                id: parseInt(song.id),
+                                                title: song.attributes.name,
+                                                artist: song.attributes.artistName || 'Unknown',
+                                                album: song.attributes.name,
+                                                artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300') || '',
+                                                url: song.attributes.url,
+                                                date: song.attributes.releaseDate || '',
+                                                audio: '',
+                                                previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
+                                            })}
+                                            className="bg-pink-500 text-white p-2 rounded-full transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-pink-600"
+                                            title="카트에 담기"
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="font-bold text-hud-text-primary truncate text-sm" title={song.attributes.name}>{song.attributes.name}</div>
+                                <div className="text-xs text-hud-text-secondary truncate">{song.attributes.artistName}</div>
+                            </div>
+                        ))}
                     </div>
-                </header>
+                </section>
+            )}
 
-                <UploadZone onFilesSelected={handleFileUpload} />
+            {/* Apple Music Albums (Hidden per user request) */}
+            {/* {newReleases.albums && newReleases.albums.length > 0 && (
+                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
+                        <Disc3 className="w-5 h-5 text-purple-500" />
+                        최신 앨범 (Apple Music)
+                        <span className="text-sm font-normal text-hud-text-muted ml-2">(New Releases)</span>
+                    </h2>
+                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
+                        {newReleases.albums.map((album: any) => (
+                            <div key={album.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-purple-500/50 transition-all group flex flex-col">
+                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
+                                    <img src={album.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400')} alt={album.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                            onClick={() => handleViewDetail(album.id, album.attributes.name, 'albums')}
+                                            className="bg-purple-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-purple-600"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            View
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="font-bold text-hud-text-primary truncate" title={album.attributes.name}>{album.attributes.name}</div>
+                                <div className="text-xs text-hud-text-secondary truncate">{album.attributes.artistName}</div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )} */}
 
-                {/* New Releases */}
-                {newReleases.songs.length > 0 && (
-                    <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                            <Sparkles className="w-5 h-5 text-pink-500" />
-                            최신 인기 차트 (Apple Music Top 10)
-                            <span className="text-sm font-normal text-hud-text-muted ml-2">(KR Store Real-time)</span>
-                        </h2>
-                        <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                            {newReleases.songs.map((song) => (
-                                <div key={song.id} className="min-w-[160px] w-[160px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-pink-500/50 transition-all group">
-                                    <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                        <img src={song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300')} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <button
-                                                onClick={() => addToCart({
-                                                    id: parseInt(song.id),
-                                                    title: song.attributes.name,
-                                                    artist: song.attributes.artistName || 'Unknown',
-                                                    album: song.attributes.name,
-                                                    artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300') || '',
-                                                    url: song.attributes.url,
-                                                    date: song.attributes.releaseDate || '',
-                                                    audio: '',
-                                                    previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
-                                                })}
-                                                className="bg-pink-500 text-white p-2 rounded-full transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-pink-600"
-                                                title="카트에 담기"
-                                            >
-                                                <Plus className="w-5 h-5" />
-                                            </button>
+            {/* Apple Music Playlists (Hidden per user request) */}
+            {/* {newReleases.playlists && newReleases.playlists.length > 0 && (
+                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
+                        <Music2 className="w-5 h-5 text-rose-500" />
+                        추천 플레이리스트 (Apple Music)
+                        <span className="text-sm font-normal text-hud-text-muted ml-2">(Editor's Pick)</span>
+                    </h2>
+                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
+                        {newReleases.playlists.map((playlist) => (
+                            <div key={playlist.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-rose-500/50 transition-all group flex flex-col">
+                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
+                                    <img src={playlist.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400')} alt={playlist.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                            onClick={() => handleViewDetail(playlist.id, playlist.attributes.name, 'playlists')}
+                                            className="bg-rose-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-rose-600"
+                                        >
+                                            <Eye className="w-4 h-4" />
+                                            View
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="font-bold text-hud-text-primary truncate" title={playlist.attributes.name}>{playlist.attributes.name}</div>
+                                <div className="text-xs text-hud-text-muted mt-1 truncate" title={playlist.attributes.editorialNotes?.short}>
+                                    {playlist.attributes.editorialNotes?.short || 'Apple Music Curation'}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )} */}
+
+            {/* Spotify 특별전 */}
+            {spotifySpecial && spotifySpecial.playlists && spotifySpecial.playlists.length > 0 && (
+                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6 border-2 border-green-500/30 bg-gradient-to-br from-hud-bg-secondary to-green-900/10">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
+                                <Disc3 className="w-6 h-6 text-green-500 animate-spin" style={{ animationDuration: '3s' }} />
+                                {spotifySpecial.event.title}
+                            </h2>
+                            <p className="text-hud-text-secondary mt-1">{spotifySpecial.event.subtitle}</p>
+                        </div>
+                        <div className="flex gap-4 text-sm">
+                            <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
+                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats.totalPlaylists}</div>
+                                <div className="text-hud-text-muted text-xs">플레이리스트</div>
+                            </div>
+                            <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
+                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats.totalTracks}</div>
+                                <div className="text-hud-text-muted text-xs">트랙</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Hot Tracks */}
+                    {spotifySpecial.hotTracks && spotifySpecial.hotTracks.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2 mb-4">
+                                <TrendingUp className="w-5 h-5 text-orange-500" />
+                                인기 트랙 TOP 10
+                            </h3>
+                            <div className="flex overflow-x-auto gap-3 pb-4 custom-scrollbar">
+                                {spotifySpecial.hotTracks.map((track: any, idx: number) => (
+                                    <div key={track.trackId} className="min-w-[140px] w-[140px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-green-500/50 transition-all group relative">
+                                        <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
+                                            {idx + 1}
+                                        </div>
+                                        <div className="aspect-square mb-2 rounded-md overflow-hidden bg-gradient-to-br from-green-900/50 to-hud-bg-primary relative">
+                                            {fixImageUrl(track.artwork) ? (
+                                                <img
+                                                    src={fixImageUrl(track.artwork)}
+                                                    alt={track.title}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                                />
+                                            ) : null}
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <Headphones className="w-10 h-10 text-green-500/50" />
+                                            </div>
+                                        </div>
+                                        <div className="font-bold text-hud-text-primary truncate text-sm" title={track.title}>{track.title}</div>
+                                        <div className="text-xs text-hud-text-secondary truncate">{track.artist}</div>
+                                        {track.popularity && (
+                                            <div className="mt-1 flex items-center gap-1">
+                                                <div className="h-1 flex-1 bg-hud-bg-primary rounded-full overflow-hidden">
+                                                    <div className="h-full bg-green-500" style={{ width: `${track.popularity}%` }}></div>
+                                                </div>
+                                                <span className="text-[10px] text-green-400">{track.popularity}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Categories */}
+                    {spotifySpecial.categories && Object.keys(spotifySpecial.categories).length > 0 && (
+                        <div>
+                            <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2 mb-4">
+                                <Disc3 className="w-5 h-5 text-green-500" />
+                                카테고리별 플레이리스트
+                            </h3>
+                            <div className="space-y-4">
+                                {Object.entries(spotifySpecial.categories).map(([category, categoryPlaylists]: [string, any[]]) => (
+                                    <div key={category} className="bg-hud-bg-primary/50 rounded-lg p-4 border border-hud-border-secondary">
+                                        <h4 className="font-bold text-green-400 mb-3 flex items-center gap-2">
+                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                            {category}
+                                            <span className="text-xs text-hud-text-muted font-normal">({categoryPlaylists.length})</span>
+                                        </h4>
+                                        <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
+                                            {categoryPlaylists.map((playlist: any) => (
+                                                <div
+                                                    key={playlist.playlistId}
+                                                    onClick={() => setSelectedDetailId(playlist.playlistId)}
+                                                    className="min-w-[180px] w-[180px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden hover:border-green-500/50 transition-all cursor-pointer group"
+                                                >
+                                                    <div className="aspect-square relative bg-gradient-to-br from-green-900/50 to-hud-bg-primary">
+                                                        {fixImageUrl(playlist.coverImage) ? (
+                                                            <img
+                                                                src={fixImageUrl(playlist.coverImage)}
+                                                                alt={playlist.title}
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+                                                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                                            />
+                                                        ) : null}
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <Disc3 className="w-16 h-16 text-green-500/30" />
+                                                        </div>
+                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">상세보기</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-3">
+                                                        <div className="font-bold text-hud-text-primary truncate text-sm" title={playlist.title}>{playlist.title}</div>
+                                                        <div className="text-xs text-hud-text-muted mt-1">{playlist.trackCount || 0}곡</div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                    <div className="font-bold text-hud-text-primary truncate text-sm" title={song.attributes.name}>{song.attributes.name}</div>
-                                    <div className="text-xs text-hud-text-secondary truncate">{song.attributes.artistName}</div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </section>
-                )}
+                    )}
+                </section>
+            )}
 
-                {/* Apple Music Playlists */}
-                {newReleases.playlists && newReleases.playlists.length > 0 && (
-                    <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                            <Music2 className="w-5 h-5 text-rose-500" />
-                            추천 플레이리스트 (Apple Music)
-                            <span className="text-sm font-normal text-hud-text-muted ml-2">(Editor's Pick)</span>
-                        </h2>
-                        <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                            {newReleases.playlists.map((playlist) => (
-                                <div key={playlist.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-rose-500/50 transition-all group flex flex-col">
-                                    <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                        <img src={playlist.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400')} alt={playlist.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            {/* iTunes Auto Discovery */}
+            {[
+                { title: '오늘의 추천 믹스 (Auto Discovery)', data: recommendations, icon: <Brain className="w-5 h-5 text-hud-accent-primary" /> },
+                { title: 'Classical Essentials', data: classicRecs, icon: <Brain className="w-5 h-5 text-hud-accent-warning" /> },
+                { title: 'Vocal Jazz Collection', data: jazzRecs, icon: <Music2 className="w-5 h-5 text-hud-accent-info" /> },
+                { title: 'K-Pop Trends', data: kpopRecs, icon: <ExternalLink className="w-5 h-5 text-hud-accent-success" /> }
+            ].map((section, idx) => section.data.length > 0 && (
+                <section key={idx} className="hud-card hud-card-bottom rounded-xl p-6 mb-6 mt-6">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
+                        {section.icon}
+                        {section.title}
+                        <span className="text-sm font-normal text-hud-text-muted ml-2">(iTunes Auto Discovery)</span>
+                    </h2>
+                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
+                        {section.data.map((album) => (
+                            <div
+                                key={album.id}
+                                className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group cursor-pointer"
+                                onClick={() => handleViewCollectionDetail(album)}
+                            >
+                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-hud-bg-primary">
+                                    {fixImageUrl(album.artwork) ? (
+                                        <img
+                                            src={fixImageUrl(album.artwork)}
+                                            alt={album.title}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
+                                            onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                        />
+                                    ) : null}
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <Music2 className="w-12 h-12 text-hud-text-muted" />
+                                    </div>
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                        {viewingCollectionId === album.id ? (
+                                            <div className="flex items-center gap-2 text-white">
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                <span className="font-bold">로딩 중...</span>
+                                            </div>
+                                        ) : (
                                             <button
-                                                onClick={() => handleViewDetail(playlist.id, playlist.attributes.name, 'playlists')}
-                                                className="bg-rose-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-rose-600"
+                                                className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
                                             >
                                                 <Eye className="w-4 h-4" />
-                                                View
+                                                상세보기
                                             </button>
-                                        </div>
-                                    </div>
-                                    <div className="font-bold text-hud-text-primary truncate" title={playlist.attributes.name}>{playlist.attributes.name}</div>
-                                    <div className="text-xs text-hud-text-muted mt-1 truncate" title={playlist.attributes.editorialNotes?.short}>
-                                        {playlist.attributes.editorialNotes?.short || 'Apple Music Curation'}
+                                        )}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                {/* Spotify 특별전 */}
-                {spotifySpecial && spotifySpecial.playlists && spotifySpecial.playlists.length > 0 && (
-                    <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6 border-2 border-green-500/30 bg-gradient-to-br from-hud-bg-secondary to-green-900/10">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
-                                    <Disc3 className="w-6 h-6 text-green-500 animate-spin" style={{ animationDuration: '3s' }} />
-                                    {spotifySpecial.event.title}
-                                </h2>
-                                <p className="text-hud-text-secondary mt-1">{spotifySpecial.event.subtitle}</p>
-                            </div>
-                            <div className="flex gap-4 text-sm">
-                                <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
-                                    <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats.totalPlaylists}</div>
-                                    <div className="text-hud-text-muted text-xs">플레이리스트</div>
-                                </div>
-                                <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
-                                    <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats.totalTracks}</div>
-                                    <div className="text-hud-text-muted text-xs">트랙</div>
+                                <div className="font-bold text-hud-text-primary truncate" title={album.title}>{album.title}</div>
+                                <div className="text-sm text-hud-text-secondary truncate">{album.artist}</div>
+                                <div className="text-xs text-hud-text-muted mt-1 flex justify-between">
+                                    <span>{album.genre}</span>
+                                    <span>{album.count}곡</span>
                                 </div>
                             </div>
-                        </div>
+                        ))}
+                    </div>
+                </section>
+            ))}
 
-                        {/* Hot Tracks */}
-                        {spotifySpecial.hotTracks && spotifySpecial.hotTracks.length > 0 && (
-                            <div className="mb-6">
-                                <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                                    <TrendingUp className="w-5 h-5 text-orange-500" />
-                                    인기 트랙 TOP 10
-                                </h3>
-                                <div className="flex overflow-x-auto gap-3 pb-4 custom-scrollbar">
-                                    {spotifySpecial.hotTracks.map((track: any, idx: number) => (
-                                        <div key={track.trackId} className="min-w-[140px] w-[140px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-green-500/50 transition-all group relative">
-                                            <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
-                                                {idx + 1}
-                                            </div>
-                                            <div className="aspect-square mb-2 rounded-md overflow-hidden bg-gradient-to-br from-green-900/50 to-hud-bg-primary relative">
-                                                {fixImageUrl(track.artwork) ? (
-                                                    <img
-                                                        src={fixImageUrl(track.artwork)}
-                                                        alt={track.title}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                                                        onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                                    />
-                                                ) : null}
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <Headphones className="w-10 h-10 text-green-500/50" />
-                                                </div>
-                                            </div>
-                                            <div className="font-bold text-hud-text-primary truncate text-sm" title={track.title}>{track.title}</div>
-                                            <div className="text-xs text-hud-text-secondary truncate">{track.artist}</div>
-                                            {track.popularity && (
-                                                <div className="mt-1 flex items-center gap-1">
-                                                    <div className="h-1 flex-1 bg-hud-bg-primary rounded-full overflow-hidden">
-                                                        <div className="h-full bg-green-500" style={{ width: `${track.popularity}%` }}></div>
-                                                    </div>
-                                                    <span className="text-[10px] text-green-400">{track.popularity}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Categories */}
-                        {spotifySpecial.categories && Object.keys(spotifySpecial.categories).length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                                    <Disc3 className="w-5 h-5 text-green-500" />
-                                    카테고리별 플레이리스트
-                                </h3>
-                                <div className="space-y-4">
-                                    {Object.entries(spotifySpecial.categories).map(([category, categoryPlaylists]: [string, any[]]) => (
-                                        <div key={category} className="bg-hud-bg-primary/50 rounded-lg p-4 border border-hud-border-secondary">
-                                            <h4 className="font-bold text-green-400 mb-3 flex items-center gap-2">
-                                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                                {category}
-                                                <span className="text-xs text-hud-text-muted font-normal">({categoryPlaylists.length})</span>
-                                            </h4>
-                                            <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
-                                                {categoryPlaylists.map((playlist: any) => (
-                                                    <div
-                                                        key={playlist.playlistId}
-                                                        onClick={() => setSelectedDetailId(playlist.playlistId)}
-                                                        className="min-w-[180px] w-[180px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden hover:border-green-500/50 transition-all cursor-pointer group"
-                                                    >
-                                                        <div className="aspect-square relative bg-gradient-to-br from-green-900/50 to-hud-bg-primary">
-                                                            {fixImageUrl(playlist.coverImage) ? (
-                                                                <img
-                                                                    src={fixImageUrl(playlist.coverImage)}
-                                                                    alt={playlist.title}
-                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                                                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                                                />
-                                                            ) : null}
-                                                            <div className="w-full h-full flex items-center justify-center">
-                                                                <Disc3 className="w-16 h-16 text-green-500/30" />
-                                                            </div>
-                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">상세보기</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-3">
-                                                            <div className="font-bold text-hud-text-primary truncate text-sm" title={playlist.title}>{playlist.title}</div>
-                                                            <div className="text-xs text-hud-text-muted mt-1">{playlist.trackCount || 0}곡</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </section>
-                )}
-
-                {/* iTunes Auto Discovery */}
-                {[
-                    { title: '오늘의 추천 믹스 (Auto Discovery)', data: recommendations, icon: <Brain className="w-5 h-5 text-hud-accent-primary" /> },
-                    { title: 'Classical Essentials', data: classicRecs, icon: <Brain className="w-5 h-5 text-hud-accent-warning" /> },
-                    { title: 'Vocal Jazz Collection', data: jazzRecs, icon: <Music2 className="w-5 h-5 text-hud-accent-info" /> },
-                    { title: 'K-Pop Trends', data: kpopRecs, icon: <ExternalLink className="w-5 h-5 text-hud-accent-success" /> }
-                ].map((section, idx) => section.data.length > 0 && (
-                    <section key={idx} className="hud-card hud-card-bottom rounded-xl p-6 mb-6 mt-6">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                            {section.icon}
-                            {section.title}
-                            <span className="text-sm font-normal text-hud-text-muted ml-2">(iTunes Auto Discovery)</span>
-                        </h2>
-                        <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                            {section.data.map((album) => (
+            {/* YouTube Search */}
+            {youtubeConnected && (
+                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
+                        <Search className="w-5 h-5 text-red-500" />
+                        YouTube 플레이리스트 검색
+                    </h2>
+                    <div className="flex gap-2 mb-6">
+                        <input
+                            type="text"
+                            placeholder="플레이리스트 검색 (예: K-Pop, 운동 음악)"
+                            value={youtubeSearchTerm}
+                            onChange={(e) => setYoutubeSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleYoutubeSearch()}
+                            className="flex-1 px-4 py-2 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg text-hud-text-primary focus:outline-none focus:border-red-500 placeholder-hud-text-muted"
+                        />
+                        <button onClick={handleYoutubeSearch} disabled={isYoutubeSearching} className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition-all flex items-center gap-2">
+                            {isYoutubeSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 검색
+                        </button>
+                    </div>
+                    {youtubeResults.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                            {youtubeResults.map((playlist) => (
                                 <div
-                                    key={album.id}
-                                    className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group cursor-pointer"
-                                    onClick={() => handleViewCollectionDetail(album)}
+                                    key={playlist.id}
+                                    className="bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden group hover:border-red-500/50 transition-all cursor-pointer"
+                                    onClick={() => handleViewYoutubeDetail(playlist)}
                                 >
-                                    <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-hud-bg-primary">
-                                        {fixImageUrl(album.artwork) ? (
-                                            <img
-                                                src={fixImageUrl(album.artwork)}
-                                                alt={album.title}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                                                onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                            />
-                                        ) : null}
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <Music2 className="w-12 h-12 text-hud-text-muted" />
-                                        </div>
+                                    <div className="relative aspect-video">
+                                        <img src={playlist.thumbnail || ''} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                            {viewingCollectionId === album.id ? (
+                                            {viewingYoutubeId === playlist.id ? (
                                                 <div className="flex items-center gap-2 text-white">
                                                     <Loader2 className="w-5 h-5 animate-spin" />
                                                     <span className="font-bold">로딩 중...</span>
                                                 </div>
                                             ) : (
-                                                <button
-                                                    className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
-                                                >
+                                                <button className="bg-white text-red-600 px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-gray-100">
                                                     <Eye className="w-4 h-4" />
                                                     상세보기
                                                 </button>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="font-bold text-hud-text-primary truncate" title={album.title}>{album.title}</div>
-                                    <div className="text-sm text-hud-text-secondary truncate">{album.artist}</div>
-                                    <div className="text-xs text-hud-text-muted mt-1 flex justify-between">
-                                        <span>{album.genre}</span>
-                                        <span>{album.count}곡</span>
+                                    <div className="p-3">
+                                        <div className="font-bold text-hud-text-primary truncate" title={playlist.title}>{playlist.title}</div>
+                                        <div className="text-sm text-hud-text-secondary truncate">{playlist.channelTitle}</div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                ))}
-
-                {/* YouTube Search */}
-                {youtubeConnected && (
-                    <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                            <Search className="w-5 h-5 text-red-500" />
-                            YouTube 플레이리스트 검색
-                        </h2>
-                        <div className="flex gap-2 mb-6">
-                            <input
-                                type="text"
-                                placeholder="플레이리스트 검색 (예: K-Pop, 운동 음악)"
-                                value={youtubeSearchTerm}
-                                onChange={(e) => setYoutubeSearchTerm(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleYoutubeSearch()}
-                                className="flex-1 px-4 py-2 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg text-hud-text-primary focus:outline-none focus:border-red-500 placeholder-hud-text-muted"
-                            />
-                            <button onClick={handleYoutubeSearch} disabled={isYoutubeSearching} className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition-all flex items-center gap-2">
-                                {isYoutubeSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 검색
-                            </button>
-                        </div>
-                        {youtubeResults.length > 0 && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                                {youtubeResults.map((playlist) => (
-                                    <div
-                                        key={playlist.id}
-                                        className="bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden group hover:border-red-500/50 transition-all cursor-pointer"
-                                        onClick={() => handleViewYoutubeDetail(playlist)}
-                                    >
-                                        <div className="relative aspect-video">
-                                            <img src={playlist.thumbnail || ''} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                                {viewingYoutubeId === playlist.id ? (
-                                                    <div className="flex items-center gap-2 text-white">
-                                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                                        <span className="font-bold">로딩 중...</span>
-                                                    </div>
-                                                ) : (
-                                                    <button className="bg-white text-red-600 px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-gray-100">
-                                                        <Eye className="w-4 h-4" />
-                                                        상세보기
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="p-3">
-                                            <div className="font-bold text-hud-text-primary truncate" title={playlist.title}>{playlist.title}</div>
-                                            <div className="text-sm text-hud-text-secondary truncate">{playlist.channelTitle}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                )}
-
-                {/* Music Search */}
-                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                        <Search className="w-5 h-5 text-hud-accent-info" />
-                        Apple Music 카탈로그 검색
-                        <span className="text-sm font-normal text-hud-text-muted ml-2">(iTunes DB 기반 고음질 메타데이터 검색)</span>
-                    </h2>
-                    <div className="flex gap-2 mb-6">
-                        <input
-                            id="music-search-input"
-                            type="text"
-                            placeholder="곡, 아티스트, 앨범 검색 (예: NewJeans)"
-                            value={trackSearchTerm}
-                            onChange={(e) => setTrackSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            className="flex-1 px-4 py-2 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg text-hud-text-primary focus:outline-none focus:border-hud-accent-info placeholder-hud-text-muted"
-                        />
-                        <button onClick={handleSearch} disabled={isSearching} className="bg-hud-accent-info text-white px-6 py-2 rounded-lg font-semibold hover:bg-hud-accent-info/90 transition-all flex items-center gap-2">
-                            {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 검색
-                        </button>
-                    </div>
-                    {trackResults.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {trackResults.map((track) => (
-                                <div key={track.id} className="flex items-center gap-3 p-3 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg hover:border-hud-accent-info/50 transition-all">
-                                    <div className="w-12 h-12 rounded bg-hud-bg-primary flex items-center justify-center relative overflow-hidden shrink-0">
-                                        {fixImageUrl(track.artwork) && (
-                                            <img
-                                                src={fixImageUrl(track.artwork)}
-                                                alt={track.title}
-                                                className="w-full h-full object-cover absolute inset-0"
-                                                onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                            />
-                                        )}
-                                        <Music2 className="w-6 h-6 text-hud-text-muted" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-hud-text-primary truncate">{track.title}</div>
-                                        <div className="text-sm text-hud-text-secondary truncate">{track.artist}</div>
-                                        <div className="text-xs text-hud-text-muted truncate flex items-center gap-2">
-                                            {track.album}
-                                            {track.previewUrl && (
-                                                <span className="text-hud-accent-info flex items-center gap-0.5 text-[10px] border border-hud-accent-info/30 px-1 rounded">
-                                                    <Music2 className="w-2 h-2" /> 30s
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => addToCart(track)}
-                                        className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
-                                        title="카트에 담기"
-                                    >
-                                        <Plus className="w-5 h-5" />
-                                    </button>
                                 </div>
                             ))}
                         </div>
                     )}
                 </section>
+            )}
 
-                {/* Playlist Table */}
-                <section className="hud-card hud-card-bottom rounded-xl overflow-hidden">
-                    <div className="p-6 border-b border-hud-border-secondary flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3">
-                            <Brain className="w-5 h-5 text-hud-accent-primary" />
-                            EMS 플레이리스트 목록
-                            <span className="text-sm font-normal text-hud-text-muted ml-2">
-                                (검증 대기: {playlists.filter(p => p.status === 'unverified').length}개)
-                            </span>
-                        </h2>
-                        {selectedIds.length > 0 && (
-                            <button
-                                onClick={() => selectedIds.forEach(id => handleDelete(id))}
-                                className="text-hud-accent-danger hover:bg-hud-accent-danger/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
-                            >
-                                <Trash2 className="w-4 h-4" /> 선택 삭제 ({selectedIds.length})
-                            </button>
-                        )}
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-hud-bg-secondary text-hud-text-secondary text-xs uppercase font-semibold">
-                                <tr>
-                                    <th className="p-4 w-10">
-                                        <input
-                                            type="checkbox"
-                                            className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
-                                            checked={playlists.length > 0 && selectedIds.length === playlists.length}
-                                            onChange={(e) => handleSelectAll(e.target.checked)}
+            {/* Music Search */}
+            <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
+                <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
+                    <Search className="w-5 h-5 text-hud-accent-info" />
+                    Apple Music 카탈로그 검색
+                    <span className="text-sm font-normal text-hud-text-muted ml-2">(iTunes DB 기반 고음질 메타데이터 검색)</span>
+                </h2>
+                <div className="flex gap-2 mb-6">
+                    <input
+                        id="music-search-input"
+                        type="text"
+                        placeholder="곡, 아티스트, 앨범 검색 (예: NewJeans)"
+                        value={trackSearchTerm}
+                        onChange={(e) => setTrackSearchTerm(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        className="flex-1 px-4 py-2 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg text-hud-text-primary focus:outline-none focus:border-hud-accent-info placeholder-hud-text-muted"
+                    />
+                    <button onClick={handleSearch} disabled={isSearching} className="bg-hud-accent-info text-white px-6 py-2 rounded-lg font-semibold hover:bg-hud-accent-info/90 transition-all flex items-center gap-2">
+                        {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 검색
+                    </button>
+                </div>
+                {trackResults.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                        {trackResults.map((track) => (
+                            <div key={track.id} className="flex items-center gap-3 p-3 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg hover:border-hud-accent-info/50 transition-all">
+                                <div className="w-12 h-12 rounded bg-hud-bg-primary flex items-center justify-center relative overflow-hidden shrink-0">
+                                    {fixImageUrl(track.artwork) && (
+                                        <img
+                                            src={fixImageUrl(track.artwork)}
+                                            alt={track.title}
+                                            className="w-full h-full object-cover absolute inset-0"
+                                            onError={(e) => { e.currentTarget.style.display = 'none' }}
                                         />
-                                    </th>
-                                    <th className="p-4">플레이리스트</th>
-                                    <th className="p-4">소스</th>
-                                    <th className="p-4">트랙 수</th>
-                                    <th className="p-4">추가일</th>
-                                    <th className="p-4">상태</th>
-                                    <th className="p-4 text-right">관리</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-hud-border-secondary">
-                                {filteredPlaylists.length > 0 ? (
-                                    filteredPlaylists.map((playlist) => (
-                                        <tr
-                                            key={playlist.id}
-                                            className="hover:bg-hud-bg-secondary/50 transition-colors group cursor-pointer"
-                                            onClick={() => setSelectedDetailId(playlist.id)}
-                                        >
-                                            <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                                                <input
-                                                    type="checkbox"
-                                                    className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
-                                                    checked={selectedIds.includes(playlist.id)}
-                                                    onChange={(e) => handleSelectRow(playlist.id, e.target.checked)}
-                                                />
-                                            </td>
-                                            <td className="p-4 font-medium text-hud-text-primary hover:text-hud-accent-primary transition-colors">
-                                                {playlist.name}
-                                            </td>
-                                            <td className="p-4 text-hud-text-secondary capitalize">{playlist.source}</td>
-                                            <td className="p-4 text-hud-text-secondary">{playlist.trackCount}</td>
-                                            <td className="p-4 text-hud-text-muted text-sm">{playlist.addedDate}</td>
-                                            <td className="p-4">{getStatusBadge(playlist.status)}</td>
-                                            <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => handleAnalyze(playlist.id)}
-                                                        disabled={analyzingId === playlist.id}
-                                                        className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
-                                                        title="AI 분석 실행"
-                                                    >
-                                                        {analyzingId === playlist.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setSelectedDetailId(playlist.id)}
-                                                        className="p-2 text-hud-text-secondary hover:text-hud-text-primary hover:bg-hud-bg-hover rounded-lg transition-colors"
-                                                        title="상세 보기"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(playlist.id)}
-                                                        className="p-2 text-hud-text-muted hover:text-hud-accent-danger hover:bg-hud-accent-danger/10 rounded-lg transition-colors"
-                                                        title="삭제"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={7} className="p-8 text-center text-hud-text-muted">
-                                            {searchTerm ? '검색 결과가 없습니다.' : '아직 수집된 플레이리스트가 없습니다.'}
+                                    )}
+                                    <Music2 className="w-6 h-6 text-hud-text-muted" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-hud-text-primary truncate">{track.title}</div>
+                                    <div className="text-sm text-hud-text-secondary truncate">{track.artist}</div>
+                                    <div className="text-xs text-hud-text-muted truncate flex items-center gap-2">
+                                        {track.album}
+                                        {track.previewUrl && (
+                                            <span className="text-hud-accent-info flex items-center gap-0.5 text-[10px] border border-hud-accent-info/30 px-1 rounded">
+                                                <Music2 className="w-2 h-2" /> 30s
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => addToCart(track)}
+                                    className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
+                                    title="카트에 담기"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* Playlist Table */}
+            <section className="hud-card hud-card-bottom rounded-xl overflow-hidden">
+                <div className="p-6 border-b border-hud-border-secondary flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3">
+                        <Brain className="w-5 h-5 text-hud-accent-primary" />
+                        EMS 플레이리스트 목록
+                        <span className="text-sm font-normal text-hud-text-muted ml-2">
+                            (검증 대기: {playlists.filter(p => p.status === 'unverified').length}개)
+                        </span>
+                    </h2>
+                    {selectedIds.length > 0 && (
+                        <button
+                            onClick={() => selectedIds.forEach(id => handleDelete(id))}
+                            className="text-hud-accent-danger hover:bg-hud-accent-danger/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+                        >
+                            <Trash2 className="w-4 h-4" /> 선택 삭제 ({selectedIds.length})
+                        </button>
+                    )}
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-hud-bg-secondary text-hud-text-secondary text-xs uppercase font-semibold">
+                            <tr>
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
+                                        checked={playlists.length > 0 && selectedIds.length === playlists.length}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                    />
+                                </th>
+                                <th className="p-4">플레이리스트</th>
+                                <th className="p-4">소스</th>
+                                <th className="p-4">트랙 수</th>
+                                <th className="p-4">추가일</th>
+                                <th className="p-4">상태</th>
+                                <th className="p-4 text-right">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-hud-border-secondary">
+                            {filteredPlaylists.length > 0 ? (
+                                filteredPlaylists.map((playlist) => (
+                                    <tr
+                                        key={playlist.id}
+                                        className="hover:bg-hud-bg-secondary/50 transition-colors group cursor-pointer"
+                                        onClick={() => setSelectedDetailId(playlist.id)}
+                                    >
+                                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
+                                                checked={selectedIds.includes(playlist.id)}
+                                                onChange={(e) => handleSelectRow(playlist.id, e.target.checked)}
+                                            />
+                                        </td>
+                                        <td className="p-4 font-medium text-hud-text-primary hover:text-hud-accent-primary transition-colors">
+                                            {playlist.name}
+                                        </td>
+                                        <td className="p-4 text-hud-text-secondary capitalize">{playlist.source}</td>
+                                        <td className="p-4 text-hud-text-secondary">{playlist.trackCount}</td>
+                                        <td className="p-4 text-hud-text-muted text-sm">{playlist.addedDate}</td>
+                                        <td className="p-4">{getStatusBadge(playlist.status)}</td>
+                                        <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleAnalyze(playlist.id)}
+                                                    disabled={analyzingId === playlist.id}
+                                                    className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
+                                                    title="AI 분석 실행"
+                                                >
+                                                    {analyzingId === playlist.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedDetailId(playlist.id)}
+                                                    className="p-2 text-hud-text-secondary hover:text-hud-text-primary hover:bg-hud-bg-hover rounded-lg transition-colors"
+                                                    title="상세 보기"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(playlist.id)}
+                                                    className="p-2 text-hud-text-muted hover:text-hud-accent-danger hover:bg-hud-accent-danger/10 rounded-lg transition-colors"
+                                                    title="삭제"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} className="p-8 text-center text-hud-text-muted">
+                                        {searchTerm ? '검색 결과가 없습니다.' : '아직 수집된 플레이리스트가 없습니다.'}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             {/* Floating Cart Button */}
             <div className="fixed bottom-8 right-8 z-50">
