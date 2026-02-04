@@ -56,9 +56,17 @@ const TidalCallback = () => {
                     setUser({ username: response.user.username || 'Tidal User' })
                 }
 
+                // Normalize response field names for consistency
+                const normalizedResponse = {
+                    ...response,
+                    accessToken: response.access_token || response.accessToken,
+                    refreshToken: response.refresh_token || response.refreshToken,
+                    expiresIn: response.expires_in || response.expiresIn
+                }
+
                 const messageData = {
                     type: 'TIDAL_LOGIN_SUCCESS',
-                    response,
+                    response: normalizedResponse,
                     visitorId,
                     timestamp: Date.now()
                 }

@@ -76,6 +76,7 @@ import MusicHome from './pages/music/MusicHome'
 import GatewayMusicSpace from './pages/music/GatewayMusicSpace'
 import MusicConnections from './pages/music/MusicConnections'
 import MusicSettings from './pages/music/MusicSettings'
+import MusicPlayer from './components/music/MusicPlayer'
 
 function App() {
     return (
@@ -168,6 +169,8 @@ function App() {
                         {/* 404 Fallback */}
                         <Route path="*" element={<Error404 />} />
                     </Routes>
+                    {/* Global Music Player - persists across all routes */}
+                    <MusicPlayer />
                 </Router>
             </MusicProvider>
         </AuthProvider>

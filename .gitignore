@@ -4,3 +4,5 @@ dist
 *.log
 nul
 .DS_Store
+
+public/uploads

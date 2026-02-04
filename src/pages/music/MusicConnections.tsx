@@ -3,6 +3,7 @@ import { spotifyApi, SpotifyPlaylist } from '../../services/api/spotify'
 import { youtubeMusicApi, YouTubePlaylist } from '../../services/api/youtubeMusic'
 import { tidalApi, TidalPlaylist, TidalAuthStatus } from '../../services/api/tidal'
 import { useAuth } from '../../contexts/AuthContext'
+import TidalLoginModal from '../../components/auth/TidalLoginModal'
 import {
     Music,
     Unlink,
@@ -54,6 +55,7 @@ const MusicConnections = () => {
     const [tidalPlaylists, setTidalPlaylists] = useState<TidalPlaylist[]>([])
     const [tidalLoading, setTidalLoading] = useState(false)
     const [tidalConnecting, setTidalConnecting] = useState(false)
+    const [showTidalModal, setShowTidalModal] = useState(false)
     const [importingTidalPlaylist, setImportingTidalPlaylist] = useState<string | null>(null)
     const [importedTidalPlaylists, setImportedTidalPlaylists] = useState<Set<string>>(new Set())
 
@@ -408,93 +410,42 @@ const MusicConnections = () => {
         }
     }, [tidalConnected, loadAndImportTidalPlaylists])
 
-    // Handle Tidal login with popup (OAuth Code Flow)
-    const handleTidalLogin = async () => {
-        setTidalConnecting(true)
-        try {
-            const authUrl = await tidalApi.getLoginUrl()
+    // Handle Tidal login - open modal
+    const handleTidalLogin = () => {
+        setShowTidalModal(true)
+    }
 
-            const width = 500
-            const height = 700
-            const left = window.screenX + (window.outerWidth - width) / 2
-            const top = window.screenY + (window.outerHeight - height) / 2
+    // Handle Tidal login success from modal
+    const handleTidalSuccess = async (response: any) => {
+        console.log('[Tidal] Login success:', response)
+        setShowTidalModal(false)
+        setTidalConnected(true)
 
-            const popup = window.open(
-                authUrl,
-                'TidalLogin',
-                `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
-            )
-
-            // Listen for login success message
-            const handleMessage = async (event: MessageEvent) => {
-                if (event.data?.type === 'TIDAL_LOGIN_SUCCESS') {
-                    setTidalConnected(true)
-                    if (event.data.response?.user) {
-                        setTidalUser({
-                            username: event.data.response.user.username || 'Tidal User',
-                            userId: event.data.response.user.userId
-                        })
-                    }
-
-                    // Sync playlists
-                    if (event.data.response?.accessToken) {
-                        try {
-                            await tidalApi.syncTidal({
-                                tidalAuthData: {
-                                    access_token: event.data.response.accessToken,
-                                    refresh_token: event.data.response.refreshToken,
-                                    expires_in: event.data.response.expiresIn
-                                }
-                            })
-                        } catch (e) {
-                            console.error('Tidal sync failed:', e)
-                        }
-                    }
-
-                    setTidalConnecting(false)
-                    window.removeEventListener('message', handleMessage)
-
-                    // Trigger auto-import
-                    tidalLoadedRef.current = false
-                    loadAndImportTidalPlaylists()
-                }
-            }
-            window.addEventListener('message', handleMessage)
-
-            // Check popup status
-            const checkPopup = setInterval(() => {
-                if (popup?.closed) {
-                    clearInterval(checkPopup)
-                    window.removeEventListener('message', handleMessage)
-                    setTidalConnecting(false)
-
-                    // Check localStorage as fallback
-                    const result = localStorage.getItem('tidal_login_result')
-                    if (result) {
-                        try {
-                            const data = JSON.parse(result)
-                            if (data.type === 'TIDAL_LOGIN_SUCCESS' && Date.now() - data.timestamp < 60000) {
-                                setTidalConnected(true)
-                                if (data.response?.user) {
-                                    setTidalUser({
-                                        username: data.response.user.username || 'Tidal User',
-                                        userId: data.response.user.userId
-                                    })
-                                }
-                                // Trigger auto-import
-                                tidalLoadedRef.current = false
-                                loadAndImportTidalPlaylists()
-                            }
-                        } catch (e) { }
-                        localStorage.removeItem('tidal_login_result')
-                    }
-                }
-            }, 1000)
-        } catch (e) {
-            console.error('Tidal login failed:', e)
-            alert('Tidal 로그인 URL을 가져오는데 실패했습니다.')
-            setTidalConnecting(false)
+        if (response?.user) {
+            setTidalUser({
+                username: response.user.username || 'Tidal User',
+                userId: response.user.userId
+            })
         }
+
+        // Sync playlists
+        if (response?.accessToken || response?.access_token) {
+            try {
+                await tidalApi.syncTidal({
+                    tidalAuthData: {
+                        access_token: response.accessToken || response.access_token,
+                        refresh_token: response.refreshToken || response.refresh_token,
+                        expires_in: response.expiresIn || response.expires_in
+                    }
+                })
+            } catch (e) {
+                console.error('Tidal sync failed:', e)
+            }
+        }
+
+        // Trigger auto-import
+        tidalLoadedRef.current = false
+        loadAndImportTidalPlaylists()
     }
 
     // Handle Tidal logout
@@ -1030,6 +981,15 @@ const MusicConnections = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Tidal Login Modal */}
+            {showTidalModal && (
+                <TidalLoginModal
+                    isOpen={showTidalModal}
+                    onClose={() => setShowTidalModal(false)}
+                    onSuccess={handleTidalSuccess}
+                />
             )}
         </div>
     )

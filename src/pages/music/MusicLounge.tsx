@@ -1,7 +1,5 @@
-import MusicPlayer from '../../components/music/MusicPlayer'
 import PlaylistCard from '../../components/music/PlaylistCard'
 import TrackListOverlay from '../../components/music/TrackListOverlay'
-import { MusicProvider } from '../../context/MusicContext'
 import { playlistsApi, PlaylistWithTracks, Playlist } from '../../services/api/playlists'
 import { post } from '../../services/api/index'
 import { Play, ArrowRight, Sparkles, Music, Guitar, Headphones, Zap, Loader2, RefreshCw, Info, AlertTriangle, X } from 'lucide-react'
@@ -232,8 +230,6 @@ const MusicLoungeContent = () => {
                 </section>
             )}
 
-            <MusicPlayer />
-
             {selectedPlaylist && (
                 <TrackListOverlay
                     playlist={selectedPlaylist}
@@ -338,9 +334,7 @@ const MusicLoungeContent = () => {
 
 const MusicLounge = () => {
     return (
-        <MusicProvider>
-            <MusicLoungeContent />
-        </MusicProvider>
+        <MusicLoungeContent />
     )
 }
 

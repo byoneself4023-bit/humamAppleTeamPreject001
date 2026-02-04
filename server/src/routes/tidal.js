@@ -220,6 +220,51 @@ router.get('/auth/login', (req, res) => {
     res.redirect(authUrl)
 })
 
+// GET /api/tidal/auth/login-url - Return OAuth URL as JSON (for popup-based login)
+router.get('/auth/login-url', (req, res) => {
+    try {
+        const { visitorId } = req.query
+        const clientId = process.env.TIDAL_CLIENT_ID
+
+        // Get redirect URI from request info
+        let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost'
+
+        // Fix: Force localhost for localhost to match whitelist
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+            origin = 'http://localhost'
+        }
+
+        const redirectUri = `${origin}/tidal-callback`
+
+        // Generate PKCE code_verifier and code_challenge
+        const codeVerifier = generateCodeVerifier()
+        const codeChallenge = generateCodeChallenge(codeVerifier)
+
+        // Store verifier per visitor for multi-user support
+        if (visitorId) {
+            visitorPkceVerifiers[visitorId] = codeVerifier
+        } else {
+            pkceVerifier = codeVerifier
+        }
+
+        // Scopes matching Tidal sample code configuration
+        const scopes = [
+            'r_usr',
+            'w_usr',
+            'w_sub'
+        ].join(' ')
+
+        const authUrl = `https://login.tidal.com/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
+
+        console.log(`[Tidal] Generated auth URL for visitor ${visitorId || 'global'}`)
+
+        res.json({ authUrl })
+    } catch (error) {
+        console.error('[Tidal] Error generating login URL:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // POST /api/tidal/auth/exchange - Exchange Code for Token (with PKCE)
 router.post('/auth/exchange', async (req, res) => {
     try {
@@ -491,6 +536,23 @@ router.post('/import', async (req, res) => {
             return res.status(401).json({ error: 'Not authenticated' })
         }
 
+        // Check if playlist already exists (duplicate check)
+        const existingPlaylist = await queryOne(`
+            SELECT playlist_id, title FROM playlists 
+            WHERE user_id = ? AND external_id = ? AND source_type = 'tidal'
+        `, [userId, playlistId])
+
+        if (existingPlaylist) {
+            console.log(`[Tidal] Playlist "${existingPlaylist.title}" already exists (ID: ${existingPlaylist.playlist_id}), skipping...`)
+            return res.json({
+                success: true,
+                skipped: true,
+                playlistId: existingPlaylist.playlist_id,
+                title: existingPlaylist.title,
+                message: '이미 가져온 플레이리스트입니다'
+            })
+        }
+
         // 1. Get playlist info
         const playlistResponse = await fetch(`${TIDAL_API_URL}/playlists/${playlistId}?countryCode=${countryCode}`, {
             headers: {
@@ -528,8 +590,9 @@ router.post('/import', async (req, res) => {
 
         const newPlaylistId = result.insertId
 
-        // 4. Insert tracks
+        // 4. Insert tracks with duplicate check
         let importedCount = 0
+        let skippedCount = 0
         for (let i = 0; i < tracks.length; i++) {
             const item = tracks[i]
             const track = item.item || item
@@ -542,7 +605,7 @@ router.post('/import', async (req, res) => {
                     ? `https://resources.tidal.com/images/${track.album.cover.replace(/-/g, '/')}/320x320.jpg`
                     : null
 
-                // Check if track already exists
+                // Check if track already exists by tidal_id
                 let existingTrack = await queryOne(`
                     SELECT track_id FROM tracks WHERE tidal_id = ?
                 `, [track.id?.toString()])
@@ -552,37 +615,58 @@ router.post('/import', async (req, res) => {
                 if (existingTrack) {
                     trackId = existingTrack.track_id
                 } else {
-                    const trackResult = await execute(`
-                        INSERT INTO tracks (title, artist, tidal_id, artwork, duration)
-                        VALUES (?, ?, ?, ?, ?)
-                    `, [
-                        track.title,
-                        artist,
-                        track.id?.toString(),
-                        artwork,
-                        track.duration || null
-                    ])
-                    trackId = trackResult.insertId
+                    // Also check by title + artist to avoid duplicates
+                    existingTrack = await queryOne(`
+                        SELECT track_id FROM tracks WHERE title = ? AND artist = ?
+                    `, [track.title, artist])
+
+                    if (existingTrack) {
+                        trackId = existingTrack.track_id
+                        // Update tidal_id if missing
+                        await execute(`UPDATE tracks SET tidal_id = ? WHERE track_id = ? AND tidal_id IS NULL`,
+                            [track.id?.toString(), trackId])
+                    } else {
+                        const trackResult = await execute(`
+                            INSERT INTO tracks (title, artist, tidal_id, artwork, duration)
+                            VALUES (?, ?, ?, ?, ?)
+                        `, [
+                            track.title,
+                            artist,
+                            track.id?.toString(),
+                            artwork,
+                            track.duration || null
+                        ])
+                        trackId = trackResult.insertId
+                    }
                 }
 
-                await execute(`
-                    INSERT INTO playlist_tracks (playlist_id, track_id, order_index)
-                    VALUES (?, ?, ?)
-                `, [newPlaylistId, trackId, i])
+                // Check if track already in this playlist
+                const existingPlaylistTrack = await queryOne(`
+                    SELECT id FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?
+                `, [newPlaylistId, trackId])
 
-                importedCount++
+                if (!existingPlaylistTrack) {
+                    await execute(`
+                        INSERT INTO playlist_tracks (playlist_id, track_id, order_index)
+                        VALUES (?, ?, ?)
+                    `, [newPlaylistId, trackId, i])
+                    importedCount++
+                } else {
+                    skippedCount++
+                }
             } catch (trackError) {
                 console.error(`[Tidal] Failed to import track "${track.title}":`, trackError.message)
             }
         }
 
-        console.log(`[Tidal] Import complete: ${importedCount}/${tracks.length} tracks`)
+        console.log(`[Tidal] Import complete: ${importedCount} imported, ${skippedCount} skipped, ${tracks.length} total`)
 
         res.json({
             success: true,
             playlistId: newPlaylistId,
             title: playlist.title,
             importedTracks: importedCount,
+            skippedTracks: skippedCount,
             totalTracks: tracks.length
         })
     } catch (error) {

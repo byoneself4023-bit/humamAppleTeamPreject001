@@ -1,6 +1,5 @@
 import UploadZone from '../../components/music/UploadZone'
 import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
-import MusicPlayer from '../../components/music/MusicPlayer'
 import {
     EMSYoutubePick,
     EMSPlatformBest,
@@ -11,11 +10,12 @@ import {
 } from '../../components/music/ems'
 import { Filter, Sparkles, Plus, Link as LinkIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { playlistsApi, analysisApi, Playlist as ApiPlaylist } from '../../services/api/playlists'
+import { playlistsApi, analysisApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
 import { tidalApi } from '../../services/api/tidal'
 import { youtubeApi, YoutubePlaylist } from '../../services/api/youtube'
 import { itunesService, ItunesTrack, ItunesCollection } from '../../services/api/itunes'
 import { appleMusicApi, AppleMusicItem } from '../../services/api/apple'
+import { useMusic } from '../../context/MusicContext'
 
 interface Playlist {
     id: number
@@ -103,9 +103,32 @@ const ExternalMusicSpace = () => {
     const [seedAttempted, setSeedAttempted] = useState(false)
     const [tidalSyncDone, setTidalSyncDone] = useState(false)
 
+    // Music playback
+    const { playTrack } = useMusic()
+
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type })
         setTimeout(() => setToast(null), 3000)
+    }
+
+    // Handle playing a track from Spotify Special Event
+    const handlePlaySpotifyTrack = (track: any) => {
+        const trackToPlay: Track = {
+            id: track.trackId || Date.now(),
+            title: track.title || 'Unknown Track',
+            artist: track.artist || 'Unknown Artist',
+            album: track.album || 'Unknown Album',
+            duration: track.duration || 180,
+            isrc: track.isrc,
+            orderIndex: 0,
+            externalMetadata: {
+                youtubeId: track.youtubeId,
+                previewUrl: track.previewUrl,
+                thumbnail: track.artwork,
+                ...track.externalMetadata
+            }
+        }
+        playTrack(trackToPlay)
     }
 
     // Fetch playlists from API
@@ -671,6 +694,7 @@ const ExternalMusicSpace = () => {
             <EMSPlatformBest
                 spotifySpecial={spotifySpecial}
                 onSelectPlaylist={setSelectedDetailId}
+                onPlayTrack={handlePlaySpotifyTrack}
             />
 
             {/* Recommendations */}
@@ -737,8 +761,6 @@ const ExternalMusicSpace = () => {
                     }}
                 />
             )}
-
-            <MusicPlayer />
         </div>
     )
 }

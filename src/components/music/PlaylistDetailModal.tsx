@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Loader2, Music2, Clock, Calendar, Hash, GripHorizontal, Play, Heart, Share2, MoreHorizontal } from 'lucide-react'
 import { playlistsApi, PlaylistWithTracks } from '../../services/api/playlists'
+import { useMusic } from '../../context/MusicContext'
 
 interface PlaylistDetailModalProps {
     isOpen: boolean
@@ -13,6 +14,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [imageError, setImageError] = useState(false)
+    const { playPlaylist } = useMusic()
 
     // Drag state
     const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -201,7 +203,9 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
 
                                 {/* Action Buttons */}
                                 <div className="flex items-center gap-3">
-                                    <button className="flex items-center gap-2 px-6 py-3 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 hover:shadow-lg hover:shadow-hud-accent-primary/50 transition-all">
+                                    <button
+                                        onClick={() => playlist?.tracks && playPlaylist(playlist.tracks)}
+                                        className="flex items-center gap-2 px-6 py-3 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 hover:shadow-lg hover:shadow-hud-accent-primary/50 transition-all">
                                         <Play className="w-5 h-5" fill="currentColor" />
                                         Play All
                                     </button>

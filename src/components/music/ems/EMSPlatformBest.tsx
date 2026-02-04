@@ -1,4 +1,4 @@
-import { Disc3, TrendingUp, Headphones } from 'lucide-react'
+import { Disc3, TrendingUp, Headphones, Play } from 'lucide-react'
 
 // Fix image URL helper
 const fixImageUrl = (url?: string, size: number = 300): string | undefined => {
@@ -28,11 +28,18 @@ interface SpotifySpecialData {
 interface EMSPlatformBestProps {
     spotifySpecial: SpotifySpecialData | null
     onSelectPlaylist: (playlistId: number) => void
+    onPlayTrack?: (track: any) => void
 }
 
-const EMSPlatformBest = ({ spotifySpecial, onSelectPlaylist }: EMSPlatformBestProps) => {
+const EMSPlatformBest = ({ spotifySpecial, onSelectPlaylist, onPlayTrack }: EMSPlatformBestProps) => {
     if (!spotifySpecial || !spotifySpecial.playlists || spotifySpecial.playlists.length === 0) {
         return null
+    }
+
+    const handlePlayTrack = (track: any) => {
+        if (onPlayTrack) {
+            onPlayTrack(track)
+        }
     }
 
     return (
@@ -66,7 +73,11 @@ const EMSPlatformBest = ({ spotifySpecial, onSelectPlaylist }: EMSPlatformBestPr
                     </h3>
                     <div className="flex overflow-x-auto gap-3 pb-4 custom-scrollbar">
                         {spotifySpecial.hotTracks.map((track: any, idx: number) => (
-                            <div key={track.trackId} className="min-w-[140px] w-[140px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-green-500/50 transition-all group relative">
+                            <div
+                                key={track.trackId}
+                                onClick={() => handlePlayTrack(track)}
+                                className="min-w-[140px] w-[140px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-green-500/50 transition-all group relative cursor-pointer"
+                            >
                                 <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
                                     {idx + 1}
                                 </div>
@@ -81,6 +92,11 @@ const EMSPlatformBest = ({ spotifySpecial, onSelectPlaylist }: EMSPlatformBestPr
                                     ) : null}
                                     <div className="w-full h-full flex items-center justify-center">
                                         <Headphones className="w-10 h-10 text-green-500/50" />
+                                    </div>
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <div className="bg-green-500 text-white p-3 rounded-full transform scale-90 group-hover:scale-100 transition-all">
+                                            <Play className="w-5 h-5 fill-current" />
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="font-bold text-hud-text-primary truncate text-sm" title={track.title}>{track.title}</div>

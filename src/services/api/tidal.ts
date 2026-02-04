@@ -49,7 +49,7 @@ export interface TidalAuthStatus {
 // Tidal API Service
 export const tidalApi = {
     // Check authentication status
-    getAuthStatus: () => get<TidalAuthStatus>('/tidal/auth/status'),
+    getAuthStatus: () => get<TidalAuthStatus>(`/tidal/auth/status?visitorId=${getVisitorId()}`),
 
     // Search playlists
     searchPlaylists: (query: string = 'K-POP', limit: number = 10) =>
