@@ -195,11 +195,11 @@ router.post('/auth/token', async (req, res) => {
 router.get('/auth/login', (req, res) => {
     const clientId = process.env.TIDAL_CLIENT_ID
     // Get redirect URI from request info
-    let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost:5173'
+    let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost'
 
-    // Fix: Force localhost:5173 for localhost to match whitelist
+    // Fix: Force localhost for localhost to match whitelist
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-        origin = 'http://localhost:5173'
+        origin = 'http://localhost'
     }
 
     const redirectUri = `${origin}/tidal-callback`
@@ -228,7 +228,7 @@ router.post('/auth/exchange', async (req, res) => {
         const clientSecret = process.env.TIDAL_CLIENT_SECRET
 
         // Get redirect URI - use client-provided or default
-        const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost:5173'
+        const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost'
         const redirectUri = clientRedirectUri || `${origin}/tidal-callback`
 
         // Get PKCE verifier - check visitor-specific first, then global
@@ -370,12 +370,12 @@ router.get('/auth/login-url', (req, res) => {
 
         // Get redirect URI from request origin
         // Get redirect URI from request info
-        let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost:5173'
+        let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost'
 
-        // Fix: If on Docker (localhost:80), force localhost:5173 to match Tidal Portal whitelist
+        // Fix: If on Docker (localhost:80), force localhost to match Tidal Portal whitelist
         // This allows the login page to load (fixes 11102), even if the redirect might need port mapping adjustment later.
         if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-            origin = 'http://localhost:5173'
+            origin = 'http://localhost'
         }
 
         const redirectUri = `${origin}/tidal-callback`

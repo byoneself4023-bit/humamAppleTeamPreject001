@@ -28,8 +28,12 @@ function generateState() {
 
 // Get redirect URI based on environment
 function getRedirectUri(req) {
-    const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || 'http://localhost:5173'
-    return `${origin}/youtube-callback`
+    // 환경 변수가 있으면 사용, 없으면 localhost 고정
+    if (process.env.YOUTUBE_REDIRECT_URI) {
+        return process.env.YOUTUBE_REDIRECT_URI
+    }
+    // Docker 환경에서는 항상 port 80 사용
+    return 'http://localhost/youtube-callback'
 }
 
 // Refresh access token

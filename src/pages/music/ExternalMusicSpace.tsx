@@ -1,26 +1,21 @@
 import UploadZone from '../../components/music/UploadZone'
 import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
 import MusicPlayer from '../../components/music/MusicPlayer'
-import { Filter, Search, Brain, Eye, Trash2, ArrowRight, RefreshCw, Link as LinkIcon, CheckCircle, AlertCircle, Loader2, Music2, ExternalLink, Sparkles, ShoppingBag, X, Save } from 'lucide-react'
+import {
+    EMSYoutubePick,
+    EMSPlatformBest,
+    EMSRecommendations,
+    EMSMusicSearch,
+    EMSPlaylistTable,
+    EMSCartDrawer
+} from '../../components/music/ems'
+import { Filter, Sparkles, Plus, Link as LinkIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { playlistsApi, analysisApi, Playlist as ApiPlaylist } from '../../services/api/playlists'
 import { tidalApi } from '../../services/api/tidal'
 import { youtubeApi, YoutubePlaylist } from '../../services/api/youtube'
 import { itunesService, ItunesTrack, ItunesCollection } from '../../services/api/itunes'
 import { appleMusicApi, AppleMusicItem } from '../../services/api/apple'
-import { Plus, DownloadCloud, Disc3, TrendingUp, Headphones } from 'lucide-react'
-
-const getStatusBadge = (status: string) => {
-    switch (status) {
-        case 'ready':
-            return <span className="inline-flex px-2 py-1 rounded bg-hud-accent-success/20 text-hud-accent-success text-xs font-medium border border-hud-accent-success/30">Ready</span>
-        case 'processing':
-            return <span className="inline-flex px-2 py-1 rounded bg-hud-accent-info/20 text-hud-accent-info text-xs font-medium border border-hud-accent-info/30">Processing</span>
-        case 'unverified':
-        default:
-            return <span className="inline-flex px-2 py-1 rounded bg-hud-accent-warning/20 text-hud-accent-warning text-xs font-medium border border-hud-accent-warning/30">Unverified</span>
-    }
-}
 
 interface Playlist {
     id: number
@@ -54,25 +49,6 @@ const mapApiPlaylist = (p: ApiPlaylist): Playlist => {
     }
 }
 
-// Fix image URL (handle Apple Music placeholder URLs and Tidal double slash issue)
-const fixImageUrl = (url?: string, size: number = 300): string | undefined => {
-    if (!url || typeof url !== 'string') return undefined
-    try {
-        let fixed = url
-            .replace(/{w}/g, String(size))
-            .replace(/{h}/g, String(size))
-            .replace(/{c}/g, 'bb')
-            .replace(/{f}/g, 'jpg')
-        // Fix Tidal double slash issue (e.g., /images//images/ -> /images/)
-        fixed = fixed.replace(/\/images\/\/images\//g, '/images/')
-        // Fix any remaining double slashes (except after protocol)
-        fixed = fixed.replace(/([^:])\/\/+/g, '$1/')
-        return fixed
-    } catch {
-        return undefined
-    }
-}
-
 const ExternalMusicSpace = () => {
     const [playlists, setPlaylists] = useState<Playlist[]>([])
     const [loading, setLoading] = useState(true)
@@ -90,7 +66,6 @@ const ExternalMusicSpace = () => {
     const [trackResults, setTrackResults] = useState<ItunesTrack[]>([])
     const [isSearching, setIsSearching] = useState(false)
     const [newReleases, setNewReleases] = useState<{ songs: AppleMusicItem[], playlists: AppleMusicItem[], albums: AppleMusicItem[] }>({ songs: [], playlists: [], albums: [] })
-    const [importingAppleId, setImportingAppleId] = useState<string | null>(null)
     const [isAutoImporting, setIsAutoImporting] = useState(false)
 
     // Recommendations State
@@ -98,7 +73,6 @@ const ExternalMusicSpace = () => {
     const [classicRecs, setClassicRecs] = useState<ItunesCollection[]>([])
     const [jazzRecs, setJazzRecs] = useState<ItunesCollection[]>([])
     const [kpopRecs, setKpopRecs] = useState<ItunesCollection[]>([])
-    const [importingId, setImportingId] = useState<number | null>(null)
 
     // Toast notification state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -112,13 +86,27 @@ const ExternalMusicSpace = () => {
         playlists: any[];
     } | null>(null)
 
+    // YouTube Search State
+    const [youtubeSearchTerm, setYoutubeSearchTerm] = useState('')
+    const [youtubeResults, setYoutubeResults] = useState<YoutubePlaylist[]>([])
+    const [isYoutubeSearching, setIsYoutubeSearching] = useState(false)
+    const [viewingYoutubeId, setViewingYoutubeId] = useState<string | null>(null)
+
+    // Track Cart State
+    const [cartTracks, setCartTracks] = useState<ItunesTrack[]>([])
+    const [isCartOpen, setIsCartOpen] = useState(false)
+
+    // AI State
+    const [analyzingId, setAnalyzingId] = useState<number | null>(null)
+    const [isModalLoading, setIsModalLoading] = useState(false)
+
+    const [seedAttempted, setSeedAttempted] = useState(false)
+    const [tidalSyncDone, setTidalSyncDone] = useState(false)
+
     const showToast = (message: string, type: 'success' | 'error' = 'success') => {
         setToast({ message, type })
         setTimeout(() => setToast(null), 3000)
     }
-
-    // Track if seed has already been attempted to prevent duplicate calls
-    const [seedAttempted, setSeedAttempted] = useState(false)
 
     // Fetch playlists from API
     const fetchPlaylists = useCallback(async (skipSeed = false) => {
@@ -126,7 +114,6 @@ const ExternalMusicSpace = () => {
             setLoading(true)
             setError(null)
 
-            // Auto-seed on first load only (imports Tidal/iTunes playlists if empty)
             if (!skipSeed && !seedAttempted) {
                 setSeedAttempted(true)
                 try {
@@ -140,7 +127,6 @@ const ExternalMusicSpace = () => {
             }
 
             const response = await playlistsApi.getPlaylists('EMS')
-            // Safe null check to prevent crash
             const playlists = response?.playlists || []
             setPlaylists(playlists.map(mapApiPlaylist))
         } catch (err) {
@@ -152,8 +138,6 @@ const ExternalMusicSpace = () => {
         }
     }, [seedAttempted])
 
-
-    // Check Connections
     const checkConnections = useCallback(async () => {
         try {
             const tidal = await tidalApi.getAuthStatus()
@@ -192,21 +176,17 @@ const ExternalMusicSpace = () => {
     useEffect(() => {
         const loadAndImportAppleNew = async () => {
             try {
-                // 1. Fetch Real Data from Apple Music
                 const data = await appleMusicApi.getNewReleases()
                 setNewReleases(data as any)
 
-                // 2. Auto-Import Everything to DB (Batch Process)
                 if (data.songs.length > 0 || data.playlists.length > 0) {
                     setIsAutoImporting(true)
                     showToast('Apple Music 데이터를 DB에 자동 저장 중...', 'success')
 
                     let importedCount = 0
 
-                    // Import Playlists
                     for (const playlist of data.playlists) {
                         try {
-                            // Create Playlist PTP
                             const createResult = await playlistsApi.importPlaylist({
                                 platformPlaylistId: playlist.id,
                                 title: playlist.attributes.name,
@@ -216,7 +196,6 @@ const ExternalMusicSpace = () => {
                             })
                             importedCount++
 
-                            // Import Tracks for this playlist (Best effort)
                             try {
                                 const tracksData = await appleMusicApi.getTracks(playlist.id, 'playlists')
                                 for (const t of tracksData) {
@@ -234,13 +213,9 @@ const ExternalMusicSpace = () => {
                                     }
                                 }
                             } catch (e) { console.warn('Track import failed for playlist', playlist.id) }
-
-                        } catch (e) {
-                            // Ignore duplicates (409)
-                        }
+                        } catch (e) { /* Ignore duplicates */ }
                     }
 
-                    // Import Top Songs as a Single "Apple Music Top Chart" Playlist
                     if (data.songs.length > 0) {
                         try {
                             const today = new Date().toLocaleDateString('ko-KR')
@@ -271,11 +246,10 @@ const ExternalMusicSpace = () => {
 
                     if (importedCount > 0) {
                         showToast(`Apple Music 데이터 ${importedCount}개 세트 DB 저장 완료`, 'success')
-                        fetchPlaylists(true) // Refresh UI list, skip seeding
+                        fetchPlaylists(true)
                     }
                     setIsAutoImporting(false)
                 }
-
             } catch (e) {
                 console.error('Failed to load/import Apple Music:', e)
                 setIsAutoImporting(false)
@@ -289,7 +263,7 @@ const ExternalMusicSpace = () => {
         const fetchRecommendations = async () => {
             try {
                 const [mixed, classic, jazz, kpop] = await Promise.all([
-                    itunesService.getRecommendations(), // Mixed
+                    itunesService.getRecommendations(),
                     itunesService.getRecommendations('Classical'),
                     itunesService.getRecommendations('Vocal Jazz'),
                     itunesService.getRecommendations('K-Pop')
@@ -305,41 +279,7 @@ const ExternalMusicSpace = () => {
         fetchRecommendations()
     }, [])
 
-    // Tidal Web Auth Handler
-    const handleWebLogin = () => {
-        const width = 500
-        const height = 700
-        const left = window.screenX + (window.outerWidth - width) / 2
-        const top = window.screenY + (window.outerHeight - height) / 2
-
-        const popup = window.open(
-            `${window.location.origin}/api/tidal/auth/login`,
-            'TidalLogin',
-            `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
-        )
-
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data?.type === 'TIDAL_LOGIN_SUCCESS') {
-                handleTidalLoginSuccess(event.data.user)
-                window.removeEventListener('message', handleMessage)
-            }
-        }
-        window.addEventListener('message', handleMessage)
-
-        const checkPopup = setInterval(() => {
-            if (popup?.closed) {
-                clearInterval(checkPopup)
-                window.removeEventListener('message', handleMessage)
-            }
-        }, 1000)
-    }
-
-    const handleTidalLoginSuccess = (user: any) => {
-        setTidalUserLoggedIn(true)
-        showToast(`Tidal 연결 성공! (${user?.username || 'User'})`, 'success')
-        checkConnections()
-    }
-
+    // Tidal Sync
     const handleTidalSync = async () => {
         if (!tidalUserLoggedIn) return
         setSyncing(true)
@@ -347,7 +287,6 @@ const ExternalMusicSpace = () => {
             const response = await tidalApi.getFeatured()
             const featuredPlaylists = response.featured.flatMap(f => f.playlists)
 
-            let importedCount = 0
             for (const p of featuredPlaylists) {
                 try {
                     await playlistsApi.importPlaylist({
@@ -357,7 +296,6 @@ const ExternalMusicSpace = () => {
                         coverImage: p.squareImage,
                         platform: 'Tidal'
                     })
-                    importedCount++
                 } catch (err: any) {
                     if (err.response?.status !== 409) console.error(err)
                 }
@@ -370,35 +308,30 @@ const ExternalMusicSpace = () => {
         }
     }
 
-    const handleYoutubeSync = async () => {
-        if (!youtubeConnected) return
-        setSyncing(true)
+    // Train Model
+    const trainModel = async () => {
         try {
-            const response = await youtubeApi.getPlaylists()
-
-            let importedCount = 0
-            for (const p of response.playlists) {
-                try {
-                    await playlistsApi.importPlaylist({
-                        platformPlaylistId: p.id,
-                        title: p.title,
-                        description: p.description,
-                        coverImage: p.thumbnail,
-                        platform: 'YouTube'
-                    })
-                    importedCount++
-                } catch (err: any) {
-                    if (err.response?.status !== 409) console.error(err)
-                }
-            }
-            if (importedCount > 0) await fetchPlaylists(true)
+            await analysisApi.train()
+            console.log('AI Model Retrained')
         } catch (err) {
-            console.error('YouTube Sync failed:', err)
-        } finally {
-            setSyncing(false)
+            console.error('Training failed', err)
         }
     }
 
+    useEffect(() => {
+        const syncAndTrain = async () => {
+            if (tidalConnected && !syncing && !tidalSyncDone) {
+                setTidalSyncDone(true)
+                await handleTidalSync()
+                await trainModel()
+            }
+        }
+        if (tidalUserLoggedIn && !tidalSyncDone) {
+            syncAndTrain()
+        }
+    }, [tidalUserLoggedIn, tidalConnected, syncing, tidalSyncDone])
+
+    // Handlers
     const handleDelete = async (id: number) => {
         try {
             await playlistsApi.deletePlaylist(id)
@@ -406,15 +339,6 @@ const ExternalMusicSpace = () => {
             setSelectedIds(prev => prev.filter(sid => sid !== id))
         } catch (err) {
             console.error('Delete failed:', err)
-        }
-    }
-
-    const handleMoveToGMS = async (id: number) => {
-        try {
-            await playlistsApi.movePlaylist(id, 'GMS')
-            setPlaylists(prev => prev.filter(p => p.id !== id))
-        } catch (err) {
-            console.error('Move failed:', err)
         }
     }
 
@@ -426,57 +350,96 @@ const ExternalMusicSpace = () => {
         setSelectedIds(checked ? [...selectedIds, id] : selectedIds.filter(sid => sid !== id))
     }
 
-    // --- YouTube Search Logic ---
-    const [youtubeSearchTerm, setYoutubeSearchTerm] = useState('')
-    const [youtubeResults, setYoutubeResults] = useState<YoutubePlaylist[]>([])
-    const [isYoutubeSearching, setIsYoutubeSearching] = useState(false)
-    const [importingYoutubeId, setImportingYoutubeId] = useState<string | null>(null)
+    const handleAnalyze = async (id: number) => {
+        setAnalyzingId(id)
+        try {
+            const result = await analysisApi.evaluate(id)
+            if (result.score >= 70) {
+                await playlistsApi.moveToSpace(id, 'GMS')
+                await playlistsApi.updateStatus(id, 'PTP')
+                showToast(`AI 추천 성공! GMS로 이동되었습니다. (${result.grade}등급, ${result.score}점)`, 'success')
+                setPlaylists(prev => prev.filter(p => p.id !== id))
+            } else {
+                showToast(`AI 분석 완료: ${result.grade}등급 (${result.score}점) - 보류됨`, 'success')
+                fetchPlaylists(true)
+            }
+        } catch (err) {
+            console.error('Analysis failed', err)
+            showToast('분석 실패', 'error')
+        } finally {
+            setAnalyzingId(null)
+        }
+    }
 
+    // YouTube handlers
     const handleYoutubeSearch = async () => {
         if (!youtubeSearchTerm.trim()) return
         setIsYoutubeSearching(true)
         try {
             const response = await youtubeApi.searchPlaylists(youtubeSearchTerm)
-            // Safe null check
             setYoutubeResults(response?.playlists || [])
         } catch (err) {
             console.error('YouTube search failed:', err)
             showToast('YouTube 검색 실패', 'error')
-            setYoutubeResults([]) // Clear results on error
+            setYoutubeResults([])
         } finally {
             setIsYoutubeSearching(false)
         }
     }
 
-    const handleYoutubeImport = async (playlist: YoutubePlaylist) => {
-        setImportingYoutubeId(playlist.id)
-        try {
-            await playlistsApi.importPlaylist({
-                platformPlaylistId: playlist.id,
-                title: playlist.title,
-                description: playlist.description || `Imported from YouTube (${playlist.channelTitle})`,
-                coverImage: playlist.thumbnail,
-                platform: 'YouTube'
-            })
-            showToast(`'${playlist.title}' 플레이리스트를 가져왔습니다.`, 'success')
-            fetchPlaylists(true) // Skip seeding
-            setYoutubeResults(prev => prev.filter(p => p.id !== playlist.id))
-        } catch (err: any) {
-            if (err.message?.includes('409')) {
-                showToast('이미 가져온 플레이리스트입니다.', 'error')
-            } else {
-                console.error('YouTube import failed:', err)
-                showToast('플레이리스트 가져오기 실패', 'error')
+    const handleViewYoutubeDetail = async (playlist: YoutubePlaylist) => {
+        setViewingYoutubeId(playlist.id)
+        let targetId: number | null = null
+        const match = playlists.find(p => p.name === playlist.title)
+
+        if (match) {
+            targetId = match.id
+        } else {
+            try {
+                showToast(`'${playlist.title}' 정보를 저장 중...`, 'success')
+                const result = await playlistsApi.importPlaylist({
+                    platformPlaylistId: playlist.id,
+                    title: playlist.title,
+                    description: playlist.description || `Imported from YouTube (${playlist.channelTitle})`,
+                    coverImage: playlist.thumbnail,
+                    platform: 'YouTube'
+                })
+                targetId = result.playlist.id
+                setYoutubeResults(prev => prev.filter(p => p.id !== playlist.id))
+                await fetchPlaylists(true)
+            } catch (err: any) {
+                if (err.message?.includes('409') || err.response?.status === 409) {
+                    const refreshed = await playlistsApi.getPlaylists('EMS')
+                    const found = refreshed.playlists.find(p => p.title === playlist.title)
+                    if (found) targetId = found.id
+                } else {
+                    console.error('YouTube import for view failed', err)
+                    showToast('상세 보기 실패', 'error')
+                    setViewingYoutubeId(null)
+                    return
+                }
             }
+        }
+        setViewingYoutubeId(null)
+        if (targetId) setSelectedDetailId(targetId)
+    }
+
+    // Music search handlers
+    const handleSearch = async () => {
+        if (!trackSearchTerm.trim()) return
+        setIsSearching(true)
+        try {
+            const results = await itunesService.search(trackSearchTerm)
+            setTrackResults(results)
+        } catch (err) {
+            console.error(err)
+            showToast('음악 검색 실패', 'error')
         } finally {
-            setImportingYoutubeId(null)
+            setIsSearching(false)
         }
     }
 
-    // --- Track Cart Logic ---
-    const [cartTracks, setCartTracks] = useState<ItunesTrack[]>([])
-    const [isCartOpen, setIsCartOpen] = useState(false)
-
+    // Cart handlers
     const addToCart = (track: ItunesTrack) => {
         if (cartTracks.some(t => t.id === track.id)) {
             showToast('이미 카트에 담긴 곡입니다.', 'error')
@@ -492,11 +455,9 @@ const ExternalMusicSpace = () => {
 
     const saveCartToPlaylist = async () => {
         if (cartTracks.length === 0) return
-
         try {
             const today = new Date().toLocaleDateString('ko-KR')
             const title = `EMS Collection (${today})`
-
             const createResult = await playlistsApi.create({
                 title: title,
                 description: `Created from EMS Search Cart (${cartTracks.length} tracks)`,
@@ -524,144 +485,24 @@ const ExternalMusicSpace = () => {
             showToast(`'${title}' 생성 완료 (${successCount}곡)`, 'success')
             setCartTracks([])
             setIsCartOpen(false)
-            fetchPlaylists(true) // Skip seeding
-
+            fetchPlaylists(true)
         } catch (err) {
             console.error('Save cart failed', err)
             showToast('저장 실패', 'error')
         }
     }
 
-    // --- Music Search ---
-    const handleSearch = async () => {
-        if (!trackSearchTerm.trim()) return
-        setIsSearching(true)
-        try {
-            const results = await itunesService.search(trackSearchTerm)
-            setTrackResults(results)
-        } catch (err) {
-            console.error(err)
-            showToast('음악 검색 실패', 'error')
-        } finally {
-            setIsSearching(false)
-        }
-    }
-
-    // --- View Detail (Sync & Open Modal) ---
-    const handleViewDetail = async (appleId: string, title: string, type: 'songs' | 'playlists' | 'albums' = 'playlists') => {
-        let targetId: number | null = null
-
-        // 1. Find existing playlist
-        const match = playlists.find(p => p.name === title)
-
-        if (match) {
-            targetId = match.id
-        } else {
-            // 2. Create if missing
-            try {
-                showToast('플레이리스트 정보를 DB에 저장 중...', 'success')
-                let item: any
-                if (type === 'playlists') item = newReleases.playlists.find(p => p.id === appleId)
-                else if (type === 'albums') item = newReleases.albums.find(p => p.id === appleId)
-
-                const createResult = await playlistsApi.create({
-                    title: title,
-                    description: item?.attributes?.editorialNotes?.short || `Imported from Apple Music (${type})`,
-                    coverImage: item?.attributes?.artwork?.url.replace('{w}', '600').replace('{h}', '600').replace('{c}', 'bb').replace('{f}', 'jpg'),
-                    sourceType: 'Platform',
-                    spaceType: 'EMS',
-                    status: 'PTP'
-                })
-                targetId = createResult.id
-            } catch (e) {
-                console.error('Create failed', e)
-                showToast('플레이리스트 생성 실패', 'error')
-                return
-            }
-        }
-
-        // 3. Ensure Tracks Exist
-        if (targetId) {
-            try {
-                if (type === 'playlists' || type === 'albums') {
-                    const tracksData = await appleMusicApi.getTracks(appleId, type)
-                    let addedCount = 0
-                    for (const t of tracksData) {
-                        if (t.type === 'songs') {
-                            try {
-                                await playlistsApi.addTrack(targetId, {
-                                    title: t.attributes.name,
-                                    artist: t.attributes.artistName,
-                                    album: t.attributes.albumName || '',
-                                    artwork: t.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg'),
-                                    externalMetadata: {
-                                        appleMusicId: t.id,
-                                        previewUrl: (t.attributes.previews && t.attributes.previews[0]) ? t.attributes.previews[0].url : undefined
-                                    }
-                                })
-                                addedCount++
-                            } catch (e) { /* Ignore duplicates */ }
-                        }
-                    }
-                    if (addedCount > 0) showToast(`${addedCount}곡 상세 정보 저장 완료`, 'success')
-                }
-
-                await fetchPlaylists(true)
-                setSelectedDetailId(targetId)
-
-            } catch (e) {
-                console.error('Track sync failed', e)
-                setSelectedDetailId(targetId)
-            }
-        }
-    }
-
-    const handleImportAlbum = async (collection: ItunesCollection) => {
-        setImportingId(collection.id)
-        try {
-            const albumDetails = await itunesService.getAlbum(collection.id)
-            const result = await playlistsApi.importAlbumAsPlaylist({
-                title: collection.title,
-                artist: collection.artist,
-                coverImage: collection.artwork,
-                tracks: albumDetails.tracks
-            })
-
-            showToast(`'${collection.title}' (${result.count}곡) 가져오기 완료`, 'success')
-            setRecommendations(prev => prev.filter(r => r.id !== collection.id))
-            setClassicRecs(prev => prev.filter(r => r.id !== collection.id))
-            setJazzRecs(prev => prev.filter(r => r.id !== collection.id))
-            setKpopRecs(prev => prev.filter(r => r.id !== collection.id))
-
-            fetchPlaylists(true)
-        } catch (err) {
-            console.error('Import failed', err)
-            showToast('앨범 가져오기 실패', 'error')
-        } finally {
-            setImportingId(null)
-        }
-    }
-
-    // --- iTunes Collection View Detail (Click to open Modal) ---
-    const [viewingCollectionId, setViewingCollectionId] = useState<number | null>(null) // Keep for compatibility if needed, but unused for UI now
-    const [isModalLoading, setIsModalLoading] = useState(false)
-
+    // Collection detail handler
     const handleViewCollectionDetail = async (collection: ItunesCollection) => {
-        // Open modal immediately in loading state
         setIsModalLoading(true)
-        setSelectedDetailId(null) // Ensure explicitly null initially
-
+        setSelectedDetailId(null)
         let targetId: number | null = null
-
-        // 1. Find existing playlist by title match
         const match = playlists.find(p => p.name === collection.title)
 
         if (match) {
             targetId = match.id
         } else {
-            // 2. Import and create playlist if not exists
             try {
-                // showToast(`'${collection.title}' 정보를 저장 중...`, 'success') // Optional: suppress toast to limit noise
                 const albumDetails = await itunesService.getAlbum(collection.id)
                 const result = await playlistsApi.importAlbumAsPlaylist({
                     title: collection.title,
@@ -669,24 +510,17 @@ const ExternalMusicSpace = () => {
                     coverImage: collection.artwork,
                     tracks: albumDetails.tracks
                 })
-
                 targetId = result.playlist.id
-
-                // Remove from recommendation lists silently
                 setRecommendations(prev => prev.filter(r => r.id !== collection.id))
                 setClassicRecs(prev => prev.filter(r => r.id !== collection.id))
                 setJazzRecs(prev => prev.filter(r => r.id !== collection.id))
                 setKpopRecs(prev => prev.filter(r => r.id !== collection.id))
-
-                fetchPlaylists(true) // Background refresh
+                fetchPlaylists(true)
             } catch (err: any) {
-                // If duplicate (409), try to find the existing one
                 if (err.message?.includes('409') || err.response?.status === 409) {
                     const refreshed = await playlistsApi.getPlaylists('EMS')
                     const found = refreshed.playlists.find(p => p.title === collection.title)
-                    if (found) {
-                        targetId = found.id
-                    }
+                    if (found) targetId = found.id
                 } else {
                     console.error('Import for view failed', err)
                     showToast('상세 보기 실패', 'error')
@@ -695,125 +529,8 @@ const ExternalMusicSpace = () => {
                 }
             }
         }
-
-        // 3. Update modal with the playlist ID
-        if (targetId) {
-            setSelectedDetailId(targetId)
-        }
+        if (targetId) setSelectedDetailId(targetId)
         setIsModalLoading(false)
-    }
-
-    // --- YouTube Playlist View Detail (Click to open Modal) ---
-    const [viewingYoutubeId, setViewingYoutubeId] = useState<string | null>(null)
-
-    const handleViewYoutubeDetail = async (playlist: YoutubePlaylist) => {
-        setViewingYoutubeId(playlist.id)
-        let targetId: number | null = null
-
-        // 1. Find existing playlist by title match
-        const match = playlists.find(p => p.name === playlist.title)
-
-        if (match) {
-            targetId = match.id
-        } else {
-            // 2. Import playlist if not exists
-            try {
-                showToast(`'${playlist.title}' 정보를 저장 중...`, 'success')
-                const result = await playlistsApi.importPlaylist({
-                    platformPlaylistId: playlist.id,
-                    title: playlist.title,
-                    description: playlist.description || `Imported from YouTube (${playlist.channelTitle})`,
-                    coverImage: playlist.thumbnail,
-                    platform: 'YouTube'
-                })
-
-                targetId = result.playlist.id
-
-                // Remove from search results
-                setYoutubeResults(prev => prev.filter(p => p.id !== playlist.id))
-
-                await fetchPlaylists(true)
-            } catch (err: any) {
-                if (err.message?.includes('409') || err.response?.status === 409) {
-                    const refreshed = await playlistsApi.getPlaylists('EMS')
-                    const found = refreshed.playlists.find(p => p.title === playlist.title)
-                    if (found) {
-                        targetId = found.id
-                    }
-                } else {
-                    console.error('YouTube import for view failed', err)
-                    showToast('상세 보기 실패', 'error')
-                    setViewingYoutubeId(null)
-                    return
-                }
-            }
-        }
-
-        setViewingYoutubeId(null)
-
-        // 3. Open modal
-        if (targetId) {
-            setSelectedDetailId(targetId)
-        }
-    }
-
-    // AI State
-    const [isTraining, setIsTraining] = useState(false)
-    const [lastTrained, setLastTrained] = useState<Date | null>(null)
-    const [analyzingId, setAnalyzingId] = useState<number | null>(null)
-
-    // Train Model
-    const trainModel = async () => {
-        setIsTraining(true)
-        try {
-            await analysisApi.train()
-            setLastTrained(new Date())
-            console.log('AI Model Retrained')
-        } catch (err) {
-            console.error('Training failed', err)
-        } finally {
-            setIsTraining(false)
-        }
-    }
-
-    // Ref to track if sync has already been triggered to prevent infinite loop
-    const [tidalSyncDone, setTidalSyncDone] = useState(false)
-
-    useEffect(() => {
-        const syncAndTrain = async () => {
-            if (tidalConnected && !syncing && !tidalSyncDone) {
-                setTidalSyncDone(true)
-                await handleTidalSync()
-                await trainModel()
-            }
-        }
-        if (tidalUserLoggedIn && !tidalSyncDone) {
-            syncAndTrain()
-        }
-    }, [tidalUserLoggedIn, tidalConnected, syncing, tidalSyncDone])
-
-    // Analyze Playlist
-    const handleAnalyze = async (id: number) => {
-        setAnalyzingId(id)
-        try {
-            const result = await analysisApi.evaluate(id)
-
-            if (result.score >= 70) {
-                await playlistsApi.moveToSpace(id, 'GMS')
-                await playlistsApi.updateStatus(id, 'PTP')
-                showToast(`AI 추천 성공! GMS로 이동되었습니다. (${result.grade}등급, ${result.score}점)`, 'success')
-                setPlaylists(prev => prev.filter(p => p.id !== id))
-            } else {
-                showToast(`AI 분석 완료: ${result.grade}등급 (${result.score}점) - 보류됨`, 'success')
-                fetchPlaylists(true)
-            }
-
-        } catch (err) {
-            console.error('Analysis failed', err)
-            showToast('분석 실패', 'error')
-        } finally {
-            setAnalyzingId(null)
-        }
     }
 
     // File Upload
@@ -886,10 +603,6 @@ const ExternalMusicSpace = () => {
         reader.readAsText(file)
     }
 
-    const filteredPlaylists = playlists.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
     return (
         <div className="p-4 md:p-6">
             {/* Header */}
@@ -954,539 +667,64 @@ const ExternalMusicSpace = () => {
                 </section>
             )}
 
-            {/* Apple Music Albums (Hidden per user request) */}
-            {/* {newReleases.albums && newReleases.albums.length > 0 && (
-                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                        <Disc3 className="w-5 h-5 text-purple-500" />
-                        최신 앨범 (Apple Music)
-                        <span className="text-sm font-normal text-hud-text-muted ml-2">(New Releases)</span>
-                    </h2>
-                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                        {newReleases.albums.map((album: any) => (
-                            <div key={album.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-purple-500/50 transition-all group flex flex-col">
-                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                    <img src={album.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400').replace('{c}', 'bb').replace('{f}', 'jpg')} alt={album.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <button
-                                            onClick={() => handleViewDetail(album.id, album.attributes.name, 'albums')}
-                                            className="bg-purple-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-purple-600"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            View
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="font-bold text-hud-text-primary truncate" title={album.attributes.name}>{album.attributes.name}</div>
-                                <div className="text-xs text-hud-text-secondary truncate">{album.attributes.artistName}</div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )} */}
+            {/* Spotify Special */}
+            <EMSPlatformBest
+                spotifySpecial={spotifySpecial}
+                onSelectPlaylist={setSelectedDetailId}
+            />
 
-            {/* Apple Music Playlists (Hidden per user request) */}
-            {/* {newReleases.playlists && newReleases.playlists.length > 0 && (
-                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                        <Music2 className="w-5 h-5 text-rose-500" />
-                        추천 플레이리스트 (Apple Music)
-                        <span className="text-sm font-normal text-hud-text-muted ml-2">(Editor's Pick)</span>
-                    </h2>
-                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                        {newReleases.playlists.map((playlist) => (
-                            <div key={playlist.id} className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-rose-500/50 transition-all group flex flex-col">
-                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                    <img src={playlist.attributes.artwork?.url.replace('{w}', '400').replace('{h}', '400')} alt={playlist.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <button
-                                            onClick={() => handleViewDetail(playlist.id, playlist.attributes.name, 'playlists')}
-                                            className="bg-rose-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-rose-600"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            View
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="font-bold text-hud-text-primary truncate" title={playlist.attributes.name}>{playlist.attributes.name}</div>
-                                <div className="text-xs text-hud-text-muted mt-1 truncate" title={playlist.attributes.editorialNotes?.short}>
-                                    {playlist.attributes.editorialNotes?.short || 'Apple Music Curation'}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )} */}
-
-            {/* Spotify 특별전 */}
-            {spotifySpecial && spotifySpecial.playlists && spotifySpecial.playlists.length > 0 && (
-                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6 border-2 border-green-500/30 bg-gradient-to-br from-hud-bg-secondary to-green-900/10">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
-                                <Disc3 className="w-6 h-6 text-green-500 animate-spin" style={{ animationDuration: '3s' }} />
-                                {spotifySpecial.event?.title || 'Special Event'}
-                            </h2>
-                            <p className="text-hud-text-secondary mt-1">{spotifySpecial.event?.subtitle || 'Featured Playlists'}</p>
-                        </div>
-                        <div className="flex gap-4 text-sm">
-                            <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
-                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats?.totalPlaylists || 0}</div>
-                                <div className="text-hud-text-muted text-xs">플레이리스트</div>
-                            </div>
-                            <div className="text-center px-4 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
-                                <div className="text-2xl font-bold text-green-400">{spotifySpecial.stats?.totalTracks || 0}</div>
-                                <div className="text-hud-text-muted text-xs">트랙</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Hot Tracks */}
-                    {spotifySpecial.hotTracks && spotifySpecial.hotTracks.length > 0 && (
-                        <div className="mb-6">
-                            <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                                <TrendingUp className="w-5 h-5 text-orange-500" />
-                                인기 트랙 TOP 10
-                            </h3>
-                            <div className="flex overflow-x-auto gap-3 pb-4 custom-scrollbar">
-                                {spotifySpecial.hotTracks.map((track: any, idx: number) => (
-                                    <div key={track.trackId} className="min-w-[140px] w-[140px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-green-500/50 transition-all group relative">
-                                        <div className="absolute -top-2 -left-2 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold text-white z-10">
-                                            {idx + 1}
-                                        </div>
-                                        <div className="aspect-square mb-2 rounded-md overflow-hidden bg-gradient-to-br from-green-900/50 to-hud-bg-primary relative">
-                                            {fixImageUrl(track.artwork) ? (
-                                                <img
-                                                    src={fixImageUrl(track.artwork)}
-                                                    alt={track.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                                />
-                                            ) : null}
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <Headphones className="w-10 h-10 text-green-500/50" />
-                                            </div>
-                                        </div>
-                                        <div className="font-bold text-hud-text-primary truncate text-sm" title={track.title}>{track.title}</div>
-                                        <div className="text-xs text-hud-text-secondary truncate">{track.artist}</div>
-                                        {track.popularity && (
-                                            <div className="mt-1 flex items-center gap-1">
-                                                <div className="h-1 flex-1 bg-hud-bg-primary rounded-full overflow-hidden">
-                                                    <div className="h-full bg-green-500" style={{ width: `${track.popularity}%` }}></div>
-                                                </div>
-                                                <span className="text-[10px] text-green-400">{track.popularity}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Categories */}
-                    {spotifySpecial.categories && Object.keys(spotifySpecial.categories).length > 0 && (
-                        <div>
-                            <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                                <Disc3 className="w-5 h-5 text-green-500" />
-                                카테고리별 플레이리스트
-                            </h3>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                {Object.entries(spotifySpecial.categories).map(([category, categoryPlaylists]: [string, any[]]) => (
-                                    <div key={category} className="bg-hud-bg-primary/50 rounded-lg p-4 border border-hud-border-secondary">
-                                        <h4 className="font-bold text-green-400 mb-3 flex items-center gap-2">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                            {category}
-                                            <span className="text-xs text-hud-text-muted font-normal">({categoryPlaylists.length})</span>
-                                        </h4>
-                                        <div className="flex overflow-x-auto gap-3 pb-2 custom-scrollbar">
-                                            {categoryPlaylists.map((playlist: any) => (
-                                                <div
-                                                    key={playlist.playlistId}
-                                                    onClick={() => setSelectedDetailId(playlist.playlistId)}
-                                                    className="min-w-[180px] w-[180px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden hover:border-green-500/50 transition-all cursor-pointer group"
-                                                >
-                                                    <div className="aspect-square relative bg-gradient-to-br from-green-900/50 to-hud-bg-primary">
-                                                        {fixImageUrl(playlist.coverImage) ? (
-                                                            <img
-                                                                src={fixImageUrl(playlist.coverImage)}
-                                                                alt={playlist.title}
-                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                                                                onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                                            />
-                                                        ) : null}
-                                                        <div className="w-full h-full flex items-center justify-center">
-                                                            <Disc3 className="w-16 h-16 text-green-500/30" />
-                                                        </div>
-                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                            <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">상세보기</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3">
-                                                        <div className="font-bold text-hud-text-primary truncate text-sm" title={playlist.title}>{playlist.title}</div>
-                                                        <div className="text-xs text-hud-text-muted mt-1">{playlist.trackCount || 0}곡</div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </section>
-            )}
-
-            {/* iTunes Auto Discovery */}
-            {[
-                { title: '오늘의 추천 믹스 (Auto Discovery)', data: recommendations, icon: <Brain className="w-5 h-5 text-hud-accent-primary" /> },
-                { title: 'Classical Essentials', data: classicRecs, icon: <Brain className="w-5 h-5 text-hud-accent-warning" /> },
-                { title: 'Vocal Jazz Collection', data: jazzRecs, icon: <Music2 className="w-5 h-5 text-hud-accent-info" /> },
-                { title: 'K-Pop Trends', data: kpopRecs, icon: <ExternalLink className="w-5 h-5 text-hud-accent-success" /> }
-            ].map((section, idx) => section.data.length > 0 && (
-                <section key={idx} className="hud-card hud-card-bottom rounded-xl p-6 mb-6 mt-6">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                        {section.icon}
-                        {section.title}
-                        <span className="text-sm font-normal text-hud-text-muted ml-2">(iTunes Auto Discovery)</span>
-                    </h2>
-                    <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                        {section.data.map((album) => (
-                            <div
-                                key={album.id}
-                                className="min-w-[200px] w-[200px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-hud-accent-warning/50 transition-all flex flex-col group cursor-pointer"
-                                onClick={() => handleViewCollectionDetail(album)}
-                            >
-                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden bg-hud-bg-primary">
-                                    {fixImageUrl(album.artwork) ? (
-                                        <img
-                                            src={fixImageUrl(album.artwork)}
-                                            alt={album.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 absolute inset-0"
-                                            onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                        />
-                                    ) : null}
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <Music2 className="w-12 h-12 text-hud-text-muted" />
-                                    </div>
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                        <button
-                                            className="bg-hud-accent-primary text-hud-bg-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-hud-accent-primary/90"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            상세보기
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="font-bold text-hud-text-primary truncate" title={album.title}>{album.title}</div>
-                                <div className="text-sm text-hud-text-secondary truncate">{album.artist}</div>
-                                <div className="text-xs text-hud-text-muted mt-1 flex justify-between">
-                                    <span>{album.genre}</span>
-                                    <span>{album.count}곡</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            ))}
+            {/* Recommendations */}
+            <EMSRecommendations
+                recommendations={recommendations}
+                classicRecs={classicRecs}
+                jazzRecs={jazzRecs}
+                kpopRecs={kpopRecs}
+                onViewDetail={handleViewCollectionDetail}
+            />
 
             {/* YouTube Search */}
-            {youtubeConnected && (
-                <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                        <Search className="w-5 h-5 text-red-500" />
-                        YouTube 플레이리스트 검색
-                    </h2>
-                    <div className="flex gap-2 mb-6">
-                        <input
-                            type="text"
-                            placeholder="플레이리스트 검색 (예: K-Pop, 운동 음악)"
-                            value={youtubeSearchTerm}
-                            onChange={(e) => setYoutubeSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleYoutubeSearch()}
-                            className="flex-1 px-4 py-2 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg text-hud-text-primary focus:outline-none focus:border-red-500 placeholder-hud-text-muted"
-                        />
-                        <button onClick={handleYoutubeSearch} disabled={isYoutubeSearching} className="bg-red-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-600 transition-all flex items-center gap-2">
-                            {isYoutubeSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 검색
-                        </button>
-                    </div>
-                    {youtubeResults.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            {youtubeResults.map((playlist) => (
-                                <div
-                                    key={playlist.id}
-                                    className="bg-hud-bg-secondary border border-hud-border-secondary rounded-lg overflow-hidden group hover:border-red-500/50 transition-all cursor-pointer"
-                                    onClick={() => handleViewYoutubeDetail(playlist)}
-                                >
-                                    <div className="relative aspect-video">
-                                        <img src={playlist.thumbnail || ''} alt={playlist.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                            {viewingYoutubeId === playlist.id ? (
-                                                <div className="flex items-center gap-2 text-white">
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                    <span className="font-bold">로딩 중...</span>
-                                                </div>
-                                            ) : (
-                                                <button className="bg-white text-red-600 px-4 py-2 rounded-full font-bold flex items-center gap-2 transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-gray-100">
-                                                    <Eye className="w-4 h-4" />
-                                                    상세보기
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="p-3">
-                                        <div className="font-bold text-hud-text-primary truncate" title={playlist.title}>{playlist.title}</div>
-                                        <div className="text-sm text-hud-text-secondary truncate">{playlist.channelTitle}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
-            )}
+            <EMSYoutubePick
+                youtubeConnected={youtubeConnected}
+                youtubeSearchTerm={youtubeSearchTerm}
+                setYoutubeSearchTerm={setYoutubeSearchTerm}
+                youtubeResults={youtubeResults}
+                isYoutubeSearching={isYoutubeSearching}
+                viewingYoutubeId={viewingYoutubeId}
+                onSearch={handleYoutubeSearch}
+                onViewDetail={handleViewYoutubeDetail}
+            />
 
             {/* Music Search */}
-            <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
-                <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
-                    <Search className="w-5 h-5 text-hud-accent-info" />
-                    Apple Music 카탈로그 검색
-                    <span className="text-sm font-normal text-hud-text-muted ml-2">(iTunes DB 기반 고음질 메타데이터 검색)</span>
-                </h2>
-                <div className="flex gap-2 mb-6">
-                    <input
-                        id="music-search-input"
-                        type="text"
-                        placeholder="곡, 아티스트, 앨범 검색 (예: NewJeans)"
-                        value={trackSearchTerm}
-                        onChange={(e) => setTrackSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        className="flex-1 px-4 py-2 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg text-hud-text-primary focus:outline-none focus:border-hud-accent-info placeholder-hud-text-muted"
-                    />
-                    <button onClick={handleSearch} disabled={isSearching} className="bg-hud-accent-info text-white px-6 py-2 rounded-lg font-semibold hover:bg-hud-accent-info/90 transition-all flex items-center gap-2">
-                        {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} 검색
-                    </button>
-                </div>
-                {trackResults.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {trackResults.map((track) => (
-                            <div key={track.id} className="flex items-center gap-3 p-3 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg hover:border-hud-accent-info/50 transition-all">
-                                <div className="w-12 h-12 rounded bg-hud-bg-primary flex items-center justify-center relative overflow-hidden shrink-0">
-                                    {fixImageUrl(track.artwork) && (
-                                        <img
-                                            src={fixImageUrl(track.artwork)}
-                                            alt={track.title}
-                                            className="w-full h-full object-cover absolute inset-0"
-                                            onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                        />
-                                    )}
-                                    <Music2 className="w-6 h-6 text-hud-text-muted" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-bold text-hud-text-primary truncate">{track.title}</div>
-                                    <div className="text-sm text-hud-text-secondary truncate">{track.artist}</div>
-                                    <div className="text-xs text-hud-text-muted truncate flex items-center gap-2">
-                                        {track.album}
-                                        {track.previewUrl && (
-                                            <span className="text-hud-accent-info flex items-center gap-0.5 text-[10px] border border-hud-accent-info/30 px-1 rounded">
-                                                <Music2 className="w-2 h-2" /> 30s
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => addToCart(track)}
-                                    className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
-                                    title="카트에 담기"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </section>
+            <EMSMusicSearch
+                trackSearchTerm={trackSearchTerm}
+                setTrackSearchTerm={setTrackSearchTerm}
+                trackResults={trackResults}
+                isSearching={isSearching}
+                onSearch={handleSearch}
+                onAddToCart={addToCart}
+            />
 
             {/* Playlist Table */}
-            <section className="hud-card hud-card-bottom rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-hud-border-secondary flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3">
-                        <Brain className="w-5 h-5 text-hud-accent-primary" />
-                        EMS 플레이리스트 목록
-                        <span className="text-sm font-normal text-hud-text-muted ml-2">
-                            (검증 대기: {playlists.filter(p => p.status === 'unverified').length}개)
-                        </span>
-                    </h2>
-                    {selectedIds.length > 0 && (
-                        <button
-                            onClick={() => selectedIds.forEach(id => handleDelete(id))}
-                            className="text-hud-accent-danger hover:bg-hud-accent-danger/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
-                        >
-                            <Trash2 className="w-4 h-4" /> 선택 삭제 ({selectedIds.length})
-                        </button>
-                    )}
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-hud-bg-secondary text-hud-text-secondary text-xs uppercase font-semibold">
-                            <tr>
-                                <th className="p-4 w-10">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
-                                        checked={playlists.length > 0 && selectedIds.length === playlists.length}
-                                        onChange={(e) => handleSelectAll(e.target.checked)}
-                                    />
-                                </th>
-                                <th className="p-4">플레이리스트</th>
-                                <th className="p-4">소스</th>
-                                <th className="p-4">트랙 수</th>
-                                <th className="p-4">추가일</th>
-                                <th className="p-4">상태</th>
-                                <th className="p-4 text-right">관리</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-hud-border-secondary">
-                            {filteredPlaylists.length > 0 ? (
-                                filteredPlaylists.map((playlist) => (
-                                    <tr
-                                        key={playlist.id}
-                                        className="hover:bg-hud-bg-secondary/50 transition-colors group cursor-pointer"
-                                        onClick={() => setSelectedDetailId(playlist.id)}
-                                    >
-                                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                                            <input
-                                                type="checkbox"
-                                                className="rounded border-hud-border-secondary bg-hud-bg-primary text-hud-accent-primary focus:ring-0"
-                                                checked={selectedIds.includes(playlist.id)}
-                                                onChange={(e) => handleSelectRow(playlist.id, e.target.checked)}
-                                            />
-                                        </td>
-                                        <td className="p-4 font-medium text-hud-text-primary hover:text-hud-accent-primary transition-colors">
-                                            {playlist.name}
-                                        </td>
-                                        <td className="p-4 text-hud-text-secondary capitalize">{playlist.source}</td>
-                                        <td className="p-4 text-hud-text-secondary">{playlist.trackCount}</td>
-                                        <td className="p-4 text-hud-text-muted text-sm">{playlist.addedDate}</td>
-                                        <td className="p-4">{getStatusBadge(playlist.status)}</td>
-                                        <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => handleAnalyze(playlist.id)}
-                                                    disabled={analyzingId === playlist.id}
-                                                    className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
-                                                    title="AI 분석 실행"
-                                                >
-                                                    {analyzingId === playlist.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-                                                </button>
-                                                <button
-                                                    onClick={() => setSelectedDetailId(playlist.id)}
-                                                    className="p-2 text-hud-text-secondary hover:text-hud-text-primary hover:bg-hud-bg-hover rounded-lg transition-colors"
-                                                    title="상세 보기"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(playlist.id)}
-                                                    className="p-2 text-hud-text-muted hover:text-hud-accent-danger hover:bg-hud-accent-danger/10 rounded-lg transition-colors"
-                                                    title="삭제"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="p-8 text-center text-hud-text-muted">
-                                        {searchTerm ? '검색 결과가 없습니다.' : '아직 수집된 플레이리스트가 없습니다.'}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            {/* Floating Cart Button */}
-            <div className="fixed bottom-8 right-8 z-50">
-                <button
-                    onClick={() => setIsCartOpen(!isCartOpen)}
-                    className="relative bg-hud-accent-primary text-hud-bg-primary p-4 rounded-full shadow-lg hover:scale-110 transition-transform btn-glow"
-                >
-                    <ShoppingBag className="w-6 h-6" />
-                    {cartTracks.length > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-hud-bg-primary">
-                            {cartTracks.length}
-                        </span>
-                    )}
-                </button>
-            </div>
+            <EMSPlaylistTable
+                playlists={playlists}
+                selectedIds={selectedIds}
+                analyzingId={analyzingId}
+                searchTerm={searchTerm}
+                onSelectAll={handleSelectAll}
+                onSelectRow={handleSelectRow}
+                onDelete={handleDelete}
+                onAnalyze={handleAnalyze}
+                onViewDetail={setSelectedDetailId}
+            />
 
             {/* Cart Drawer */}
-            {isCartOpen && (
-                <div className="fixed inset-0 z-50 flex justify-end">
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-                    <div className="relative w-full max-w-md bg-hud-bg-secondary border-l border-hud-border-secondary shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
-                        <div className="p-4 border-b border-hud-border-secondary flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2">
-                                <ShoppingBag className="w-5 h-5 text-hud-accent-primary" />
-                                EMS 트랙 카트
-                                <span className="text-sm font-normal text-hud-text-muted">({cartTracks.length})</span>
-                            </h3>
-                            <button onClick={() => setIsCartOpen(false)} className="text-hud-text-secondary hover:text-hud-text-primary">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                            {cartTracks.length === 0 ? (
-                                <div className="text-center py-10 text-hud-text-muted">
-                                    <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                    <p>카트가 비어있습니다.</p>
-                                    <p className="text-xs mt-1">검색 결과에서 + 버튼을 눌러 추가하세요.</p>
-                                </div>
-                            ) : (
-                                cartTracks.map((track, idx) => (
-                                    <div key={`${track.id}-${idx}`} className="flex items-center gap-3 p-3 bg-hud-bg-primary rounded-lg border border-hud-border-secondary">
-                                        <div className="w-10 h-10 rounded bg-hud-bg-secondary flex items-center justify-center relative overflow-hidden shrink-0">
-                                            {fixImageUrl(track.artwork) && (
-                                                <img
-                                                    src={fixImageUrl(track.artwork)}
-                                                    alt={track.title}
-                                                    className="w-full h-full object-cover absolute inset-0"
-                                                    onError={(e) => { e.currentTarget.style.display = 'none' }}
-                                                />
-                                            )}
-                                            <Music2 className="w-5 h-5 text-hud-text-muted" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-hud-text-primary truncate">{track.title}</div>
-                                            <div className="text-xs text-hud-text-secondary truncate">{track.artist}</div>
-                                        </div>
-                                        <button
-                                            onClick={() => removeFromCart(track.id)}
-                                            className="text-hud-text-muted hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        <div className="p-4 border-t border-hud-border-secondary bg-hud-bg-primary">
-                            <button
-                                onClick={saveCartToPlaylist}
-                                disabled={cartTracks.length === 0}
-                                className="w-full bg-hud-accent-primary text-hud-bg-primary py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-hud-accent-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Save className="w-5 h-5" />
-                                플레이리스트로 저장
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <EMSCartDrawer
+                cartTracks={cartTracks}
+                isCartOpen={isCartOpen}
+                setIsCartOpen={setIsCartOpen}
+                onRemoveFromCart={removeFromCart}
+                onSaveToPlaylist={saveCartToPlaylist}
+            />
 
             {/* Modals */}
             {(selectedDetailId || isModalLoading) && (

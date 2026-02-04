@@ -68,22 +68,24 @@ function getVisitorId(): string {
     return visitorId
 }
 
+// Redirect URI 설정 (환경변수 우선, 없으면 기본값)
+const REDIRECT_URI = import.meta.env.VITE_YOUTUBE_REDIRECT_URI || 'http://localhost/youtube-callback'
+
 // YouTube Music API Service
 export const youtubeMusicApi = {
     // Get login URL
     getLoginUrl: async () => {
         const visitorId = getVisitorId()
-        const response = await get<{ authUrl: string }>(`/youtube-music/auth/login?visitorId=${visitorId}`)
+        const response = await get<{ authUrl: string }>(`/youtube-music/auth/login?visitorId=${visitorId}&redirectUri=${encodeURIComponent(REDIRECT_URI)}`)
         return response.authUrl
     },
 
     // Exchange authorization code for tokens
     exchangeCode: (code: string, state: string) => {
-        const redirectUri = `${window.location.origin}/youtube-callback`
         return post<{ success: boolean; user: YouTubeUser; visitorId: string }>('/youtube-music/auth/exchange', {
             code,
             state,
-            redirectUri
+            redirectUri: REDIRECT_URI
         })
     },
 

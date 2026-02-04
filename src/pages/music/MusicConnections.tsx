@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { spotifyApi, SpotifyPlaylist } from '../../services/api/spotify'
 import { youtubeMusicApi, YouTubePlaylist } from '../../services/api/youtubeMusic'
 import { tidalApi, TidalPlaylist, TidalAuthStatus } from '../../services/api/tidal'
@@ -169,35 +169,70 @@ const MusicConnections = () => {
         }
     }, [])
 
-    // Load YouTube playlists
-    const loadYoutubePlaylists = useCallback(async () => {
-        if (!youtubeConnected) return
-        setYoutubeLoading(true)
-        try {
-            const response = await youtubeMusicApi.getPlaylists()
-            setYoutubePlaylists(response.playlists)
-        } catch (e: any) {
-            console.error('Failed to load YouTube playlists:', e)
-            if (e.message?.includes('401') || e.message?.includes('Not authenticated')) {
-                setYoutubeConnected(false)
-                setYoutubeUser(null)
-            }
-        } finally {
-            setYoutubeLoading(false)
-        }
-    }, [youtubeConnected])
+    // YouTube 플레이리스트 로드 및 자동 import (한 번만 실행)
+    const youtubeLoadedRef = useRef(false)
+
+    // Tidal 플레이리스트 로드 및 자동 import (한 번만 실행)
+    const tidalLoadedRef = useRef(false)
 
     // Check YouTube status on mount
     useEffect(() => {
         checkYoutubeStatus()
     }, [checkYoutubeStatus])
 
-    // Load playlists when YouTube is connected
+    // Load playlists when YouTube is connected (한 번만 실행)
     useEffect(() => {
-        if (youtubeConnected) {
-            loadYoutubePlaylists()
+        if (!youtubeConnected || youtubeLoadedRef.current) return
+
+        const loadAndImport = async () => {
+            youtubeLoadedRef.current = true
+            setYoutubeLoading(true)
+            try {
+                const response = await youtubeMusicApi.getPlaylists()
+                setYoutubePlaylists(response.playlists)
+
+                // 자동으로 모든 플레이리스트를 PMS에 가져오기
+                if (user?.id && response.playlists.length > 0) {
+                    const importedIds = new Set<string>()
+                    for (const playlist of response.playlists) {
+                        try {
+                            const result = await youtubeMusicApi.importPlaylist(playlist.id, user.id)
+                            if (result.success) {
+                                importedIds.add(playlist.id)
+                            }
+                        } catch (importError) {
+                            console.error(`Failed to import playlist ${playlist.name}:`, importError)
+                        }
+                    }
+                    setImportedYoutubePlaylists(importedIds)
+                }
+            } catch (e: any) {
+                console.error('Failed to load YouTube playlists:', e)
+                youtubeLoadedRef.current = false // 에러 시 재시도 허용
+                if (e.message?.includes('401') || e.message?.includes('Not authenticated')) {
+                    setYoutubeConnected(false)
+                    setYoutubeUser(null)
+                }
+            } finally {
+                setYoutubeLoading(false)
+            }
         }
-    }, [youtubeConnected, loadYoutubePlaylists])
+
+        loadAndImport()
+    }, [youtubeConnected, user?.id])
+
+    // 새로고침 버튼용 함수
+    const loadYoutubePlaylists = async () => {
+        setYoutubeLoading(true)
+        try {
+            const response = await youtubeMusicApi.getPlaylists()
+            setYoutubePlaylists(response.playlists)
+        } catch (e: any) {
+            console.error('Failed to load YouTube playlists:', e)
+        } finally {
+            setYoutubeLoading(false)
+        }
+    }
 
     // Handle YouTube login with popup
     const handleYoutubeLogin = async () => {
@@ -304,7 +339,7 @@ const MusicConnections = () => {
         }
     }, [])
 
-    // Load Tidal playlists
+    // Load Tidal playlists (새로고침 버튼용)
     const loadTidalPlaylists = useCallback(async () => {
         if (!tidalConnected) return
         setTidalLoading(true)
@@ -322,19 +357,58 @@ const MusicConnections = () => {
         }
     }, [tidalConnected])
 
+    // Tidal 플레이리스트 로드 및 자동 import
+    const loadAndImportTidalPlaylists = useCallback(async () => {
+        if (!tidalConnected || tidalLoadedRef.current) return
+
+        tidalLoadedRef.current = true
+        setTidalLoading(true)
+        try {
+            console.log('[Tidal] Loading playlists...')
+            const response = await tidalApi.getUserPlaylists()
+            console.log('[Tidal] Playlists response:', response)
+            setTidalPlaylists(response.playlists)
+
+            // 자동으로 모든 플레이리스트를 PMS에 가져오기 (user가 있을 때만)
+            if (user?.id && response.playlists.length > 0) {
+                const importedIds = new Set<string>()
+                for (const playlist of response.playlists) {
+                    try {
+                        const result = await tidalApi.importPlaylist(playlist.uuid, user.id)
+                        if (result.success) {
+                            importedIds.add(playlist.uuid)
+                        }
+                    } catch (importError) {
+                        console.error(`Failed to import Tidal playlist ${playlist.title}:`, importError)
+                    }
+                }
+                setImportedTidalPlaylists(importedIds)
+            }
+        } catch (e: any) {
+            console.error('Failed to load Tidal playlists:', e)
+            tidalLoadedRef.current = false // 에러 시 재시도 허용
+            if (e.message?.includes('401') || e.message?.includes('Not authenticated')) {
+                setTidalConnected(false)
+                setTidalUser(null)
+            }
+        } finally {
+            setTidalLoading(false)
+        }
+    }, [tidalConnected, user?.id])
+
     // Check Tidal status on mount
     useEffect(() => {
         checkTidalStatus()
     }, [checkTidalStatus])
 
-    // Load playlists when Tidal is connected
+    // Load and auto-import playlists when Tidal is connected
     useEffect(() => {
         if (tidalConnected) {
-            loadTidalPlaylists()
+            loadAndImportTidalPlaylists()
         }
-    }, [tidalConnected, loadTidalPlaylists])
+    }, [tidalConnected, loadAndImportTidalPlaylists])
 
-    // Handle Tidal login with popup
+    // Handle Tidal login with popup (OAuth Code Flow)
     const handleTidalLogin = async () => {
         setTidalConnecting(true)
         try {
@@ -372,8 +446,6 @@ const MusicConnections = () => {
                                     expires_in: event.data.response.expiresIn
                                 }
                             })
-                            // Reload playlists after sync
-                            loadTidalPlaylists()
                         } catch (e) {
                             console.error('Tidal sync failed:', e)
                         }
@@ -381,6 +453,10 @@ const MusicConnections = () => {
 
                     setTidalConnecting(false)
                     window.removeEventListener('message', handleMessage)
+
+                    // Trigger auto-import
+                    tidalLoadedRef.current = false
+                    loadAndImportTidalPlaylists()
                 }
             }
             window.addEventListener('message', handleMessage)
@@ -405,6 +481,9 @@ const MusicConnections = () => {
                                         userId: data.response.user.userId
                                     })
                                 }
+                                // Trigger auto-import
+                                tidalLoadedRef.current = false
+                                loadAndImportTidalPlaylists()
                             }
                         } catch (e) { }
                         localStorage.removeItem('tidal_login_result')
@@ -706,25 +785,10 @@ const MusicConnections = () => {
                                             <p className="text-sm font-medium text-hud-text-primary truncate">{playlist.name}</p>
                                             <p className="text-xs text-hud-text-muted">{playlist.trackCount} 트랙</p>
                                         </div>
-                                        {importedYoutubePlaylists.has(playlist.id) ? (
-                                            <span className="text-xs text-hud-accent-success flex items-center gap-1 px-3 py-1.5">
-                                                <CheckCircle className="w-4 h-4" />
-                                                완료
-                                            </span>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleYoutubeImport(playlist)}
-                                                disabled={importingYoutubePlaylist === playlist.id}
-                                                className="px-4 py-2 bg-[#FF0000]/10 border border-[#FF0000]/30 rounded-lg text-xs text-[#FF0000] hover:bg-[#FF0000]/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                                            >
-                                                {importingYoutubePlaylist === playlist.id ? (
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                ) : (
-                                                    <Download className="w-3.5 h-3.5" />
-                                                )}
-                                                가져오기
-                                            </button>
-                                        )}
+                                        <span className="text-xs text-hud-accent-success flex items-center gap-1 px-3 py-1.5">
+                                            <CheckCircle className="w-4 h-4" />
+                                            {importedYoutubePlaylists.has(playlist.id) ? '완료' : '자동 동기화'}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -838,25 +902,10 @@ const MusicConnections = () => {
                                             <p className="text-sm font-medium text-hud-text-primary truncate">{playlist.title}</p>
                                             <p className="text-xs text-hud-text-muted">{playlist.numberOfTracks || playlist.trackCount} 트랙</p>
                                         </div>
-                                        {importedTidalPlaylists.has(playlist.uuid) ? (
-                                            <span className="text-xs text-hud-accent-success flex items-center gap-1 px-3 py-1.5">
-                                                <CheckCircle className="w-4 h-4" />
-                                                완료
-                                            </span>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleTidalImport(playlist)}
-                                                disabled={importingTidalPlaylist === playlist.uuid}
-                                                className="px-4 py-2 bg-black/10 border border-black/30 rounded-lg text-xs text-white hover:bg-black/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                                            >
-                                                {importingTidalPlaylist === playlist.uuid ? (
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                ) : (
-                                                    <Download className="w-3.5 h-3.5" />
-                                                )}
-                                                가져오기
-                                            </button>
-                                        )}
+                                        <span className="text-xs text-hud-accent-success flex items-center gap-1 px-3 py-1.5">
+                                            <CheckCircle className="w-4 h-4" />
+                                            {importedTidalPlaylists.has(playlist.uuid) ? '완료' : '자동 동기화'}
+                                        </span>
                                     </div>
                                 ))}
                             </div>

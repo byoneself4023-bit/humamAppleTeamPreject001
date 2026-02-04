@@ -58,9 +58,9 @@ app.use(cors({
     origin: [
         'http://localhost',
         'http://localhost:80',
-        'http://localhost:5173',
+        'http://localhost',
         'http://localhost:5610',
-        'http://host.docker.internal:5173'
+        'http://host.docker.internal'
     ],
     credentials: true
 }))

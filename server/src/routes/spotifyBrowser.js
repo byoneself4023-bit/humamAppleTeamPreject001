@@ -22,17 +22,54 @@ router.post('/login', async (req, res) => {
     try {
         console.log('[Spotify Browser] Starting login process...')
 
-        // 브라우저 시작
+        // 브라우저 시작 (Stealth 모드)
         const browser = await chromium.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-infobars',
+                '--window-size=1920,1080',
+                '--start-maximized'
+            ]
         })
 
         const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            viewport: { width: 1920, height: 1080 },
+            locale: 'en-US',
+            timezoneId: 'America/New_York',
+            permissions: ['geolocation'],
+            extraHTTPHeaders: {
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
         })
 
         const page = await context.newPage()
+
+        // Webdriver 속성 숨기기 (Bot 감지 우회)
+        await page.addInitScript(() => {
+            // webdriver 속성 제거
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            })
+
+            // plugins 추가
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5]
+            })
+
+            // languages 추가
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['en-US', 'en']
+            })
+
+            // Chrome 객체 추가
+            window.chrome = {
+                runtime: {}
+            }
+        })
 
         // 토큰 캡처를 위한 request interceptor
         let capturedToken = null
@@ -62,19 +99,99 @@ router.post('/login', async (req, res) => {
             // 쿠키 버튼 없으면 무시
         }
 
-        // 이메일 입력
-        await page.fill('input[id="login-username"]', email)
+        console.log('[Spotify Browser] Step 1: Entering email...')
 
-        // 비밀번호 입력
-        await page.fill('input[id="login-password"]', password)
+        // Step 1: 이메일 입력 (id="username" 또는 data-testid="login-username")
+        await page.fill('input[id="username"]', email)
 
-        // 로그인 버튼 클릭
-        await page.click('button[id="login-button"]')
+        // Continue 버튼 클릭
+        await page.click('button[data-testid="login-button"]')
+
+        // Step 2: 6자리 코드 화면 또는 비밀번호 선택 화면 대기
+        console.log('[Spotify Browser] Step 2: Waiting for next screen...')
+        await page.waitForTimeout(3000)
+
+        // 현재 URL 로그
+        console.log('[Spotify Browser] Current URL:', page.url())
+
+        // 디버깅: 스크린샷 저장
+        try {
+            await page.screenshot({ path: '/app/spotify_debug.png' })
+            console.log('[Spotify Browser] Screenshot saved to /app/spotify_debug.png')
+        } catch (e) {
+            console.log('[Spotify Browser] Screenshot failed:', e.message)
+        }
+
+        // 디버깅: 페이지의 모든 버튼 텍스트 로그
+        try {
+            const allButtons = await page.locator('button').all()
+            console.log('[Spotify Browser] Found', allButtons.length, 'buttons on page')
+            for (let i = 0; i < Math.min(allButtons.length, 10); i++) {
+                const text = await allButtons[i].textContent().catch(() => 'N/A')
+                const dataTestId = await allButtons[i].getAttribute('data-testid').catch(() => 'N/A')
+                const encoreId = await allButtons[i].getAttribute('data-encore-id').catch(() => 'N/A')
+                console.log(`[Spotify Browser] Button ${i}: text="${text}", data-testid="${dataTestId}", data-encore-id="${encoreId}"`)
+            }
+        } catch (e) {
+            console.log('[Spotify Browser] Button enumeration failed:', e.message)
+        }
+
+        // "Log in with a password" 버튼 찾아서 클릭
+        // Spotify는 data-encore-id="buttonTertiary" 속성을 사용함
+        let passwordLinkClicked = false
+
+        try {
+            // 정확한 selector: data-encore-id="buttonTertiary"
+            const passwordBtn = page.locator('button[data-encore-id="buttonTertiary"]')
+            if (await passwordBtn.isVisible({ timeout: 8000 })) {
+                console.log('[Spotify Browser] Found "Log in with a password" button (buttonTertiary)')
+                await passwordBtn.click()
+                passwordLinkClicked = true
+                await page.waitForTimeout(2000)
+            }
+        } catch (e) {
+            console.log('[Spotify Browser] buttonTertiary not found:', e.message)
+        }
+
+        // 대안: 텍스트로 찾기
+        if (!passwordLinkClicked) {
+            try {
+                const passwordLink = page.getByRole('button', { name: /password/i })
+                if (await passwordLink.isVisible({ timeout: 3000 })) {
+                    console.log('[Spotify Browser] Found button with password text via getByRole')
+                    await passwordLink.click()
+                    passwordLinkClicked = true
+                    await page.waitForTimeout(2000)
+                }
+            } catch (e) {
+                console.log('[Spotify Browser] getByRole failed:', e.message)
+            }
+        }
+
+        console.log('[Spotify Browser] Password link clicked:', passwordLinkClicked)
+        console.log('[Spotify Browser] Current URL after click:', page.url())
+
+        // Step 3: 비밀번호 입력 (id="password" 또는 data-testid="login-password")
+        console.log('[Spotify Browser] Step 3: Entering password...')
+        try {
+            await page.waitForSelector('input[id="password"]', { timeout: 15000 })
+            await page.fill('input[id="password"]', password)
+
+            // Log in 버튼 클릭
+            await page.click('button[data-testid="login-button"]')
+        } catch (e) {
+            console.error('[Spotify Browser] Password field not found:', e.message)
+            // 현재 페이지의 HTML 일부를 로그로 남기기
+            const pageContent = await page.content().catch(() => 'Failed to get content')
+            console.log('[Spotify Browser] Page excerpt:', pageContent.substring(0, 500))
+            await browser.close()
+            return res.status(401).json({ error: 'Password field not found. Spotify may require email verification code.' })
+        }
 
         // 로그인 결과 대기
         try {
             // 성공: Spotify 웹 플레이어로 리다이렉트
-            await page.waitForURL('**/open.spotify.com/**', { timeout: 15000 })
+            await page.waitForURL('**/open.spotify.com/**', { timeout: 20000 })
             console.log('[Spotify Browser] Login successful, redirected to web player')
         } catch (e) {
             // 에러 메시지 확인
@@ -179,7 +296,7 @@ router.get('/status', async (req, res) => {
         if (!response.ok) {
             // 세션 정리
             if (session.browser) {
-                await session.browser.close().catch(() => {})
+                await session.browser.close().catch(() => { })
             }
             delete browserSessions[sessionKey]
             return res.json({ connected: false, error: 'Token expired' })
@@ -209,7 +326,7 @@ router.post('/logout', async (req, res) => {
     const session = browserSessions[sessionKey]
     if (session) {
         if (session.browser) {
-            await session.browser.close().catch(() => {})
+            await session.browser.close().catch(() => { })
         }
         delete browserSessions[sessionKey]
     }
