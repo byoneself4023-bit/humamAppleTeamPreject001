@@ -462,7 +462,7 @@ const MusicConnections = () => {
             window.addEventListener('message', handleMessage)
 
             // Check popup status
-            const checkPopup = setInterval(() => {
+            const checkPopup = setInterval(async () => {
                 if (popup?.closed) {
                     clearInterval(checkPopup)
                     window.removeEventListener('message', handleMessage)
@@ -487,6 +487,27 @@ const MusicConnections = () => {
                             }
                         } catch (e) { }
                         localStorage.removeItem('tidal_login_result')
+                    }
+
+                    // Always check status from server after popup closes
+                    console.log('[Tidal] Popup closed, checking status from server...')
+                    try {
+                        const status = await tidalApi.getAuthStatus()
+                        console.log('[Tidal] Status from server:', status)
+                        if (status.userConnected) {
+                            setTidalConnected(true)
+                            if (status.user) {
+                                setTidalUser({
+                                    username: status.user.username || 'Tidal User',
+                                    userId: status.user.userId
+                                })
+                            }
+                            // Load playlists
+                            tidalLoadedRef.current = false
+                            setTimeout(() => loadAndImportTidalPlaylists(), 500)
+                        }
+                    } catch (e) {
+                        console.error('[Tidal] Status check failed:', e)
                     }
                 }
             }, 1000)
