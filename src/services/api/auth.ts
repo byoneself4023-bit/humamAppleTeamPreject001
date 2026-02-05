@@ -23,6 +23,10 @@ export interface RegisterRequest {
     password: string
     streamingServices?: string[]
     genres?: string[]
+    tidalConnected?: boolean
+    tidalVisitorId?: string
+    tidalAccessToken?: string
+    tidalRefreshToken?: string
 }
 
 // Token management

@@ -21,6 +21,7 @@ import statsRoutes from './routes/stats.js'
 import spotifyRoutes from './routes/spotify.js'
 import spotifyBrowserRoutes from './routes/spotifyBrowser.js'
 import youtubeMusicRoutes from './routes/youtubeMusic.js'
+import fastapiRoutes from './routes/fastapi.js'
 
 dotenv.config()
 
@@ -91,6 +92,7 @@ app.use('/api/stats', statsRoutes)
 app.use('/api/spotify', spotifyRoutes)
 app.use('/api/spotify/browser', spotifyBrowserRoutes)
 app.use('/api/youtube-music', youtubeMusicRoutes)
+app.use('/api/fastapi', fastapiRoutes)
 
 // Error handling
 app.use((err, req, res, next) => {

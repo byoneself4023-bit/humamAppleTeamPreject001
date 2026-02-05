@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
-import { Music, Users, Disc, Crown, Star, TrendingUp, ArrowRight, Play, Heart, Sparkles, Loader2, RefreshCw } from 'lucide-react'
+import { Music, Users, Disc, Crown, Star, TrendingUp, ArrowRight, Play, Heart, Sparkles, Loader2, RefreshCw, X, Clock } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { playlistsApi, Playlist } from '../../services/api/playlists'
+import { playlistsApi, Playlist, Track } from '../../services/api/playlists'
 import { tidalApi } from '../../services/api/tidal'
 import { itunesService } from '../../services/api/itunes'
 import { youtubeApi } from '../../services/api/youtube'
 import { statsApi, BestArtist, BestPlaylist, BestTrack, BestAlbum, HomeStats } from '../../services/api/stats'
+import { useMusic } from '../../context/MusicContext'
+import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
+import FavoriteButton from '../../components/music/FavoriteButton'
 
 interface TopTrack {
     title: string
@@ -28,6 +31,58 @@ const MusicHome = () => {
     const [bestPlaylists, setBestPlaylists] = useState<BestPlaylist[]>([])
     const [bestTracks, setBestTracks] = useState<BestTrack[]>([])
     const [bestAlbums, setBestAlbums] = useState<BestAlbum[]>([])
+
+    // Playlist modal state
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null)
+
+    // Artist tracks modal state
+    const [selectedArtist, setSelectedArtist] = useState<string | null>(null)
+    const [artistTracks, setArtistTracks] = useState<Track[]>([])
+    const [artistTracksLoading, setArtistTracksLoading] = useState(false)
+
+    // Music context for playback
+    const { playTrack, playPlaylist, setQueue } = useMusic()
+
+    // Search artist tracks
+    const handleArtistClick = async (artistName: string) => {
+        setSelectedArtist(artistName)
+        setArtistTracksLoading(true)
+        setArtistTracks([])
+
+        try {
+            // Search Tidal for artist tracks
+            const result = await tidalApi.searchTracks(artistName, 20)
+            
+            if (result.tracks && result.tracks.length > 0) {
+                const tracks: Track[] = result.tracks.map((t: any, idx: number) => ({
+                    id: t.id || Date.now() + idx,
+                    title: t.title || t.name || 'Unknown',
+                    artist: t.artist?.name || t.artists?.[0]?.name || artistName,
+                    album: t.album?.title || '',
+                    duration: t.duration || 0,
+                    orderIndex: idx,
+                    tidalId: t.id?.toString(),
+                    artwork: t.album?.cover ? `https://resources.tidal.com/images/${t.album.cover.replace(/-/g, '/')}/320x320.jpg` : undefined
+                }))
+                setArtistTracks(tracks)
+            }
+        } catch (e) {
+            console.error('Failed to search artist tracks:', e)
+        } finally {
+            setArtistTracksLoading(false)
+        }
+    }
+
+    const closeArtistModal = () => {
+        setSelectedArtist(null)
+        setArtistTracks([])
+    }
+
+    const formatDuration = (seconds: number) => {
+        const min = Math.floor(seconds / 60)
+        const sec = seconds % 60
+        return `${min}:${sec.toString().padStart(2, '0')}`
+    }
 
     // Helper to get random items
     const getRandomItems = (arr: any[], count: number) => {
@@ -303,8 +358,12 @@ const MusicHome = () => {
                         { name: 'Aespa', playCount: 0, viewCount: 0, likeCount: 0, image: undefined },
                         { name: 'BLACKPINK', playCount: 0, viewCount: 0, likeCount: 0, image: undefined }
                     ]).map((artist, idx) => (
-                        <div key={artist.name} className="hud-card hud-card-bottom rounded-xl p-4 text-center hover:scale-105 transition-transform cursor-pointer group">
-                            <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-hud-bg-secondary shadow-lg relative">
+                        <div
+                            key={artist.name}
+                            onClick={() => handleArtistClick(artist.name)}
+                            className="hud-card hud-card-bottom rounded-xl p-4 text-center hover:scale-105 transition-transform cursor-pointer group"
+                        >
+                            <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-hud-bg-secondary shadow-lg relative group-hover:border-hud-accent-primary transition-colors">
                                 {artist.image ? (
                                     <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -312,8 +371,11 @@ const MusicHome = () => {
                                         {artist.name.charAt(0)}
                                     </div>
                                 )}
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Play className="w-8 h-8 text-white" fill="white" />
+                                </div>
                             </div>
-                            <div className="font-medium text-hud-text-primary text-sm truncate px-2">{artist.name}</div>
+                            <div className="font-medium text-hud-text-primary text-sm truncate px-2 group-hover:text-hud-accent-primary transition-colors">{artist.name}</div>
                             <div className="text-xs text-hud-text-muted">
                                 {artist.playCount > 0 ? `${artist.playCount.toLocaleString()} plays` : `#${idx + 1}`}
                             </div>
@@ -342,15 +404,31 @@ const MusicHome = () => {
                                 {platform.name} Top 5
                             </div>
                             <div className="p-4 space-y-2">
-                                {platform.tracks.length > 0 ? platform.tracks.map((track, idx) => (
-                                    <div key={`${track.title}-${idx}`} className="flex items-center gap-3 text-sm">
-                                        <span className="w-5 h-5 bg-hud-bg-secondary rounded-full flex items-center justify-center text-xs font-medium text-hud-text-muted">{idx + 1}</span>
-                                        <span className="text-hud-text-primary truncate flex-1">{track.title} - {track.artist}</span>
-                                    </div>
-                                )) : (
-                                    <div className="text-hud-text-muted text-sm text-center py-4">데이터 로딩 중...</div>
-                                )}
-                            </div>
+                                                {platform.tracks.length > 0 ? platform.tracks.map((track, idx) => (
+                                                    <div
+                                                        key={`${track.title}-${idx}`}
+                                                        className="flex items-center gap-3 text-sm cursor-pointer hover:bg-hud-bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors group"
+                                                        onClick={() => {
+                                                            // Create a track object and play it
+                                                            const trackToPlay: Track = {
+                                                                id: Date.now() + idx,
+                                                                title: track.title,
+                                                                artist: track.artist,
+                                                                album: '',
+                                                                duration: 0,
+                                                                orderIndex: idx
+                                                            }
+                                                            playTrack(trackToPlay)
+                                                        }}
+                                                    >
+                                                        <span className="w-5 h-5 bg-hud-bg-secondary rounded-full flex items-center justify-center text-xs font-medium text-hud-text-muted group-hover:bg-hud-accent-primary group-hover:text-white transition-colors">{idx + 1}</span>
+                                                        <span className="text-hud-text-primary truncate flex-1">{track.title} - {track.artist}</span>
+                                                        <Play className="w-4 h-4 text-hud-accent-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    </div>
+                                                )) : (
+                                                    <div className="text-hud-text-muted text-sm text-center py-4">데이터 로딩 중...</div>
+                                                )}
+                                            </div>
                         </div>
                     ))}
                 </div>
@@ -382,9 +460,9 @@ const MusicHome = () => {
                                     <div className="p-4">
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                                             {platformPlaylists.map((playlist) => (
-                                                <Link
+                                                <div
                                                     key={playlist.id}
-                                                    to={`/music/lab`}
+                                                    onClick={() => setSelectedPlaylistId(playlist.id)}
                                                     className="group cursor-pointer"
                                                 >
                                                     <div className="aspect-square bg-hud-bg-secondary rounded-lg overflow-hidden mb-2 relative">
@@ -405,7 +483,7 @@ const MusicHome = () => {
                                                     </div>
                                                     <h4 className="text-sm font-medium text-hud-text-primary truncate">{playlist.title}</h4>
                                                     <p className="text-xs text-hud-text-muted truncate">{playlist.description}</p>
-                                                </Link>
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
@@ -428,7 +506,11 @@ const MusicHome = () => {
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {recommendedPlaylists.length > 0 ? recommendedPlaylists.map((playlist) => (
-                        <div key={playlist.id} className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group">
+                        <div
+                            key={playlist.id}
+                            onClick={() => setSelectedPlaylistId(playlist.id)}
+                            className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group"
+                        >
                             <div className="w-full aspect-video bg-gradient-to-br from-hud-accent-success to-hud-accent-primary rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
                                 {playlist.coverImage ? (
                                     <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover" />
@@ -448,7 +530,11 @@ const MusicHome = () => {
                             </div>
                         </div>
                     )) : emsPlaylists.length > 0 ? emsPlaylists.slice(0, 3).map((playlist) => (
-                        <div key={playlist.id} className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group">
+                        <div
+                            key={playlist.id}
+                            onClick={() => setSelectedPlaylistId(playlist.id)}
+                            className="hud-card hud-card-bottom rounded-xl p-5 hover:scale-105 transition-transform cursor-pointer group"
+                        >
                             <div className="w-full aspect-video bg-gradient-to-br from-hud-accent-warning to-orange-400 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
                                 {playlist.coverImage ? (
                                     <img src={playlist.coverImage} alt={playlist.title} className="w-full h-full object-cover" />
@@ -523,6 +609,161 @@ const MusicHome = () => {
                     ))}
                 </div>
             </section>
+
+            {/* Playlist Detail Modal */}
+            <PlaylistDetailModal
+                isOpen={selectedPlaylistId !== null}
+                onClose={() => setSelectedPlaylistId(null)}
+                playlistId={selectedPlaylistId}
+            />
+
+            {/* Artist Tracks Modal */}
+            {selectedArtist && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-hud-bg-card border border-hud-accent-primary/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+                        {/* Header */}
+                        <div className="p-6 border-b border-hud-border-secondary bg-gradient-to-r from-hud-accent-primary/10 to-transparent">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                                        {selectedArtist.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-hud-text-primary">{selectedArtist}</h2>
+                                        <p className="text-hud-text-muted text-sm">
+                                            {artistTracksLoading ? '검색 중...' : `${artistTracks.length}곡`}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={closeArtistModal}
+                                    className="p-2 text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary rounded-lg transition-all"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
+                            {artistTracks.length > 0 && (
+                                <div className="mt-4 flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            playPlaylist(artistTracks)
+                                            closeArtistModal()
+                                        }}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 transition-all"
+                                    >
+                                        <Play className="w-4 h-4" fill="currentColor" />
+                                        전체 재생
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Track List */}
+                        <div className="flex-1 overflow-y-auto">
+                            {artistTracksLoading ? (
+                                <div className="flex flex-col items-center justify-center h-64 gap-4">
+                                    <Loader2 className="w-10 h-10 text-hud-accent-primary animate-spin" />
+                                    <p className="text-hud-text-muted">Tidal에서 검색 중...</p>
+                                </div>
+                            ) : artistTracks.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-hud-text-muted">
+                                    <Music className="w-16 h-16 opacity-30" />
+                                    <p>검색 결과가 없습니다</p>
+                                </div>
+                            ) : (
+                                <table className="w-full">
+                                    <thead className="bg-hud-bg-secondary/50 sticky top-0">
+                                        <tr className="border-b border-hud-border-secondary">
+                                            <th className="px-4 py-3 w-12 text-center text-xs font-bold text-hud-text-muted">#</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-hud-text-muted">제목</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-hud-text-muted hidden md:table-cell">앨범</th>
+                                            <th className="px-4 py-3 w-16 text-center text-xs font-bold text-hud-text-muted">
+                                                <Heart className="w-4 h-4 mx-auto" />
+                                            </th>
+                                            <th className="px-4 py-3 w-16 text-right text-xs font-bold text-hud-text-muted">
+                                                <Clock className="w-4 h-4 ml-auto" />
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {artistTracks.map((track, idx) => (
+                                            <tr
+                                                key={track.id}
+                                                className="group hover:bg-hud-accent-primary/10 cursor-pointer border-b border-hud-border-secondary/30 transition-colors"
+                                            >
+                                                <td
+                                                    className="px-4 py-3 text-center"
+                                                    onClick={() => {
+                                                        setQueue(artistTracks)
+                                                        playTrack(track)
+                                                    }}
+                                                >
+                                                    <span className="text-sm text-hud-text-muted group-hover:hidden">{idx + 1}</span>
+                                                    <Play className="w-4 h-4 text-hud-accent-primary hidden group-hover:block mx-auto" fill="currentColor" />
+                                                </td>
+                                                <td
+                                                    className="px-4 py-3"
+                                                    onClick={() => {
+                                                        setQueue(artistTracks)
+                                                        playTrack(track)
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {track.artwork ? (
+                                                            <img src={track.artwork} alt={track.title} className="w-10 h-10 rounded object-cover" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 bg-hud-bg-secondary rounded flex items-center justify-center">
+                                                                <Music className="w-5 h-5 text-hud-text-muted" />
+                                                            </div>
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium text-hud-text-primary truncate group-hover:text-hud-accent-primary transition-colors">
+                                                                {track.title}
+                                                            </div>
+                                                            <div className="text-xs text-hud-text-muted truncate md:hidden">{track.album}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td
+                                                    className="px-4 py-3 text-sm text-hud-text-muted truncate hidden md:table-cell max-w-[200px]"
+                                                    onClick={() => {
+                                                        setQueue(artistTracks)
+                                                        playTrack(track)
+                                                    }}
+                                                >
+                                                    {track.album}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <FavoriteButton
+                                                        track={{
+                                                            title: track.title,
+                                                            artist: track.artist,
+                                                            album: track.album,
+                                                            duration: track.duration,
+                                                            tidalId: track.tidalId,
+                                                            artwork: track.artwork
+                                                        }}
+                                                        size="sm"
+                                                    />
+                                                </td>
+                                                <td
+                                                    className="px-4 py-3 text-right text-sm text-hud-text-muted"
+                                                    onClick={() => {
+                                                        setQueue(artistTracks)
+                                                        playTrack(track)
+                                                    }}
+                                                >
+                                                    {track.duration > 0 ? formatDuration(track.duration) : '-'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

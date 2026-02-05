@@ -1,12 +1,17 @@
 import { Brain, Check, X, Play, Pause, SkipForward, Music, Star, ArrowRight, Eye, ThumbsUp, ThumbsDown, Sparkles, Filter, Loader2 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { playlistsApi, Playlist } from '../../services/api/playlists'
+import { playlistsApi, Playlist, PlaylistWithTracks } from '../../services/api/playlists'
+import { useMusic } from '../../context/MusicContext'
+import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
 
 const GatewayMusicSpace = () => {
     const [playlists, setPlaylists] = useState<Playlist[]>([])
     const [loading, setLoading] = useState(true)
     const [previewMode, setPreviewMode] = useState(false)
     const [currentTrack, setCurrentTrack] = useState({ title: 'Select a track', artist: '-', isPlaying: false })
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null)
+
+    const { playPlaylist, setQueue } = useMusic()
 
     const fetchPlaylists = useCallback(async () => {
         try {
@@ -193,10 +198,27 @@ const GatewayMusicSpace = () => {
 
                                         {/* Actions */}
                                         <div className="flex items-center gap-2">
-                                            <button className="w-9 h-9 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg flex items-center justify-center text-hud-text-muted hover:text-hud-accent-info hover:border-hud-accent-info/30 transition-all">
+                                            <button
+                                                onClick={() => setSelectedPlaylistId(playlist.id)}
+                                                className="w-9 h-9 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg flex items-center justify-center text-hud-text-muted hover:text-hud-accent-info hover:border-hud-accent-info/30 transition-all"
+                                                title="상세보기"
+                                            >
                                                 <Eye className="w-4 h-4" />
                                             </button>
-                                            <button className="w-9 h-9 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg flex items-center justify-center text-hud-text-muted hover:text-hud-accent-primary hover:border-hud-accent-primary/30 transition-all">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const data = await playlistsApi.getById(playlist.id) as unknown as PlaylistWithTracks
+                                                        if (data.tracks && data.tracks.length > 0) {
+                                                            playPlaylist(data.tracks)
+                                                        }
+                                                    } catch (e) {
+                                                        console.error('Failed to play playlist:', e)
+                                                    }
+                                                }}
+                                                className="w-9 h-9 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg flex items-center justify-center text-hud-text-muted hover:text-hud-accent-primary hover:border-hud-accent-primary/30 transition-all"
+                                                title="재생"
+                                            >
                                                 <Play className="w-4 h-4" fill="currentColor" />
                                             </button>
                                             <button
@@ -229,7 +251,11 @@ const GatewayMusicSpace = () => {
 
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {highScorePlaylists.map((playlist) => (
-                                <div key={playlist.id} className="flex items-center gap-3 bg-hud-bg-secondary/50 rounded-lg p-3 hover:bg-hud-bg-hover transition-all cursor-pointer group">
+                                <div
+                                    key={playlist.id}
+                                    onClick={() => setSelectedPlaylistId(playlist.id)}
+                                    className="flex items-center gap-3 bg-hud-bg-secondary/50 rounded-lg p-3 hover:bg-hud-bg-hover transition-all cursor-pointer group"
+                                >
                                     {playlist.coverImage ? (
                                         <img src={playlist.coverImage} alt={playlist.title} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                                     ) : (
@@ -247,6 +273,13 @@ const GatewayMusicSpace = () => {
                         </div>
                     </section>
                 )}
+
+                {/* Playlist Detail Modal */}
+                <PlaylistDetailModal
+                    isOpen={selectedPlaylistId !== null}
+                    onClose={() => setSelectedPlaylistId(null)}
+                    playlistId={selectedPlaylistId}
+                />
         </div>
     )
 }

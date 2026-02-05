@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import TermsModal from '../../components/auth/TermsModal'
 import PrivacyModal from '../../components/auth/PrivacyModal'
 import { genresApi, GenreCategory } from '../../services/api/genres'
+import TidalLoginModal from '../../components/auth/TidalLoginModal'
 
 const STREAMING_SERVICES = [
     { id: 'tidal', name: 'Tidal', icon: 'T', color: 'bg-black', activeColor: 'bg-hud-accent-primary text-hud-bg-primary' },
@@ -31,7 +32,12 @@ const Register = () => {
     const [isPrivacyOpen, setIsPrivacyOpen] = useState(false)
     const [streamingServices, setStreamingServices] = useState<string[]>([])
     const [otherService, setOtherService] = useState('')
-    
+
+    // Tidal 연동 관련 상태
+    const [showTidalModal, setShowTidalModal] = useState(false)
+    const [tidalConnected, setTidalConnected] = useState(false)
+    const [tidalAuthData, setTidalAuthData] = useState<any>(null)
+
     // 장르 관련 상태
     const [genreCategories, setGenreCategories] = useState<GenreCategory[]>([])
     const [selectedGenres, setSelectedGenres] = useState<string[]>([])
@@ -63,6 +69,11 @@ const Register = () => {
                 ? prev.filter(id => id !== serviceId)
                 : [...prev, serviceId]
         )
+
+        // Tidal 선택 시 로그인 모달 표시
+        if (serviceId === 'tidal' && !tidalConnected) {
+            setShowTidalModal(true)
+        }
     }
 
     const toggleGenre = (genreCode: string) => {
@@ -116,7 +127,12 @@ const Register = () => {
                 email,
                 password,
                 streamingServices: finalServices,
-                genres: selectedGenres
+                genres: selectedGenres,
+                // Tidal 연동 데이터 포함
+                tidalConnected: tidalConnected,
+                tidalVisitorId: tidalAuthData?.visitorId,
+                tidalAccessToken: tidalAuthData?.accessToken,
+                tidalRefreshToken: tidalAuthData?.refreshToken
             })
             setUser(response.user)
 
@@ -236,7 +252,7 @@ const Register = () => {
                             <p className="text-[11px] text-hud-text-muted text-center -mt-1 mb-1">
                                 선호하는 음악 장르를 선택해주세요. (최소 1개)
                             </p>
-                            
+
                             {genresLoading ? (
                                 <div className="flex justify-center py-4">
                                     <Loader2 className="w-6 h-6 animate-spin text-hud-accent-primary" />
@@ -268,7 +284,7 @@ const Register = () => {
                                                     <ChevronDown className="w-4 h-4 text-hud-text-muted" />
                                                 )}
                                             </button>
-                                            
+
                                             {/* Genre List */}
                                             {expandedCategories.includes(category.code) && (
                                                 <div className="p-2 grid grid-cols-4 gap-1.5 bg-hud-bg-primary">
@@ -277,21 +293,18 @@ const Register = () => {
                                                             key={genre.code}
                                                             type="button"
                                                             onClick={() => toggleGenre(genre.code)}
-                                                            className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all border ${
-                                                                selectedGenres.includes(genre.code)
+                                                            className={`flex flex-col items-center justify-center p-1.5 rounded-lg transition-all border ${selectedGenres.includes(genre.code)
                                                                     ? 'border-hud-accent-primary bg-hud-accent-primary/20'
                                                                     : 'border-transparent hover:border-hud-border-secondary hover:bg-hud-bg-secondary/30'
-                                                            }`}
+                                                                }`}
                                                             title={genre.nameEn}
                                                         >
-                                                            <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${genre.color} flex items-center justify-center mb-0.5 ${
-                                                                selectedGenres.includes(genre.code) ? 'ring-2 ring-hud-accent-primary ring-offset-1 ring-offset-hud-bg-primary' : ''
-                                                            }`}>
+                                                            <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${genre.color} flex items-center justify-center mb-0.5 ${selectedGenres.includes(genre.code) ? 'ring-2 ring-hud-accent-primary ring-offset-1 ring-offset-hud-bg-primary' : ''
+                                                                }`}>
                                                                 <span className="text-xs">{genre.icon}</span>
                                                             </div>
-                                                            <span className={`text-[9px] font-medium text-center leading-tight ${
-                                                                selectedGenres.includes(genre.code) ? 'text-hud-accent-primary' : 'text-hud-text-muted'
-                                                            }`}>
+                                                            <span className={`text-[9px] font-medium text-center leading-tight ${selectedGenres.includes(genre.code) ? 'text-hud-accent-primary' : 'text-hud-text-muted'
+                                                                }`}>
                                                                 {genre.nameKo}
                                                             </span>
                                                         </button>
@@ -311,12 +324,12 @@ const Register = () => {
                                         // 모든 카테고리에서 장르 찾기
                                         const genre = genreCategories.flatMap(c => c.genres).find(g => g.code === code)
                                         return genre ? (
-                                            <span 
+                                            <span
                                                 key={code}
                                                 className="inline-flex items-center gap-1 px-2 py-0.5 bg-hud-accent-primary/20 text-hud-accent-primary rounded-full text-[10px] font-medium"
                                             >
                                                 {genre.icon} {genre.nameKo}
-                                                <button 
+                                                <button
                                                     type="button"
                                                     onClick={() => toggleGenre(code)}
                                                     className="ml-0.5 hover:text-hud-accent-danger"
@@ -427,6 +440,22 @@ const Register = () => {
             {/* Modals */}
             <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
             <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+
+            {/* Tidal Login Modal */}
+            <TidalLoginModal
+                isOpen={showTidalModal}
+                onClose={() => setShowTidalModal(false)}
+                onSuccess={(response) => {
+                    console.log('[Register] Tidal login success:', response)
+                    setTidalConnected(true)
+                    setTidalAuthData({
+                        visitorId: response.visitorId || response.user?.userId,
+                        accessToken: response.accessToken || response.access_token,
+                        refreshToken: response.refreshToken || response.refresh_token
+                    })
+                    setShowTidalModal(false)
+                }}
+            />
         </div>
     )
 }
