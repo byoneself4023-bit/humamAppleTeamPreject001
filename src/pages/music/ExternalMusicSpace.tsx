@@ -1,5 +1,6 @@
 import UploadZone from '../../components/music/UploadZone'
 import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
+import FavoriteButton from '../../components/music/FavoriteButton'
 import {
     EMSYoutubePick,
     EMSPlatformBest,
@@ -10,7 +11,8 @@ import {
 } from '../../components/music/ems'
 import { Filter, Sparkles, Plus, Link as LinkIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { playlistsApi, analysisApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
+import { playlistsApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
+import { fastapiService } from '../../services/api/fastapi'
 import { tidalApi } from '../../services/api/tidal'
 import { youtubeApi, YoutubePlaylist } from '../../services/api/youtube'
 import { itunesService, ItunesTrack, ItunesCollection } from '../../services/api/itunes'
@@ -96,8 +98,7 @@ const ExternalMusicSpace = () => {
     const [cartTracks, setCartTracks] = useState<ItunesTrack[]>([])
     const [isCartOpen, setIsCartOpen] = useState(false)
 
-    // AI State
-    const [analyzingId, setAnalyzingId] = useState<number | null>(null)
+    // Modal State
     const [isModalLoading, setIsModalLoading] = useState(false)
 
     const [seedAttempted, setSeedAttempted] = useState(false)
@@ -150,7 +151,9 @@ const ExternalMusicSpace = () => {
             }
 
             const response = await playlistsApi.getPlaylists('EMS')
+            console.log('[EMS] API Response:', response)
             const playlists = response?.playlists || []
+            console.log('[EMS] Playlists with trackCount:', playlists.map(p => ({ id: p.id, title: p.title, trackCount: p.trackCount })))
             setPlaylists(playlists.map(mapApiPlaylist))
         } catch (err) {
             console.error('Failed to fetch playlists:', err)
@@ -355,43 +358,12 @@ const ExternalMusicSpace = () => {
     }, [tidalUserLoggedIn, tidalConnected, syncing, tidalSyncDone])
 
     // Handlers
-    const handleDelete = async (id: number) => {
-        try {
-            await playlistsApi.deletePlaylist(id)
-            setPlaylists(prev => prev.filter(p => p.id !== id))
-            setSelectedIds(prev => prev.filter(sid => sid !== id))
-        } catch (err) {
-            console.error('Delete failed:', err)
-        }
-    }
-
     const handleSelectAll = (checked: boolean) => {
         setSelectedIds(checked ? playlists.map(p => p.id) : [])
     }
 
     const handleSelectRow = (id: number, checked: boolean) => {
         setSelectedIds(checked ? [...selectedIds, id] : selectedIds.filter(sid => sid !== id))
-    }
-
-    const handleAnalyze = async (id: number) => {
-        setAnalyzingId(id)
-        try {
-            const result = await analysisApi.evaluate(id)
-            if (result.score >= 70) {
-                await playlistsApi.moveToSpace(id, 'GMS')
-                await playlistsApi.updateStatus(id, 'PTP')
-                showToast(`AI 추천 성공! GMS로 이동되었습니다. (${result.grade}등급, ${result.score}점)`, 'success')
-                setPlaylists(prev => prev.filter(p => p.id !== id))
-            } else {
-                showToast(`AI 분석 완료: ${result.grade}등급 (${result.score}점) - 보류됨`, 'success')
-                fetchPlaylists(true)
-            }
-        } catch (err) {
-            console.error('Analysis failed', err)
-            showToast('분석 실패', 'error')
-        } finally {
-            setAnalyzingId(null)
-        }
     }
 
     // YouTube handlers
@@ -476,21 +448,65 @@ const ExternalMusicSpace = () => {
         setCartTracks(prev => prev.filter(t => t.id !== trackId))
     }
 
-    const saveCartToPlaylist = async () => {
+    // 플레이리스트의 모든 트랙을 장바구니에 추가
+    const addPlaylistToCart = async (playlistId: number) => {
+        try {
+            const playlistDetail = await playlistsApi.getById(playlistId) as any
+            const tracks = playlistDetail.tracks || []
+            if (tracks.length === 0) {
+                showToast('플레이리스트에 트랙이 없습니다.', 'error')
+                return
+            }
+
+            let addedCount = 0
+            for (const track of tracks) {
+                const cartTrack: ItunesTrack = {
+                    id: track.id,
+                    title: track.title,
+                    artist: track.artist,
+                    album: track.album || '',
+                    artwork: track.artwork || '',
+                    audio: track.audio || track.previewUrl || '',
+                    url: track.url || '',
+                    date: track.date || '',
+                    previewUrl: track.previewUrl || track.audio || ''
+                }
+                if (!cartTracks.some(t => t.id === cartTrack.id)) {
+                    setCartTracks(prev => [...prev, cartTrack])
+                    addedCount++
+                }
+            }
+
+            if (addedCount > 0) {
+                showToast(`${addedCount}곡을 장바구니에 담았습니다.`, 'success')
+                setIsCartOpen(true)
+            } else {
+                showToast('이미 모든 곡이 장바구니에 있습니다.', 'success')
+            }
+        } catch (err) {
+            console.error('Failed to add playlist to cart:', err)
+            showToast('장바구니 추가 실패', 'error')
+        }
+    }
+
+    const requestAnalysis = async () => {
         if (cartTracks.length === 0) return
         try {
+            // 1. 먼저 플레이리스트 생성 (EMS에 저장)
             const today = new Date().toLocaleDateString('ko-KR')
-            const title = `EMS Collection (${today})`
+            const title = `분석 요청 (${today})`
+            showToast('플레이리스트 생성 중...', 'success')
+            
             const createResult = await playlistsApi.create({
                 title: title,
-                description: `Created from EMS Search Cart (${cartTracks.length} tracks)`,
+                description: `AI 분석 요청 (${cartTracks.length} tracks)`,
                 sourceType: 'Upload',
                 spaceType: 'EMS',
-                status: 'PTP',
+                status: 'PTP',  // Processing To Process
                 coverImage: cartTracks[0].artwork
             })
 
-            let successCount = 0
+            // 2. 트랙 추가
             for (const track of cartTracks) {
                 await playlistsApi.addTrack(createResult.id, {
                     title: track.title,
@@ -502,16 +518,28 @@ const ExternalMusicSpace = () => {
                         previewUrl: track.previewUrl
                     }
                 })
-                successCount++
             }
 
-            showToast(`'${title}' 생성 완료 (${successCount}곡)`, 'success')
+            // 3. FastAPI AI 분석 요청
+            showToast('AI 분석 요청 중...', 'success')
+            const result = await fastapiService.analyze(createResult.id)
+            
+            if (result.recommendation === 'approve' || result.score >= 70) {
+                // 승인되면 GMS로 이동
+                await playlistsApi.moveToSpace(createResult.id, 'GMS')
+                await playlistsApi.updateStatus(createResult.id, 'PRP') // Processing Ready to Publish
+                showToast(`AI 분석 완료! GMS로 이동 (${result.grade}등급, ${result.score}점)`, 'success')
+            } else {
+                // 보류 또는 거절이면 EMS에 유지
+                showToast(`AI 분석 완료: ${result.grade}등급 (${result.score}점) - ${result.reason || 'EMS 보류'}`, 'success')
+            }
+
             setCartTracks([])
             setIsCartOpen(false)
             fetchPlaylists(true)
-        } catch (err) {
-            console.error('Save cart failed', err)
-            showToast('저장 실패', 'error')
+        } catch (err: any) {
+            console.error('Analysis request failed', err)
+            showToast(err.message || '분석 요청 실패', 'error')
         }
     }
 
@@ -658,34 +686,48 @@ const ExternalMusicSpace = () => {
                         <span className="text-sm font-normal text-hud-text-muted ml-2">(KR Store Real-time)</span>
                     </h2>
                     <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
-                        {newReleases.songs.map((song) => (
-                            <div key={song.id} className="min-w-[160px] w-[160px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-pink-500/50 transition-all group">
-                                <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
-                                    <img src={song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg')} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <button
-                                            onClick={() => addToCart({
-                                                id: parseInt(song.id),
-                                                title: song.attributes.name,
-                                                artist: song.attributes.artistName || 'Unknown',
-                                                album: song.attributes.name,
-                                                artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg') || '',
-                                                url: song.attributes.url,
-                                                date: song.attributes.releaseDate || '',
-                                                audio: '',
-                                                previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
-                                            })}
-                                            className="bg-pink-500 text-white p-2 rounded-full transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-pink-600"
-                                            title="카트에 담기"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                        </button>
+                        {newReleases.songs.map((song) => {
+                            const artworkUrl = song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg')
+                            return (
+                                <div key={song.id} className="min-w-[160px] w-[160px] bg-hud-bg-secondary border border-hud-border-secondary rounded-lg p-3 hover:border-pink-500/50 transition-all group">
+                                    <div className="relative aspect-square mb-3 rounded-md overflow-hidden">
+                                        <img src={artworkUrl} alt={song.attributes.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <FavoriteButton
+                                                track={{
+                                                    title: song.attributes.name,
+                                                    artist: song.attributes.artistName || 'Unknown',
+                                                    album: song.attributes.name,
+                                                    artwork: artworkUrl,
+                                                    audio: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : ''
+                                                }}
+                                                size="sm"
+                                                className="bg-black/50 hover:bg-hud-accent-danger/30"
+                                            />
+                                            <button
+                                                onClick={() => addToCart({
+                                                    id: parseInt(song.id),
+                                                    title: song.attributes.name,
+                                                    artist: song.attributes.artistName || 'Unknown',
+                                                    album: song.attributes.name,
+                                                    artwork: artworkUrl || '',
+                                                    url: song.attributes.url,
+                                                    date: song.attributes.releaseDate || '',
+                                                    audio: '',
+                                                    previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
+                                                })}
+                                                className="bg-pink-500 text-white p-2 rounded-full transform translate-y-2 group-hover:translate-y-0 transition-all hover:bg-pink-600"
+                                                title="카트에 담기"
+                                            >
+                                                <Plus className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
+                                    <div className="font-bold text-hud-text-primary truncate text-sm" title={song.attributes.name}>{song.attributes.name}</div>
+                                    <div className="text-xs text-hud-text-secondary truncate">{song.attributes.artistName}</div>
                                 </div>
-                                <div className="font-bold text-hud-text-primary truncate text-sm" title={song.attributes.name}>{song.attributes.name}</div>
-                                <div className="text-xs text-hud-text-secondary truncate">{song.attributes.artistName}</div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 </section>
             )}
@@ -732,13 +774,11 @@ const ExternalMusicSpace = () => {
             <EMSPlaylistTable
                 playlists={playlists}
                 selectedIds={selectedIds}
-                analyzingId={analyzingId}
                 searchTerm={searchTerm}
                 onSelectAll={handleSelectAll}
                 onSelectRow={handleSelectRow}
-                onDelete={handleDelete}
-                onAnalyze={handleAnalyze}
                 onViewDetail={setSelectedDetailId}
+                onAddToCart={addPlaylistToCart}
             />
 
             {/* Cart Drawer */}
@@ -747,7 +787,7 @@ const ExternalMusicSpace = () => {
                 isCartOpen={isCartOpen}
                 setIsCartOpen={setIsCartOpen}
                 onRemoveFromCart={removeFromCart}
-                onSaveToPlaylist={saveCartToPlaylist}
+                onSaveToPlaylist={requestAnalysis}
             />
 
             {/* Modals */}

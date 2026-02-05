@@ -1,4 +1,4 @@
-import { Brain, Eye, Trash2, Loader2 } from 'lucide-react'
+import { Eye, ShoppingCart, Music } from 'lucide-react'
 
 interface Playlist {
     id: number
@@ -24,25 +24,21 @@ const getStatusBadge = (status: string) => {
 interface EMSPlaylistTableProps {
     playlists: Playlist[]
     selectedIds: number[]
-    analyzingId: number | null
     searchTerm: string
     onSelectAll: (checked: boolean) => void
     onSelectRow: (id: number, checked: boolean) => void
-    onDelete: (id: number) => void
-    onAnalyze: (id: number) => void
     onViewDetail: (id: number) => void
+    onAddToCart: (id: number) => void
 }
 
 const EMSPlaylistTable = ({
     playlists,
     selectedIds,
-    analyzingId,
     searchTerm,
     onSelectAll,
     onSelectRow,
-    onDelete,
-    onAnalyze,
-    onViewDetail
+    onViewDetail,
+    onAddToCart
 }: EMSPlaylistTableProps) => {
     const filteredPlaylists = playlists.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -52,18 +48,18 @@ const EMSPlaylistTable = ({
         <section className="hud-card hud-card-bottom rounded-xl overflow-hidden">
             <div className="p-6 border-b border-hud-border-secondary flex items-center justify-between">
                 <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3">
-                    <Brain className="w-5 h-5 text-hud-accent-primary" />
+                    <Music className="w-5 h-5 text-hud-accent-primary" />
                     EMS 플레이리스트 목록
                     <span className="text-sm font-normal text-hud-text-muted ml-2">
-                        (검증 대기: {playlists.filter(p => p.status === 'unverified').length}개)
+                        (총 {playlists.length}개)
                     </span>
                 </h2>
                 {selectedIds.length > 0 && (
                     <button
-                        onClick={() => selectedIds.forEach(id => onDelete(id))}
-                        className="text-hud-accent-danger hover:bg-hud-accent-danger/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+                        onClick={() => selectedIds.forEach(id => onAddToCart(id))}
+                        className="text-hud-accent-primary hover:bg-hud-accent-primary/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
                     >
-                        <Trash2 className="w-4 h-4" /> 선택 삭제 ({selectedIds.length})
+                        <ShoppingCart className="w-4 h-4" /> 선택 항목 장바구니 ({selectedIds.length})
                     </button>
                 )}
             </div>
@@ -113,12 +109,11 @@ const EMSPlaylistTable = ({
                                     <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
-                                                onClick={() => onAnalyze(playlist.id)}
-                                                disabled={analyzingId === playlist.id}
+                                                onClick={() => onAddToCart(playlist.id)}
                                                 className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
-                                                title="AI 분석 실행"
+                                                title="장바구니에 추가"
                                             >
-                                                {analyzingId === playlist.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                                                <ShoppingCart className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => onViewDetail(playlist.id)}
@@ -126,13 +121,6 @@ const EMSPlaylistTable = ({
                                                 title="상세 보기"
                                             >
                                                 <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => onDelete(playlist.id)}
-                                                className="p-2 text-hud-text-muted hover:text-hud-accent-danger hover:bg-hud-accent-danger/10 rounded-lg transition-colors"
-                                                title="삭제"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </td>

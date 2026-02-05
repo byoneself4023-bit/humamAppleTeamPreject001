@@ -1,5 +1,6 @@
 import { Search, Loader2, Music2, Plus } from 'lucide-react'
 import { ItunesTrack } from '../../../services/api/itunes'
+import FavoriteButton from '../FavoriteButton'
 
 // Fix image URL helper
 const fixImageUrl = (url?: string, size: number = 300): string | undefined => {
@@ -83,13 +84,25 @@ const EMSMusicSearch = ({
                                     )}
                                 </div>
                             </div>
-                            <button
-                                onClick={() => onAddToCart(track)}
-                                className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
-                                title="카트에 담기"
-                            >
-                                <Plus className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <FavoriteButton
+                                    track={{
+                                        title: track.title,
+                                        artist: track.artist,
+                                        album: track.album,
+                                        artwork: fixImageUrl(track.artwork),
+                                        audio: track.previewUrl
+                                    }}
+                                    size="sm"
+                                />
+                                <button
+                                    onClick={() => onAddToCart(track)}
+                                    className="p-2 text-hud-accent-primary hover:bg-hud-accent-primary/10 rounded-lg transition-colors"
+                                    title="카트에 담기"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>

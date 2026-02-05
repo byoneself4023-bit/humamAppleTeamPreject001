@@ -1,4 +1,4 @@
-import { ShoppingBag, X, Save, Trash2, Music2 } from 'lucide-react'
+import { ShoppingBag, X, Brain, Trash2, Music2 } from 'lucide-react'
 import { ItunesTrack } from '../../../services/api/itunes'
 
 // Fix image URL helper
@@ -108,8 +108,8 @@ const EMSCartDrawer = ({
                                 disabled={cartTracks.length === 0}
                                 className="w-full bg-hud-accent-primary text-hud-bg-primary py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-hud-accent-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <Save className="w-5 h-5" />
-                                플레이리스트로 저장
+                                <Brain className="w-5 h-5" />
+                                분석 요청
                             </button>
                         </div>
                     </div>
