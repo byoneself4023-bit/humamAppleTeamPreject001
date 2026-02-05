@@ -1,7 +1,8 @@
-import ReactPlayer from 'react-player'
-import { API_BASE_URL } from '../api/index'
 import { youtubeApi } from '../api/youtube'
-import * as TidalAdapter from './TidalPlayerAdapter'
+import { itunesService } from '../api/itunes'
+import { tidalApi } from '../api/tidal'
+import { tidalPlayer, TidalPlaybackState } from './TidalPlayerAdapter'
+import { Track } from '../api/playlists'
 
 // Audio Source Types
 export type AudioSourceType = 'YOUTUBE' | 'FILE' | 'TIDAL' | 'ITUNES_PREVIEW' | 'UNKNOWN'
@@ -33,7 +34,33 @@ class AudioService {
     // Listeners
     private listeners: ((state: AudioState) => void)[] = []
 
-    private constructor() { }
+    // Track if we're using Tidal player
+    private usingTidalPlayer: boolean = false
+
+    private constructor() {
+        // Subscribe to Tidal player state
+        tidalPlayer.subscribe((tidalState: TidalPlaybackState) => {
+            if (this.usingTidalPlayer) {
+                this.updateState({
+                    isPlaying: tidalState.isPlaying,
+                    currentTime: tidalState.currentTime,
+                    duration: tidalState.duration,
+                    isBuffering: tidalState.isBuffering,
+                    error: tidalState.error
+                })
+            }
+        })
+
+        // Handle Tidal track ended
+        tidalPlayer.onTrackEnded = () => {
+            if (this.usingTidalPlayer) {
+                this.onEnded?.()
+            }
+        }
+    }
+
+    // Callback for track ended (set by MusicContext)
+    public onEnded: (() => void) | null = null
 
     public static getInstance(): AudioService {
         if (!AudioService.instance) {
@@ -42,7 +69,7 @@ class AudioService {
         return AudioService.instance
     }
 
-    // Set ReactPlayer reference
+    // Set ReactPlayer reference (for non-Tidal sources)
     public setPlayer(player: any | null) {
         this.player = player
     }
@@ -63,15 +90,15 @@ class AudioService {
 
     // Controls
     public async play() {
-        if (this.state.sourceType === 'TIDAL') {
-            await TidalAdapter.resumeTidal()
+        if (this.usingTidalPlayer) {
+            await tidalPlayer.play()
         }
         this.updateState({ isPlaying: true })
     }
 
     public async pause() {
-        if (this.state.sourceType === 'TIDAL') {
-            await TidalAdapter.pauseTidal()
+        if (this.usingTidalPlayer) {
+            tidalPlayer.pause()
         }
         this.updateState({ isPlaying: false })
     }
@@ -85,8 +112,8 @@ class AudioService {
     }
 
     public async seekTo(seconds: number) {
-        if (this.state.sourceType === 'TIDAL') {
-            await TidalAdapter.seekTidal(seconds)
+        if (this.usingTidalPlayer) {
+            tidalPlayer.seek(seconds)
         } else if (this.player) {
             this.player.seekTo(seconds, 'seconds')
         }
@@ -94,53 +121,199 @@ class AudioService {
     }
 
     public async setVolume(volume: number) { // 0 to 1
-        if (this.state.sourceType === 'TIDAL') {
-            await TidalAdapter.setTidalVolume(volume)
+        if (this.usingTidalPlayer) {
+            tidalPlayer.setVolume(volume)
         }
         this.updateState({ volume })
     }
 
+    // Stop Tidal playback (when switching to another source)
+    private stopTidalPlayback() {
+        if (this.usingTidalPlayer) {
+            tidalPlayer.pause()
+            this.usingTidalPlayer = false
+        }
+    }
+
     // Handlers for ReactPlayer events - Arrow functions to bind 'this' automatically
     public onProgress = (state: { playedSeconds: number }) => {
-        if (!this.state.isBuffering) {
+        if (!this.state.isBuffering && !this.usingTidalPlayer) {
             this.updateState({ currentTime: state.playedSeconds })
         }
     }
 
     public onDuration = (duration: number) => {
-        this.updateState({ duration })
+        if (!this.usingTidalPlayer) {
+            this.updateState({ duration })
+        }
     }
 
     public onBuffer = () => {
-        this.updateState({ isBuffering: true })
+        if (!this.usingTidalPlayer) {
+            this.updateState({ isBuffering: true })
+        }
     }
 
     public onBufferEnd = () => {
-        this.updateState({ isBuffering: false })
+        if (!this.usingTidalPlayer) {
+            this.updateState({ isBuffering: false })
+        }
     }
 
     public onError = (error: any) => {
-        this.updateState({ error: 'Playback error', isPlaying: false })
-        console.error('AudioService Error:', error)
+        if (!this.usingTidalPlayer) {
+            this.updateState({ error: 'Playback error', isPlaying: false })
+            console.error('AudioService Error:', error)
+        }
     }
 
     // Helper to determine source type
-    public getSourceType(track: any): AudioSourceType {
-        if (track.sourceType === 'TIDAL' || (track.original_playlist_source === 'Tidal')) return 'TIDAL'
+    public getSourceType(track: Track): AudioSourceType {
+        // Check if track came from Tidal import
+        if (track.sourceType === 'TIDAL' || track.original_playlist_source === 'Tidal') return 'TIDAL'
+        // Check if tidalId exists in track or externalMetadata
+        if (track.tidalId) return 'TIDAL'
+        if (track.externalMetadata) {
+            try {
+                const metadata = typeof track.externalMetadata === 'string' 
+                    ? JSON.parse(track.externalMetadata) 
+                    : track.externalMetadata
+                if (metadata.tidalId) return 'TIDAL'
+            } catch (e) {
+                // ignore parse error
+            }
+        }
         if (track.url?.includes('youtube.com') || track.url?.includes('youtu.be')) return 'YOUTUBE'
         if (track.url?.includes('audio-ssl.itunes.apple.com')) return 'ITUNES_PREVIEW'
         return 'UNKNOWN'
     }
 
-    public async resolveAndPlay(track: any) {
+    /**
+     * Resolve playback URL and determine source type.
+     * Priority: Tidal HLS > iTunes Preview > YouTube (stored) > Direct URL > YouTube Smart Match
+     * 
+     * Returns: { url: string | null, useTidal: boolean }
+     */
+    public async resolveAndPlay(track: Track): Promise<string | null> {
+        // Stop any existing Tidal playback
+        this.stopTidalPlayback()
+
         let url: string | null = null
-        let error: string | null = null
         const sourceType = this.getSourceType(track)
 
         console.log(`[AudioService] Resolving playback for: "${track.title}" by ${track.artist}`)
 
-        // === PRIORITY 1: iTunes Preview (Fastest, most reliable) ===
-        const previewUrl = track.externalMetadata?.previewUrl || track.previewUrl || track.audio
+        // Parse externalMetadata - can be string (from DB) or object
+        let parsedMetadata: Record<string, any> = {}
+        if (track.externalMetadata) {
+            if (typeof track.externalMetadata === 'string') {
+                try {
+                    parsedMetadata = JSON.parse(track.externalMetadata)
+                } catch (e) {
+                    console.warn('[AudioService] Failed to parse externalMetadata:', e)
+                    parsedMetadata = {}
+                }
+            } else if (typeof track.externalMetadata === 'object') {
+                parsedMetadata = track.externalMetadata
+            }
+        }
+
+        // === PRIORITY 1: Tidal High-Quality Playback (If tidalId exists AND user is connected) ===
+        const tidalVisitorId = localStorage.getItem('tidal_visitor_id')
+        
+        // Extract tidalId from various sources (in priority order)
+        // 1. Direct tidalId on track object
+        // 2. Parsed externalMetadata.tidalId
+        // 3. sourceId if source is TIDAL
+        const tidalId = track.tidalId || 
+            parsedMetadata.tidalId || 
+            (sourceType === 'TIDAL' ? track.sourceId : null)
+        
+        // Debug: Log all possible tidalId sources
+        console.log('[AudioService] Track data for tidalId extraction:', {
+            trackId: track.id,
+            'track.tidalId': track.tidalId,
+            'track.sourceId': track.sourceId,
+            'parsedMetadata.tidalId': parsedMetadata.tidalId,
+            'raw externalMetadata': track.externalMetadata,
+            'extracted tidalId': tidalId,
+            sourceType
+        })
+
+        if (tidalVisitorId && tidalId) {
+            console.log(`[AudioService] Tidal visitor found with tidalId: ${tidalId}`)
+            try {
+                console.log(`[AudioService] Attempting Tidal HLS stream for ID: ${tidalId}`)
+                
+                // Use TidalPlayerAdapter to load and play
+                const success = await tidalPlayer.loadAndPlay(tidalId.toString())
+                
+                if (success) {
+                    console.log(`[AudioService] Tidal HLS playback started`)
+                    this.usingTidalPlayer = true
+                    this.updateState({
+                        sourceType: 'TIDAL',
+                        isBuffering: false,
+                        error: null
+                    })
+                    // Return special marker to indicate Tidal is handling playback
+                    return 'TIDAL_INTERNAL'
+                } else {
+                    console.warn('[AudioService] Tidal HLS failed, falling back...')
+                }
+            } catch (e) {
+                console.warn('[AudioService] Tidal playback failed, falling back...', e)
+            }
+        } else if (tidalVisitorId && !tidalId) {
+            // === PRIORITY 1.5: Tidal Search (No tidalId but user is connected) ===
+            console.log('[AudioService] No tidalId, searching Tidal for:', track.title, track.artist)
+            try {
+                const searchQuery = `${track.artist} ${track.title}`.trim()
+                const searchResult = await tidalApi.searchTracks(searchQuery, 3)
+                
+                if (searchResult.tracks && searchResult.tracks.length > 0) {
+                    // Find best match (first result or match by title/artist)
+                    const matchedTrack = searchResult.tracks.find((t: any) => {
+                        const titleMatch = t.title?.toLowerCase().includes(track.title.toLowerCase()) ||
+                            track.title.toLowerCase().includes(t.title?.toLowerCase())
+                        const artistMatch = t.artist?.name?.toLowerCase().includes(track.artist.toLowerCase()) ||
+                            track.artist.toLowerCase().includes(t.artist?.name?.toLowerCase())
+                        return titleMatch && artistMatch
+                    }) || searchResult.tracks[0]
+                    
+                    const foundTidalId = matchedTrack.id?.toString()
+                    
+                    if (foundTidalId) {
+                        console.log(`[AudioService] Found Tidal track via search: ${foundTidalId} - ${matchedTrack.title}`)
+                        
+                        const success = await tidalPlayer.loadAndPlay(foundTidalId)
+                        
+                        if (success) {
+                            console.log(`[AudioService] Tidal search match playback started`)
+                            this.usingTidalPlayer = true
+                            this.updateState({
+                                sourceType: 'TIDAL',
+                                isBuffering: false,
+                                error: null
+                            })
+                            return 'TIDAL_INTERNAL'
+                        }
+                    }
+                }
+                console.log('[AudioService] No Tidal match found, falling back...')
+            } catch (e) {
+                console.warn('[AudioService] Tidal search failed, falling back...', e)
+            }
+        }
+
+        // === PRIORITY 2: Tidal Track without login - Show helpful message ===
+        if (sourceType === 'TIDAL' && !tidalVisitorId) {
+            console.log('[AudioService] Tidal track - user not connected, falling back to alternatives')
+            // Will try to find alternatives below
+        }
+
+        // === PRIORITY 3: iTunes Preview (Fast, reliable preview) ===
+        const previewUrl = parsedMetadata.previewUrl || track.previewUrl || track.audio
         if (previewUrl && previewUrl.includes('audio-ssl.itunes.apple.com')) {
             console.log('[AudioService] Using iTunes Preview URL')
             this.updateState({
@@ -151,10 +324,10 @@ class AudioService {
             return previewUrl
         }
 
-        // === PRIORITY 2: Existing YouTube ID ===
-        if (track.externalMetadata?.youtubeId) {
-            url = `https://www.youtube.com/watch?v=${track.externalMetadata.youtubeId}`
-            console.log('[AudioService] Using stored YouTube ID:', track.externalMetadata.youtubeId)
+        // === PRIORITY 4: Existing YouTube ID ===
+        if (parsedMetadata.youtubeId) {
+            url = `https://www.youtube.com/watch?v=${parsedMetadata.youtubeId}`
+            console.log('[AudioService] Using stored YouTube ID:', parsedMetadata.youtubeId)
             this.updateState({
                 sourceType: 'YOUTUBE',
                 isBuffering: true,
@@ -163,7 +336,7 @@ class AudioService {
             return url
         }
 
-        // === PRIORITY 3: Direct URL ===
+        // === PRIORITY 5: Direct URL ===
         if (track.url) {
             if (track.url.includes('youtube.com') || track.url.includes('youtu.be')) {
                 console.log('[AudioService] Using direct YouTube URL')
@@ -177,50 +350,31 @@ class AudioService {
             }
         }
 
-        // === PRIORITY 4: Tidal Native Playback (If logged in) ===
-        const tidalToken = localStorage.getItem('tidal_token')
-        if ((sourceType === 'TIDAL' || tidalToken)) {
-            console.log('[AudioService] Attempting Tidal Playback...')
-            try {
-                const player = await TidalAdapter.initTidalPlayer()
-                if (player) {
-                    let tidalId = track.sourceId || track.externalMetadata?.tidalId
+        // === PRIORITY 6: iTunes Smart Match (30-sec preview, always works) ===
+        this.updateState({ isBuffering: true, error: null })
+        try {
+            const itunesQuery = `${track.artist} ${track.title}`.trim()
+            console.log(`[iTunes SmartMatch] Searching: "${itunesQuery}"`)
+            const itunesResults = await itunesService.search(itunesQuery)
 
-                    // Search if no ID
-                    if (!tidalId) {
-                        try {
-                            const query = `${track.artist} - ${track.title}`
-                            const { tidalApi } = await import('../api/tidal')
-                            const searchRes = await tidalApi.searchTracks(query, 1)
-                            if (searchRes.tracks && searchRes.tracks.length > 0) {
-                                tidalId = searchRes.tracks[0].id
-                                console.log(`[AudioService] Found on Tidal: ${tidalId}`)
-                            }
-                        } catch (e) {
-                            console.warn('[AudioService] Tidal search failed:', e)
-                        }
-                    }
-
-                    if (tidalId) {
-                        const success = await TidalAdapter.playTidalTrack(tidalId)
-                        if (success) {
-                            this.updateState({
-                                sourceType: 'TIDAL',
-                                isBuffering: false,
-                                isPlaying: true,
-                                error: null
-                            })
-                            return 'TIDAL_NATIVE'
-                        }
-                    }
+            if (itunesResults && itunesResults.length > 0) {
+                const match = itunesResults[0]
+                const itunesPreviewUrl = match.audio || match.previewUrl
+                if (itunesPreviewUrl) {
+                    console.log(`[iTunes SmartMatch] Found: ${match.title} by ${match.artist}`)
+                    this.updateState({
+                        sourceType: 'ITUNES_PREVIEW',
+                        isBuffering: true,
+                        error: null
+                    })
+                    return itunesPreviewUrl
                 }
-            } catch (e) {
-                console.warn('[AudioService] Tidal playback failed:', e)
             }
+        } catch (e) {
+            console.warn('[iTunes SmartMatch] Failed:', e)
         }
 
-        // === PRIORITY 5: YouTube Smart Match (Fallback) ===
-        this.updateState({ isBuffering: true, error: null })
+        // === PRIORITY 7: YouTube Smart Match (Fallback) ===
         const searchQueries = [
             `${track.artist} - ${track.title} audio`,
             `${track.title} ${track.artist}`,
@@ -229,13 +383,13 @@ class AudioService {
 
         for (const query of searchQueries) {
             try {
-                console.log(`[SmartMatch] Trying: "${query}"`)
+                console.log(`[YouTube SmartMatch] Trying: "${query}"`)
                 const response = await youtubeApi.searchVideos(query, 1)
 
                 if (response?.playlists && response.playlists.length > 0) {
                     const video = response.playlists[0]
                     url = `https://www.youtube.com/watch?v=${video.id}`
-                    console.log(`[SmartMatch] Found: ${url}`)
+                    console.log(`[YouTube SmartMatch] Found: ${url}`)
                     this.updateState({
                         sourceType: 'YOUTUBE',
                         isBuffering: true,
@@ -244,13 +398,13 @@ class AudioService {
                     return url
                 }
             } catch (e) {
-                console.warn(`[SmartMatch] Query failed: "${query}"`, e)
+                console.warn(`[YouTube SmartMatch] Query failed: "${query}"`, e)
             }
         }
 
         // === NO SOURCE FOUND ===
-        const errorMsg = sourceType === 'TIDAL'
-            ? 'Tidal 로그인이 필요합니다'
+        const errorMsg = sourceType === 'TIDAL' && !tidalVisitorId
+            ? 'Tidal 로그인이 필요합니다 (Connections에서 연결해주세요)'
             : `"${track.title}" 재생 소스를 찾을 수 없습니다`
 
         console.error('[AudioService] No playable source found')
@@ -260,6 +414,11 @@ class AudioService {
             isBuffering: false
         })
         return null
+    }
+
+    // Check if currently using Tidal player
+    public isUsingTidalPlayer(): boolean {
+        return this.usingTidalPlayer
     }
 }
 

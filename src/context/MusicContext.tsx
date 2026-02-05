@@ -1,11 +1,15 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react'
 import { Track } from '../services/api/playlists'
 import { audioService, AudioState } from '../services/audio/AudioService'
+
+// Repeat modes
+export type RepeatMode = 'off' | 'all' | 'one'
 
 interface MusicContextType {
     currentTrack: Track | null
     isPlaying: boolean
     queue: Track[]
+    originalQueue: Track[]  // Original queue before shuffle
     playTrack: (track: Track) => void
     togglePlay: () => void
     setQueue: (tracks: Track[]) => void
@@ -14,6 +18,11 @@ interface MusicContextType {
     playPrevious: () => void
     audioState: AudioState
     resolvedUrl: string | null
+    // Shuffle & Repeat
+    isShuffled: boolean
+    repeatMode: RepeatMode
+    toggleShuffle: () => void
+    toggleRepeat: () => void
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined)
@@ -26,10 +35,23 @@ export const useMusic = () => {
     return context
 }
 
+// Fisher-Yates shuffle algorithm
+const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+}
+
 export const MusicProvider = ({ children }: { children: ReactNode }) => {
     const [currentTrack, setCurrentTrack] = useState<Track | null>(null)
     const [queue, setQueueState] = useState<Track[]>([])
+    const [originalQueue, setOriginalQueue] = useState<Track[]>([]) // For unshuffling
     const [resolvedUrl, setResolvedUrl] = useState<string | null>(null)
+    const [isShuffled, setIsShuffled] = useState(false)
+    const [repeatMode, setRepeatMode] = useState<RepeatMode>('off')
 
     // Subscribe to AudioService state
     const [audioState, setAudioState] = useState(audioService.state)
@@ -59,38 +81,113 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
         audioService.togglePlay()
     }
 
-    const setQueue = (tracks: Track[]) => {
-        setQueueState(tracks)
-    }
-
-    const playPlaylist = (tracks: Track[], startIndex = 0) => {
-        setQueue(tracks)
-        if (tracks.length > startIndex) {
-            playTrack(tracks[startIndex])
+    const setQueue = useCallback((tracks: Track[]) => {
+        setOriginalQueue(tracks)
+        if (isShuffled) {
+            setQueueState(shuffleArray(tracks))
+        } else {
+            setQueueState(tracks)
         }
-    }
+    }, [isShuffled])
 
-    const playNext = () => {
+    const playPlaylist = useCallback((tracks: Track[], startIndex = 0) => {
+        setOriginalQueue(tracks)
+
+        if (isShuffled) {
+            // Shuffle but keep the selected track at the start
+            const startTrack = tracks[startIndex]
+            const otherTracks = tracks.filter((_, i) => i !== startIndex)
+            const shuffledOthers = shuffleArray(otherTracks)
+            setQueueState([startTrack, ...shuffledOthers])
+            playTrack(startTrack)
+        } else {
+            setQueueState(tracks)
+            if (tracks.length > startIndex) {
+                playTrack(tracks[startIndex])
+            }
+        }
+    }, [isShuffled])
+
+    const playNext = useCallback(() => {
         if (!currentTrack || queue.length === 0) return
 
         const currentIndex = queue.findIndex(t => t.id === currentTrack.id)
-        if (currentIndex !== -1 && currentIndex < queue.length - 1) {
-            playTrack(queue[currentIndex + 1])
-        }
-    }
 
-    const playPrevious = () => {
+        // Repeat one: replay current track
+        if (repeatMode === 'one') {
+            audioService.seekTo(0)
+            audioService.play()
+            return
+        }
+
+        if (currentIndex !== -1) {
+            if (currentIndex < queue.length - 1) {
+                // Play next track
+                playTrack(queue[currentIndex + 1])
+            } else if (repeatMode === 'all') {
+                // Loop back to first track
+                playTrack(queue[0])
+            }
+            // If repeat is off and at end, do nothing (stop)
+        }
+    }, [currentTrack, queue, repeatMode])
+
+    // Handle track ended - auto play next track
+    useEffect(() => {
+        audioService.onEnded = () => {
+            console.log('[MusicContext] Track ended, playing next...')
+            playNext()
+        }
+        return () => {
+            audioService.onEnded = null
+        }
+    }, [playNext])
+
+    const playPrevious = useCallback(() => {
         if (!currentTrack || queue.length === 0) return
+
+        // If more than 3 seconds into song, restart it
+        if (audioState.currentTime > 3) {
+            audioService.seekTo(0)
+            return
+        }
 
         const currentIndex = queue.findIndex(t => t.id === currentTrack.id)
         if (currentIndex > 0) {
             playTrack(queue[currentIndex - 1])
+        } else if (repeatMode === 'all') {
+            // Loop to last track
+            playTrack(queue[queue.length - 1])
         }
-    }
+    }, [currentTrack, queue, repeatMode, audioState.currentTime])
 
-    // Auto-advance
-    useEffect(() => {
-        // We rely on the player's onEnded event instead of checking time here
+    const toggleShuffle = useCallback(() => {
+        if (isShuffled) {
+            // Restore original queue order
+            setQueueState(originalQueue)
+            setIsShuffled(false)
+        } else {
+            // Shuffle the queue, keeping current track in its place for continuity
+            if (currentTrack) {
+                const currentIndex = queue.findIndex(t => t.id === currentTrack.id)
+                const beforeCurrent = queue.slice(0, currentIndex)
+                const afterCurrent = queue.slice(currentIndex + 1)
+                const shuffledAfter = shuffleArray([...beforeCurrent, ...afterCurrent])
+                setQueueState([currentTrack, ...shuffledAfter])
+            } else {
+                setQueueState(shuffleArray(originalQueue))
+            }
+            setIsShuffled(true)
+        }
+    }, [isShuffled, originalQueue, currentTrack, queue])
+
+    const toggleRepeat = useCallback(() => {
+        // Cycle: off -> all -> one -> off
+        setRepeatMode(prev => {
+            if (prev === 'off') return 'all'
+            if (prev === 'all') return 'one'
+            return 'off'
+        })
     }, [])
 
     return (
@@ -99,14 +196,20 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
                 currentTrack,
                 isPlaying: audioState.isPlaying,
                 queue,
+                originalQueue,
                 playTrack,
                 togglePlay,
                 setQueue,
                 playPlaylist,
                 playNext,
                 playPrevious,
-                audioState, // Expose full audio state
-                resolvedUrl // Pass resolved URL to Player
+                audioState,
+                resolvedUrl,
+                // Shuffle & Repeat
+                isShuffled,
+                repeatMode,
+                toggleShuffle,
+                toggleRepeat
             }}
         >
             {children}
