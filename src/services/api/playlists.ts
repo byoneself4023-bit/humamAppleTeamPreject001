@@ -25,10 +25,26 @@ export interface Track {
     duration: number // in seconds
     isrc?: string
     orderIndex: number
-    externalMetadata?: {
+    artwork?: string
+    // tidalId can be directly on track or in externalMetadata
+    tidalId?: string
+    sourceId?: string
+    sourceType?: string
+    // Optional URL for direct playback (YouTube, iTunes preview, etc.)
+    url?: string
+    // Preview URL from iTunes
+    previewUrl?: string
+    // Audio URL (alias for previewUrl)
+    audio?: string
+    // Original playlist source indicator
+    original_playlist_source?: string
+    // externalMetadata can be object or JSON string from DB
+    externalMetadata?: string | {
+        tidalId?: string;
         youtubeId?: string;
         previewUrl?: string;
         thumbnail?: string;
+        isrc?: string;
         [key: string]: any;
     }
 }

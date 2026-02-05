@@ -14,7 +14,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [imageError, setImageError] = useState(false)
-    const { playPlaylist } = useMusic()
+    const { playPlaylist, playTrack, setQueue } = useMusic()
 
     // Drag state
     const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -121,7 +121,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
             <div
                 ref={modalRef}
                 style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
@@ -269,6 +269,13 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
                                     playlist.tracks.map((track, index) => (
                                         <tr
                                             key={track.id}
+                                            onClick={() => {
+                                                // Set queue and play from this track
+                                                if (playlist.tracks) {
+                                                    setQueue(playlist.tracks)
+                                                    playTrack(track)
+                                                }
+                                            }}
                                             className="group hover:bg-gradient-to-r hover:from-hud-accent-primary/10 hover:to-transparent transition-all duration-200 cursor-pointer border-b border-hud-border-secondary/30 hover:border-hud-accent-primary/30"
                                         >
                                             <td className="px-6 py-4 text-center">
