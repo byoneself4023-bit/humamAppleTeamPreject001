@@ -56,8 +56,10 @@ export const tidalApi = {
         get<TidalSearchResponse>(`/tidal/search?query=${encodeURIComponent(query)}&type=PLAYLISTS&limit=${limit}`),
 
     // Search tracks (New)
-    searchTracks: (query: string, limit: number = 5) =>
-        get<{ tracks: any[] }>(`/tidal/search?query=${encodeURIComponent(query)}&type=TRACKS&limit=${limit}`),
+    searchTracks: (query: string, limit: number = 5) => {
+        const visitorId = getVisitorId()
+        return get<{ tracks: any[] }>(`/tidal/search?query=${encodeURIComponent(query)}&type=TRACKS&limit=${limit}&visitorId=${visitorId}`)
+    },
 
     // Get featured playlists by genre
     getFeatured: () => get<TidalFeaturedResponse>('/tidal/featured'),
@@ -76,7 +78,10 @@ export const tidalApi = {
     // --- Device Auth Flow ---
     initDeviceAuth: () => post<any>('/tidal/auth/device', {}),
 
-    pollToken: (deviceCode: string) => post<any>('/tidal/auth/token', { deviceCode }),
+    pollToken: (deviceCode: string) => {
+        const visitorId = getVisitorId()
+        return post<any>('/tidal/auth/token', { deviceCode, visitorId })
+    },
 
     // --- Web Auth Flow ---
     exchangeCode: (code: string) => post<any>('/tidal/auth/exchange', { code }),
@@ -115,5 +120,22 @@ export const tidalApi = {
     // Sync Tidal playlists
     syncTidal: async (data: { tidalAuthData: { access_token: string; refresh_token?: string; expires_in?: number } }) => {
         return post('/tidal/sync', data)
+    },
+
+    // Get stream URL for a track
+    getStreamUrl: async (trackId: string, quality: string = 'LOSSLESS'): Promise<{
+        success: boolean
+        streamUrl?: string
+        quality?: string
+        codec?: string
+        bitRate?: number
+        sampleRate?: number
+        bitDepth?: number
+        error?: string
+        fallbackSource?: string
+        fallbackUrl?: string
+    }> => {
+        const visitorId = getVisitorId()
+        return get(`/tidal/tracks/${trackId}/stream?visitorId=${visitorId}&quality=${quality}`)
     }
 }

@@ -97,7 +97,8 @@ async function tidalRequest(endpoint, params = {}, tokenOverride = null) {
 router.post('/auth/device', async (req, res) => {
     try {
         const clientId = process.env.TIDAL_CLIENT_ID
-        const scopes = 'r_usr w_usr w_sub'
+        // New Developer Portal scopes (legacy r_usr/w_usr/w_sub causes error 1002)
+        const scopes = 'user.read playlists.read playlists.write collection.read'
 
         const response = await fetch('https://auth.tidal.com/v1/oauth2/device_authorization', {
             method: 'POST',
@@ -136,7 +137,7 @@ router.post('/auth/token', async (req, res) => {
             client_secret: clientSecret,
             device_code: deviceCode,
             grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-            scope: 'r_usr w_usr w_sub'
+            scope: 'user.read playlists.read playlists.write collection.read'
         })
 
         const response = await fetch(TIDAL_AUTH_URL, {
@@ -208,12 +209,8 @@ router.get('/auth/login', (req, res) => {
     pkceVerifier = generateCodeVerifier()
     const codeChallenge = generateCodeChallenge(pkceVerifier)
 
-    // Scopes matching Tidal sample code configuration
-    const scopes = [
-        'r_usr',
-        'w_usr',
-        'w_sub'
-    ].join(' ')
+    // New Developer Portal scopes (legacy r_usr/w_usr/w_sub causes error 1002)
+    const scopes = 'user.read playlists.read playlists.write collection.read'
 
     const authUrl = `https://login.tidal.com/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
 
@@ -247,12 +244,8 @@ router.get('/auth/login-url', (req, res) => {
             pkceVerifier = codeVerifier
         }
 
-        // Scopes matching Tidal sample code configuration
-        const scopes = [
-            'r_usr',
-            'w_usr',
-            'w_sub'
-        ].join(' ')
+        // New Developer Portal scopes (legacy r_usr/w_usr/w_sub causes error 1002)
+        const scopes = 'user.read playlists.read playlists.write collection.read'
 
         const authUrl = `https://login.tidal.com/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
 
@@ -403,49 +396,6 @@ router.get('/auth/status', async (req, res) => {
     }
 })
 
-// GET /api/tidal/auth/login-url - Get OAuth URL for popup login
-router.get('/auth/login-url', (req, res) => {
-    try {
-        const clientId = process.env.TIDAL_CLIENT_ID
-        const { visitorId } = req.query
-
-        if (!clientId) {
-            return res.status(503).json({ error: 'Tidal client ID not configured' })
-        }
-
-        // Get redirect URI from request origin
-        // Get redirect URI from request info
-        let origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null) || 'http://localhost'
-
-        // Fix: If on Docker (localhost:80), force localhost to match Tidal Portal whitelist
-        // This allows the login page to load (fixes 11102), even if the redirect might need port mapping adjustment later.
-        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-            origin = 'http://localhost'
-        }
-
-        const redirectUri = `${origin}/tidal-callback`
-
-        // Generate PKCE
-        const codeVerifier = generateCodeVerifier()
-        const codeChallenge = generateCodeChallenge(codeVerifier)
-
-        // Store verifier for this visitor
-        if (visitorId) {
-            visitorPkceVerifiers[visitorId] = codeVerifier
-        } else {
-            pkceVerifier = codeVerifier
-        }
-
-        const scopes = ['r_usr', 'w_usr', 'w_sub'].join(' ')
-
-        const authUrl = `https://login.tidal.com/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
-
-        res.json({ authUrl })
-    } catch (error) {
-        res.status(500).json({ error: error.message })
-    }
-})
-
 // POST /api/tidal/auth/logout - Logout user
 router.post('/auth/logout', (req, res) => {
     const { visitorId } = req.body
@@ -489,16 +439,63 @@ router.get('/user/playlists', async (req, res) => {
 
         const playlists = await fetchTidalPlaylists(token)
 
+        // Debug: Check raw playlist data for image fields
+        if (playlists.length > 0) {
+            console.log('[Tidal] Raw playlist[0] ALL fields:', JSON.stringify(playlists[0], null, 2))
+        }
+
+        // Helper function to extract image URL from Tidal playlist
+        const extractTidalImage = (p) => {
+            // 1. Direct URL fields
+            if (p.squareImage) {
+                if (p.squareImage.startsWith('http')) return p.squareImage
+                return `https://resources.tidal.com/images/${p.squareImage.replace(/-/g, '/')}/320x320.jpg`
+            }
+            
+            // 2. image field
+            if (p.image) {
+                if (typeof p.image === 'string') {
+                    if (p.image.startsWith('http')) return p.image
+                    return `https://resources.tidal.com/images/${p.image.replace(/-/g, '/')}/320x320.jpg`
+                }
+                // image might be an object with url property
+                if (p.image.url) return p.image.url
+            }
+            
+            // 3. picture field
+            if (p.picture) {
+                if (p.picture.startsWith('http')) return p.picture
+                return `https://resources.tidal.com/images/${p.picture.replace(/-/g, '/')}/320x320.jpg`
+            }
+            
+            // 4. images array (Tidal API v2 style)
+            if (p.images && Array.isArray(p.images) && p.images.length > 0) {
+                const img = p.images.find(i => i.width >= 320) || p.images[0]
+                return img.url || img.href
+            }
+            
+            // 5. promotedArtists - use first artist's picture
+            if (p.promotedArtists && p.promotedArtists.length > 0) {
+                const artist = p.promotedArtists[0]
+                if (artist.picture) {
+                    return `https://resources.tidal.com/images/${artist.picture.replace(/-/g, '/')}/320x320.jpg`
+                }
+            }
+            
+            return null
+        }
+
         // Format playlists for frontend
         const formattedPlaylists = playlists.map(p => ({
             uuid: p.uuid,
             title: p.title,
             numberOfTracks: p.numberOfTracks || 0,
             trackCount: p.numberOfTracks || 0,
-            image: p.squareImage ? `https://resources.tidal.com/images/${p.squareImage.replace(/-/g, '/')}/320x320.jpg` : null,
+            image: extractTidalImage(p),
             description: p.description
         }))
 
+        console.log('[Tidal] Formatted playlists sample:', formattedPlaylists[0])
         res.json({ playlists: formattedPlaylists })
     } catch (error) {
         console.error('[Tidal] User playlists error:', error)
@@ -906,6 +903,19 @@ export async function fetchTidalPlaylists(token, providedUserId = null) {
                     const items = data.items || data.data || []
                     if (items.length > 0) {
                         console.log(`[Tidal] Success! Found ${items.length} playlists via ${endpoint}`)
+                        // Debug: Log first playlist structure to check image field names
+                        if (items[0]) {
+                            console.log('[Tidal] Sample playlist fields:', JSON.stringify({
+                                uuid: items[0].uuid,
+                                title: items[0].title,
+                                squareImage: items[0].squareImage,
+                                image: items[0].image,
+                                picture: items[0].picture,
+                                cover: items[0].cover,
+                                artwork: items[0].artwork,
+                                allKeys: Object.keys(items[0])
+                            }, null, 2))
+                        }
                         return items
                     }
                 } else {
