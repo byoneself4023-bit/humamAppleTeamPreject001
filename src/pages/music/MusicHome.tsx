@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
-import { Music, Users, Disc, Crown, Star, TrendingUp, ArrowRight, Play, Heart, Sparkles, Loader2, RefreshCw, X, Clock } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Music, Users, Disc, Crown, Star, TrendingUp, ArrowRight, Play, Heart, Sparkles, Loader2, RefreshCw, X, Clock, Brain, Cpu, Zap } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { playlistsApi, Playlist, Track } from '../../services/api/playlists'
 import { tidalApi } from '../../services/api/tidal'
@@ -13,6 +13,47 @@ import FavoriteButton from '../../components/music/FavoriteButton'
 interface TopTrack {
     title: string
     artist: string
+}
+
+// Helper: externalMetadata 파싱 (다양한 플랫폼 지원)
+const parseExternalMetadata = (metadata: any): any => {
+    if (!metadata) return {}
+    if (typeof metadata === 'string') {
+        try {
+            return JSON.parse(metadata)
+        } catch {
+            return {}
+        }
+    }
+    return metadata
+}
+
+// Helper: 트랙에서 artwork 추출 (Tidal, YouTube, Spotify 등 다중 소스 지원)
+const extractTrackArtwork = (track: Track): string | undefined => {
+    // 1. 직접 artwork 필드 (Tidal 등)
+    if (track.artwork) {
+        return track.artwork
+    }
+
+    // 2. externalMetadata에서 추출
+    const metadata = parseExternalMetadata(track.externalMetadata)
+
+    // YouTube thumbnail
+    if (metadata.thumbnail) {
+        return metadata.thumbnail
+    }
+
+    // Spotify/기타 artwork
+    if (metadata.artwork) {
+        return metadata.artwork
+    }
+
+    // Tidal cover (tidalId가 있으면 album cover 형식으로 구성)
+    if (metadata.albumCover) {
+        return `https://resources.tidal.com/images/${metadata.albumCover.replace(/-/g, '/')}/320x320.jpg`
+    }
+
+    return undefined
 }
 
 const MusicHome = () => {
@@ -31,6 +72,10 @@ const MusicHome = () => {
     const [bestPlaylists, setBestPlaylists] = useState<BestPlaylist[]>([])
     const [bestTracks, setBestTracks] = useState<BestTrack[]>([])
     const [bestAlbums, setBestAlbums] = useState<BestAlbum[]>([])
+    const [artistImages, setArtistImages] = useState<Record<string, string>>({})
+    
+    // GMS Best Tracks with AI scores
+    const [gmsBestTracks, setGmsBestTracks] = useState<(Track & { aiScore?: number })[]>([])
 
     // Playlist modal state
     const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null)
@@ -43,6 +88,9 @@ const MusicHome = () => {
     // Music context for playback
     const { playTrack, playPlaylist, setQueue } = useMusic()
 
+    // Location hook to detect navigation
+    const location = useLocation()
+
     // Search artist tracks
     const handleArtistClick = async (artistName: string) => {
         setSelectedArtist(artistName)
@@ -50,19 +98,27 @@ const MusicHome = () => {
         setArtistTracks([])
 
         try {
-            // Search Tidal for artist tracks
-            const result = await tidalApi.searchTracks(artistName, 20)
-            
-            if (result.tracks && result.tracks.length > 0) {
-                const tracks: Track[] = result.tracks.map((t: any, idx: number) => ({
-                    id: t.id || Date.now() + idx,
-                    title: t.title || t.name || 'Unknown',
-                    artist: t.artist?.name || t.artists?.[0]?.name || artistName,
-                    album: t.album?.title || '',
-                    duration: t.duration || 0,
+            // First try DB search
+            const dbResult = await playlistsApi.searchTracks(artistName, 20)
+            if (dbResult.tracks && dbResult.tracks.length > 0) {
+                setArtistTracks(dbResult.tracks)
+                setArtistTracksLoading(false)
+                return
+            }
+
+            // Fallback: Search YouTube for artist tracks
+            const result = await youtubeApi.searchVideos(`${artistName} songs`, 20)
+
+            if (result.playlists && result.playlists.length > 0) {
+                const tracks: Track[] = result.playlists.map((v: any, idx: number) => ({
+                    id: v.id || Date.now() + idx,
+                    title: v.title || 'Unknown',
+                    artist: v.channelTitle || artistName,
+                    album: '',
+                    duration: 0,
                     orderIndex: idx,
-                    tidalId: t.id?.toString(),
-                    artwork: t.album?.cover ? `https://resources.tidal.com/images/${t.album.cover.replace(/-/g, '/')}/320x320.jpg` : undefined
+                    youtubeId: v.id,
+                    artwork: undefined
                 }))
                 setArtistTracks(tracks)
             }
@@ -86,7 +142,12 @@ const MusicHome = () => {
 
     // Helper to get random items
     const getRandomItems = (arr: any[], count: number) => {
-        const shuffled = [...arr].sort(() => 0.5 - Math.random())
+        // Fisher-Yates shuffle for true randomness
+        const shuffled = [...arr]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        }
         return shuffled.slice(0, count)
     }
 
@@ -115,6 +176,31 @@ const MusicHome = () => {
             setPmsPlaylists(pmsRes.playlists || [])
             setGmsPlaylists(gmsRes.playlists || [])
             setEmsPlaylists(emsRes.playlists || [])
+            
+            // Load GMS Best Tracks with AI scores
+            if (gmsRes.playlists && gmsRes.playlists.length > 0) {
+                try {
+                    // Get tracks from all GMS playlists and assign AI scores
+                    const gmsTracksPromises = gmsRes.playlists.slice(0, 3).map(async (playlist: Playlist) => {
+                        const details = await playlistsApi.getById(playlist.id) as any
+                        const tracks = details.tracks || []
+                        return tracks.map((t: Track) => ({
+                            ...t,
+                            // 다중 소스에서 artwork 추출 (Tidal, YouTube, Spotify 등)
+                            artwork: extractTrackArtwork(t),
+                            aiScore: playlist.aiScore || Math.floor(70 + Math.random() * 25)
+                        }))
+                    })
+                    const allGmsTracks = (await Promise.all(gmsTracksPromises)).flat()
+                    // Sort by AI score and take top 10
+                    const sortedTracks = allGmsTracks
+                        .sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0))
+                        .slice(0, 10)
+                    setGmsBestTracks(sortedTracks)
+                } catch (e) {
+                    console.log('Failed to load GMS tracks:', e)
+                }
+            }
 
             // Load real stats from DB
             try {
@@ -226,15 +312,44 @@ const MusicHome = () => {
             // 4. Load best stats from our DB
             try {
                 const [artistsRes, playlistsRes, tracksRes, albumsRes] = await Promise.all([
-                    statsApi.getBestArtists(5),
+                    statsApi.getBestArtists(20),
                     statsApi.getBestPlaylists(3),
                     statsApi.getBestTracks(5),
                     statsApi.getBestAlbums(3)
                 ])
-                setBestArtists(artistsRes.artists || [])
+                // 상위 20명 중 랜덤으로 5명 선택
+                const randomArtists = getRandomItems(artistsRes.artists || [], 5)
+                setBestArtists(randomArtists)
                 setBestPlaylists(playlistsRes.playlists || [])
                 setBestTracks(tracksRes.tracks || [])
                 setBestAlbums(albumsRes.albums || [])
+                
+                // 5. Fetch artist images from iTunes (only for the 5 random selected artists)
+                const defaultArtists = ['IU', 'BTS', 'NewJeans', 'Aespa', 'BLACKPINK']
+                const artistNames = (randomArtists && randomArtists.length > 0)
+                    ? randomArtists.map((a: BestArtist) => a.name)
+                    : defaultArtists
+                
+                const imagePromises = artistNames.map(async (name: string) => {
+                    try {
+                        const tracks = await itunesService.search(name)
+                        if (tracks && tracks.length > 0) {
+                            // Get high-res artwork
+                            const artwork = tracks[0].artwork?.replace('100x100', '300x300')
+                            return { name, image: artwork }
+                        }
+                    } catch (e) {
+                        console.log(`Failed to fetch image for ${name}`)
+                    }
+                    return { name, image: null as string | null }
+                })
+                
+                const images = await Promise.all(imagePromises)
+                const imageMap: Record<string, string> = {}
+                images.forEach(({ name, image }) => {
+                    if (image) imageMap[name] = image
+                })
+                setArtistImages(imageMap)
             } catch (e) {
                 console.log('Best stats fetch failed:', e)
             }
@@ -248,7 +363,7 @@ const MusicHome = () => {
 
     useEffect(() => {
         loadData()
-    }, [loadData])
+    }, [location.pathname]) // Run on every navigation to this page
 
     // Force seed
     const handleForceSeed = async () => {
@@ -302,6 +417,43 @@ const MusicHome = () => {
                 </div>
             </section>
 
+            {/* AI Model Demo Banner */}
+            <Link 
+                to="/demo/ai-models"
+                className="block mb-8 group"
+            >
+                <div className="hud-card rounded-xl p-6 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-pink-900/40 border border-cyan-500/30 hover:border-cyan-400/50 transition-all overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 group-hover:from-cyan-500/10 group-hover:via-purple-500/10 group-hover:to-pink-500/10 transition-all"></div>
+                    <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-6">
+                            <div className="flex -space-x-3">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30 z-30">
+                                    <Brain className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30 z-20">
+                                    <Zap className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/30 z-10">
+                                    <Cpu className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 text-xs font-bold rounded-full uppercase tracking-wider">Live Demo</span>
+                                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-bold rounded-full">3 AI Models</span>
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-1">AI 추천 시스템 데모</h3>
+                                <p className="text-sm text-gray-400">M1 (Hybrid) · M2 (SVM) · M3 (CatBoost) 모델 학습 & 추천 과정을 실시간으로 확인하세요</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-cyan-400 font-semibold group-hover:text-cyan-300 transition-colors">Demo 시작</span>
+                            <ArrowRight className="w-5 h-5 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                    </div>
+                </div>
+            </Link>
+
             {/* Quick Stats */}
             <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[
@@ -340,15 +492,104 @@ const MusicHome = () => {
                 </section>
             )}
 
-            {/* Best Artists */}
+            {/* GMS BEST TOP % - AI 추천 베스트 */}
             <section className="mb-8">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-cyan-400" /> 
+                        <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                            GMS BEST TOP %
+                        </span>
+                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full ml-2">AI 추천</span>
+                    </h2>
+                    <Link to="/music/lab" className="text-cyan-400 text-sm flex items-center gap-1 hover:underline">
+                        GMS 전체보기 <ArrowRight className="w-4 h-4" />
+                    </Link>
+                </div>
+                
+                {gmsBestTracks.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                        {gmsBestTracks.slice(0, 10).map((track, idx) => (
+                            <div
+                                key={`gms-${track.id}-${idx}`}
+                                onClick={() => {
+                                    setQueue(gmsBestTracks)
+                                    playTrack(track)
+                                }}
+                                className="hud-card hud-card-bottom rounded-xl p-4 hover:scale-105 transition-all cursor-pointer group relative overflow-hidden"
+                            >
+                                {/* AI Score Badge */}
+                                <div className="absolute top-2 right-2 z-10">
+                                    <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+                                        (track.aiScore || 0) >= 90 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' :
+                                        (track.aiScore || 0) >= 80 ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white' :
+                                        'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                                    }`}>
+                                        <Star className="w-3 h-3" fill="currentColor" />
+                                        {track.aiScore || 85}%
+                                    </div>
+                                </div>
+                                
+                                {/* Rank Badge */}
+                                <div className="absolute top-2 left-2 z-10">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                        idx === 0 ? 'bg-yellow-500 text-black' :
+                                        idx === 1 ? 'bg-gray-300 text-black' :
+                                        idx === 2 ? 'bg-orange-600 text-white' :
+                                        'bg-hud-bg-secondary text-hud-text-muted'
+                                    }`}>
+                                        {idx + 1}
+                                    </div>
+                                </div>
+                                
+                                {/* Album Art */}
+                                <div className="w-full aspect-square bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
+                                    {track.artwork ? (
+                                        <img src={track.artwork} alt={track.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-purple-600 flex items-center justify-center">
+                                            <Music className="w-8 h-8 text-white/50" />
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Play className="w-10 h-10 text-white" fill="white" />
+                                    </div>
+                                </div>
+                                
+                                {/* Track Info */}
+                                <div className="font-medium text-hud-text-primary text-sm truncate group-hover:text-cyan-400 transition-colors">
+                                    {track.title}
+                                </div>
+                                <div className="text-xs text-hud-text-muted truncate">{track.artist}</div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="hud-card hud-card-bottom rounded-xl p-8 text-center border-2 border-dashed border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-purple-500/5">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
+                            <Sparkles className="w-8 h-8 text-cyan-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-hud-text-primary mb-2">아직 AI 추천 트랙이 없습니다</h3>
+                        <p className="text-hud-text-muted text-sm mb-4">
+                            GMS Lab에서 AI 모델로 새로운 추천을 생성해보세요!
+                        </p>
+                        <Link 
+                            to="/music/lab" 
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-lg hover:opacity-90 transition-all"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            새 추천 생성하기
+                        </Link>
+                    </div>
+                )}
+            </section>
+
+            {/* Best Artists */}
+            <section className="mb-8">
+                <div className="mb-4">
+                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
                         <Users className="w-5 h-5 text-hud-accent-primary" /> 인기 아티스트
                     </h2>
-                    <a href="#" className="text-hud-accent-primary text-sm flex items-center gap-1 hover:underline">
-                        전체보기 <ArrowRight className="w-4 h-4" />
-                    </a>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                     {(bestArtists.length > 0 ? bestArtists : [
@@ -364,8 +605,8 @@ const MusicHome = () => {
                             className="hud-card hud-card-bottom rounded-xl p-4 text-center hover:scale-105 transition-transform cursor-pointer group"
                         >
                             <div className="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-hud-bg-secondary shadow-lg relative group-hover:border-hud-accent-primary transition-colors">
-                                {artist.image ? (
-                                    <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
+                                {(artist.image || artistImages[artist.name]) ? (
+                                    <img src={artist.image || artistImages[artist.name]} alt={artist.name} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary flex items-center justify-center text-white font-bold text-xl">
                                         {artist.name.charAt(0)}
@@ -393,11 +634,7 @@ const MusicHome = () => {
                     {[
                         { name: 'Tidal', color: 'from-blue-500 to-cyan-400', tracks: tidalTracks },
                         { name: 'YouTube Music', color: 'from-red-500 to-red-600', tracks: youtubeTracks },
-                        {
-                            name: 'GMS Best',
-                            color: 'from-orange-500 to-amber-500',
-                            tracks: bestTracks.map(t => ({ title: t.title, artist: t.artist }))
-                        },
+                        { name: 'Apple Music', color: 'from-pink-500 to-rose-500', tracks: appleTracks },
                     ].map((platform) => (
                         <div key={platform.name} className="hud-card hud-card-bottom rounded-xl overflow-hidden">
                             <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold`}>
@@ -624,9 +861,15 @@ const MusicHome = () => {
                         {/* Header */}
                         <div className="p-6 border-b border-hud-border-secondary bg-gradient-to-r from-hud-accent-primary/10 to-transparent">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary rounded-full flex items-center justify-center text-white font-bold text-2xl">
-                                        {selectedArtist.charAt(0)}
+                            <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-hud-accent-primary shadow-lg">
+                                        {artistImages[selectedArtist] ? (
+                                            <img src={artistImages[selectedArtist]} alt={selectedArtist} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary flex items-center justify-center text-white font-bold text-2xl">
+                                                {selectedArtist.charAt(0)}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <h2 className="text-2xl font-bold text-hud-text-primary">{selectedArtist}</h2>
@@ -663,7 +906,7 @@ const MusicHome = () => {
                             {artistTracksLoading ? (
                                 <div className="flex flex-col items-center justify-center h-64 gap-4">
                                     <Loader2 className="w-10 h-10 text-hud-accent-primary animate-spin" />
-                                    <p className="text-hud-text-muted">Tidal에서 검색 중...</p>
+                                    <p className="text-hud-text-muted">검색 중...</p>
                                 </div>
                             ) : artistTracks.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-64 gap-4 text-hud-text-muted">

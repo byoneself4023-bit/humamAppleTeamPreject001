@@ -121,6 +121,10 @@ export const playlistsApi = {
     // Tracks
     addTrack: (playlistId: number, track: any) => post<{ message: string; trackId: number }>(`/playlists/${playlistId}/tracks`, { track }),
     removeTrack: (playlistId: number, trackId: number) => del<{ message: string }>(`/playlists/${playlistId}/tracks/${trackId}`),
+    
+    // Search tracks by artist/title in DB
+    searchTracks: (query: string, limit: number = 20) =>
+        get<{ tracks: Track[] }>(`/playlists/tracks/search?q=${encodeURIComponent(query)}&limit=${limit}`),
 
     // Import Album as Playlist (Backend handles tracks in batch)
     importAlbumAsPlaylist: (album: { title: string; artist: string; tracks: any[]; coverImage: string }) =>
