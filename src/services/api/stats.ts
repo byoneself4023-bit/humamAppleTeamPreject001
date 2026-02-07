@@ -76,7 +76,7 @@ export const statsApi = {
         get<{ tracks: BestTrack[] }>(`/stats/best/tracks?limit=${limit}&sortBy=${sortBy}`),
 
     // 베스트 아티스트
-    getBestArtists: (limit = 5, sortBy: 'play_count' | 'view_count' = 'play_count') =>
+    getBestArtists: (limit = 5, sortBy: 'play_count' | 'view_count' | 'random' = 'random') =>
         get<{ artists: BestArtist[] }>(`/stats/best/artists?limit=${limit}&sortBy=${sortBy}`),
 
     // 베스트 앨범

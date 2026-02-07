@@ -140,14 +140,9 @@ const MusicHome = () => {
         return `${min}:${sec.toString().padStart(2, '0')}`
     }
 
-    // Helper to get random items
+    // Helper to get random items (for playlists)
     const getRandomItems = (arr: any[], count: number) => {
-        // Fisher-Yates shuffle for true randomness
-        const shuffled = [...arr]
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-        }
+        const shuffled = [...arr].sort(() => 0.5 - Math.random())
         return shuffled.slice(0, count)
     }
 
@@ -312,22 +307,20 @@ const MusicHome = () => {
             // 4. Load best stats from our DB
             try {
                 const [artistsRes, playlistsRes, tracksRes, albumsRes] = await Promise.all([
-                    statsApi.getBestArtists(20),
+                    statsApi.getBestArtists(5), // DB에서 랜덤 5명 가져옴 (ORDER BY RAND())
                     statsApi.getBestPlaylists(3),
                     statsApi.getBestTracks(5),
                     statsApi.getBestAlbums(3)
                 ])
-                // 상위 20명 중 랜덤으로 5명 선택
-                const randomArtists = getRandomItems(artistsRes.artists || [], 5)
-                setBestArtists(randomArtists)
+                setBestArtists(artistsRes.artists || [])
                 setBestPlaylists(playlistsRes.playlists || [])
                 setBestTracks(tracksRes.tracks || [])
                 setBestAlbums(albumsRes.albums || [])
-                
-                // 5. Fetch artist images from iTunes (only for the 5 random selected artists)
+
+                // 5. Fetch artist images from iTunes
                 const defaultArtists = ['IU', 'BTS', 'NewJeans', 'Aespa', 'BLACKPINK']
-                const artistNames = (randomArtists && randomArtists.length > 0)
-                    ? randomArtists.map((a: BestArtist) => a.name)
+                const artistNames = (artistsRes.artists && artistsRes.artists.length > 0)
+                    ? artistsRes.artists.map((a: BestArtist) => a.name)
                     : defaultArtists
                 
                 const imagePromises = artistNames.map(async (name: string) => {
@@ -363,7 +356,7 @@ const MusicHome = () => {
 
     useEffect(() => {
         loadData()
-    }, [location.pathname]) // Run on every navigation to this page
+    }, [location.pathname]) // Reload on navigation to get fresh random artists from DB
 
     // Force seed
     const handleForceSeed = async () => {
@@ -395,7 +388,7 @@ const MusicHome = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-32 lg:pb-40">
             {/* Hero Section */}
             <section className="hud-card hud-card-bottom rounded-xl p-6 md:p-10 mb-8 bg-gradient-to-br from-hud-accent-info/20 to-hud-accent-primary/10">
                 <div className="flex flex-col md:flex-row items-center gap-6">
@@ -696,7 +689,7 @@ const MusicHome = () => {
                                     </div>
                                     <div className="p-4">
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                                            {platformPlaylists.map((playlist) => (
+                                            {platformPlaylists.map((playlist: Playlist) => (
                                                 <div
                                                     key={playlist.id}
                                                     onClick={() => setSelectedPlaylistId(playlist.id)}
@@ -856,8 +849,14 @@ const MusicHome = () => {
 
             {/* Artist Tracks Modal */}
             {selectedArtist && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-hud-bg-card border border-hud-accent-primary/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+                    onClick={closeArtistModal}
+                >
+                    <div
+                        className="bg-hud-bg-card border border-hud-accent-primary/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         {/* Header */}
                         <div className="p-6 border-b border-hud-border-secondary bg-gradient-to-r from-hud-accent-primary/10 to-transparent">
                             <div className="flex items-center justify-between">
@@ -933,10 +932,12 @@ const MusicHome = () => {
                                             <tr
                                                 key={track.id}
                                                 className="group hover:bg-hud-accent-primary/10 cursor-pointer border-b border-hud-border-secondary/30 transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
                                             >
                                                 <td
                                                     className="px-4 py-3 text-center"
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
                                                         setQueue(artistTracks)
                                                         playTrack(track)
                                                     }}
@@ -946,7 +947,8 @@ const MusicHome = () => {
                                                 </td>
                                                 <td
                                                     className="px-4 py-3"
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
                                                         setQueue(artistTracks)
                                                         playTrack(track)
                                                     }}
@@ -969,7 +971,8 @@ const MusicHome = () => {
                                                 </td>
                                                 <td
                                                     className="px-4 py-3 text-sm text-hud-text-muted truncate hidden md:table-cell max-w-[200px]"
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
                                                         setQueue(artistTracks)
                                                         playTrack(track)
                                                     }}
@@ -991,7 +994,8 @@ const MusicHome = () => {
                                                 </td>
                                                 <td
                                                     className="px-4 py-3 text-right text-sm text-hud-text-muted"
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
                                                         setQueue(artistTracks)
                                                         playTrack(track)
                                                     }}

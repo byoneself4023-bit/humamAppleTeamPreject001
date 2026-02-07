@@ -268,7 +268,7 @@ const MusicPlayer = () => {
             )}
 
             {/* ===== MAIN PLAYER BAR ===== */}
-            <div className="fixed bottom-0 left-0 lg:left-64 right-0 bg-hud-bg-secondary/95 backdrop-blur-xl border-t border-hud-border-secondary z-40 transition-all">
+            <div className="fixed bottom-0 left-0 right-0 bg-hud-bg-secondary/95 backdrop-blur-xl border-t border-hud-border-secondary z-40 transition-all">
                 {/* Mobile Progress Bar (Top) */}
                 <div className="lg:hidden h-1 bg-hud-border-secondary">
                     <div className="h-full bg-hud-accent-primary transition-all" style={{ width: `${localProgress}%` }}></div>
