@@ -1,10 +1,10 @@
 import { X, Music, Star, ChevronDown, ChevronUp, Check, Trash2, Play, Loader2, RefreshCw, CheckCircle, XCircle, AlertTriangle, Sparkles, ArrowRight, Brain, Cpu, Settings as SettingsIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { playlistsApi, Playlist, PlaylistWithTracks, Track } from '../../services/api/playlists'
 import { fastapiService, AIModel } from '../../services/api/fastapi'
 import { useAuth } from '../../contexts/AuthContext'
 import { useMusic } from '../../context/MusicContext'
-import { Link } from 'react-router-dom'
 
 interface DeletedTrack {
     trackId: number
@@ -180,7 +180,7 @@ const GatewayMusicSpace = () => {
             // Track deleted tracks for feedback
             setDeletedTracks(prev => [...prev, { trackId, playlistId }])
             
-            showToast('트랙이 삭제되고 AI가 학습했습니다', 'success')
+            showToast('트랙이 삭제되었습니다', 'success')
         } catch (error) {
             console.error('Delete and retrain failed:', error)
             

@@ -7,6 +7,7 @@ import { itunesService } from '../../services/api/itunes'
 import { youtubeApi } from '../../services/api/youtube'
 import { statsApi, BestArtist, BestPlaylist, BestTrack, BestAlbum, HomeStats } from '../../services/api/stats'
 import { useMusic } from '../../context/MusicContext'
+import { useAuth } from '../../contexts/AuthContext'
 import PlaylistDetailModal from '../../components/music/PlaylistDetailModal'
 import FavoriteButton from '../../components/music/FavoriteButton'
 
@@ -87,6 +88,9 @@ const MusicHome = () => {
 
     // Music context for playback
     const { playTrack, playPlaylist, setQueue } = useMusic()
+    
+    // Auth context for user info
+    const { user, isAuthenticated } = useAuth()
 
     // Location hook to detect navigation
     const location = useLocation()
@@ -173,10 +177,25 @@ const MusicHome = () => {
             setEmsPlaylists(emsRes.playlists || [])
             
             // Load GMS Best Tracks with AI scores
+            // 회원: 본인 GMS (AI 점수순) / 비회원: 전체 GMS에서 랜덤
             if (gmsRes.playlists && gmsRes.playlists.length > 0) {
                 try {
-                    // Get tracks from all GMS playlists and assign AI scores
-                    const gmsTracksPromises = gmsRes.playlists.slice(0, 3).map(async (playlist: Playlist) => {
+                    let targetPlaylists: Playlist[] = []
+                    
+                    if (isAuthenticated && user?.id) {
+                        // 회원: 본인의 GMS 플레이리스트만
+                        targetPlaylists = gmsRes.playlists.filter((p: Playlist) => (p as any).userId === user.id)
+                        if (targetPlaylists.length === 0) {
+                            // 본인 GMS가 없으면 전체에서 랜덤
+                            targetPlaylists = gmsRes.playlists.sort(() => Math.random() - 0.5).slice(0, 5)
+                        }
+                    } else {
+                        // 비회원: 전체 GMS에서 랜덤 5개 플레이리스트
+                        targetPlaylists = gmsRes.playlists.sort(() => Math.random() - 0.5).slice(0, 5)
+                    }
+                    
+                    // Get tracks from target playlists
+                    const gmsTracksPromises = targetPlaylists.slice(0, 3).map(async (playlist: Playlist) => {
                         const details = await playlistsApi.getById(playlist.id) as any
                         const tracks = details.tracks || []
                         return tracks.map((t: Track) => ({
@@ -187,10 +206,19 @@ const MusicHome = () => {
                         }))
                     })
                     const allGmsTracks = (await Promise.all(gmsTracksPromises)).flat()
-                    // Sort by AI score and take top 10
-                    const sortedTracks = allGmsTracks
-                        .sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0))
-                        .slice(0, 10)
+                    
+                    let sortedTracks
+                    if (isAuthenticated && user?.id) {
+                        // 회원: AI 점수 높은 순
+                        sortedTracks = allGmsTracks
+                            .sort((a, b) => (b.aiScore || 0) - (a.aiScore || 0))
+                            .slice(0, 10)
+                    } else {
+                        // 비회원: 랜덤 셔플
+                        sortedTracks = allGmsTracks
+                            .sort(() => Math.random() - 0.5)
+                            .slice(0, 10)
+                    }
                     setGmsBestTracks(sortedTracks)
                 } catch (e) {
                     console.log('Failed to load GMS tracks:', e)
@@ -352,11 +380,11 @@ const MusicHome = () => {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [isAuthenticated, user?.id])
 
     useEffect(() => {
         loadData()
-    }, [location.pathname]) // Reload on navigation to get fresh random artists from DB
+    }, [location.pathname, loadData]) // Reload on navigation or auth change
 
     // Force seed
     const handleForceSeed = async () => {
@@ -493,10 +521,12 @@ const MusicHome = () => {
                         <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
                             GMS BEST TOP %
                         </span>
-                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full ml-2">AI 추천</span>
+                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full ml-2">
+                            {isAuthenticated ? 'My AI 추천' : '인기 추천'}
+                        </span>
                     </h2>
-                    <Link to="/music/lab" className="text-cyan-400 text-sm flex items-center gap-1 hover:underline">
-                        GMS 전체보기 <ArrowRight className="w-4 h-4" />
+                    <Link to={isAuthenticated ? "/music/lab" : "/login"} className="text-cyan-400 text-sm flex items-center gap-1 hover:underline">
+                        {isAuthenticated ? 'GMS 전체보기' : '로그인하고 내 추천 받기'} <ArrowRight className="w-4 h-4" />
                     </Link>
                 </div>
                 
@@ -562,16 +592,20 @@ const MusicHome = () => {
                         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
                             <Sparkles className="w-8 h-8 text-cyan-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-hud-text-primary mb-2">아직 AI 추천 트랙이 없습니다</h3>
+                        <h3 className="text-lg font-bold text-hud-text-primary mb-2">
+                            {isAuthenticated ? '아직 AI 추천 트랙이 없습니다' : 'AI 추천을 받아보세요!'}
+                        </h3>
                         <p className="text-hud-text-muted text-sm mb-4">
-                            GMS Lab에서 AI 모델로 새로운 추천을 생성해보세요!
+                            {isAuthenticated 
+                                ? 'GMS Lab에서 AI 모델로 새로운 추천을 생성해보세요!'
+                                : '로그인하고 나만의 AI 음악 추천을 받아보세요!'}
                         </p>
                         <Link 
-                            to="/music/lab" 
+                            to={isAuthenticated ? "/music/lab" : "/login"}
                             className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-lg hover:opacity-90 transition-all"
                         >
                             <Sparkles className="w-4 h-4" />
-                            새 추천 생성하기
+                            {isAuthenticated ? '새 추천 생성하기' : '로그인하기'}
                         </Link>
                     </div>
                 )}

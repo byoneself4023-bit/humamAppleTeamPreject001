@@ -27,7 +27,12 @@ async function apiRequest<T>(
         throw new Error(error.error || `API Error: ${response.status}`)
     }
 
-    return response.json()
+    // Handle empty response (204 No Content or empty body)
+    const text = await response.text()
+    if (!text) {
+        return {} as T
+    }
+    return JSON.parse(text)
 }
 
 // GET request

@@ -68,6 +68,7 @@ services:
       YOUTUBE_KEY: ${YOUTUBE_KEY:-}
       YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
       YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
+      FASTAPI_URL: http://fastapi:8000
     ports:
       - "8080:8080"
     depends_on:

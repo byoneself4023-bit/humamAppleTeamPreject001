@@ -36,10 +36,11 @@ export interface CartAnalysisRequest {
 
 export interface CartAnalysisResponse {
     success: boolean
-    playlistId: number
-    trackCount: number
+    playlistId?: number
+    trackCount?: number
     gmsPlaylistId?: number
-    message: string
+    message?: string
+    error?: string
 }
 
 export const cartApi = {

@@ -11,6 +11,7 @@ import {
 } from '../../components/music/ems'
 import { Filter, Sparkles, Plus, Link as LinkIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { playlistsApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
 import { fastapiService } from '../../services/api/fastapi'
 import { itunesService, ItunesTrack, ItunesCollection } from '../../services/api/itunes'
@@ -109,6 +110,12 @@ const ExternalMusicSpace = () => {
 
     // Music playback
     const { playTrack } = useMusic()
+    const navigate = useNavigate()
+
+    // Analysis progress state
+    const [isAnalyzing, setIsAnalyzing] = useState(false)
+    const [analysisProgress, setAnalysisProgress] = useState(0)
+    const [analysisMessage, setAnalysisMessage] = useState('')
 
     const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
         setToast({ message, type })
@@ -198,7 +205,7 @@ const ExternalMusicSpace = () => {
                     previewUrl: item.previewUrl || ''
                 }))
                 setCartTracks(tracks)
-                
+
                 // trackId -> cartItemId 매핑 저장
                 const idMap = new Map<number, number>()
                 response.cart.forEach((item: CartItem) => {
@@ -371,8 +378,8 @@ const ExternalMusicSpace = () => {
         }
     }
 
-// Train Model
-const trainModel = async () => {
+    // Train Model
+    const trainModel = async () => {
         console.log('Train Model - Not implemented')
     }
 
@@ -472,7 +479,7 @@ const trainModel = async () => {
             showToast('이미 카트에 담긴 곡입니다.', 'error')
             return
         }
-        
+
         try {
             const response = await cartApi.addToCart({
                 trackId: track.id,
@@ -482,7 +489,7 @@ const trainModel = async () => {
                 artwork: track.artwork || '',
                 previewUrl: track.previewUrl || track.audio || ''
             })
-            
+
             if (response.success) {
                 setCartTracks(prev => [...prev, track])
                 setCartItemIds(prev => new Map(prev).set(track.id, response.cartItemId))
@@ -505,7 +512,7 @@ const trainModel = async () => {
             setCartTracks(prev => prev.filter(t => t.id !== trackId))
             return
         }
-        
+
         try {
             await cartApi.removeFromCart(cartItemId)
             setCartTracks(prev => prev.filter(t => t.id !== trackId))
@@ -535,7 +542,7 @@ const trainModel = async () => {
                 if (cartTracks.some(t => t.id === track.id)) {
                     continue // 이미 있으면 스킵
                 }
-                
+
                 try {
                     const response = await cartApi.addToCart({
                         trackId: track.id,
@@ -545,7 +552,7 @@ const trainModel = async () => {
                         artwork: track.artwork || '',
                         previewUrl: track.previewUrl || track.audio || ''
                     })
-                    
+
                     if (response.success) {
                         const cartTrack: ItunesTrack = {
                             id: track.id,
@@ -583,62 +590,104 @@ const trainModel = async () => {
     }
 
     const requestAnalysis = async () => {
-        if (cartTracks.length === 0) return
-        try {
-            // 1. 먼저 플레이리스트 생성 (EMS에 저장)
-            const today = new Date().toLocaleDateString('ko-KR')
-            const title = `분석 요청 (${today})`
-            showToast('플레이리스트 생성 중...', 'success')
+        if (cartTracks.length === 0) {
+            showToast('카트에 트랙이 없습니다.', 'error')
+            return
+        }
 
-            const createResult = await playlistsApi.create({
-                title: title,
-                description: `AI 분석 요청 (${cartTracks.length} tracks)`,
-                sourceType: 'Upload',
-                spaceType: 'EMS',
-                status: 'PTP',  // Processing To Process
-                coverImage: cartTracks[0].artwork
-            })
+        // Get user's selected model
+        const selectedModel = fastapiService.getSelectedModel()
 
-            // 2. 트랙 추가
-            for (const track of cartTracks) {
-                await playlistsApi.addTrack(createResult.id, {
-                    title: track.title,
-                    artist: track.artist,
-                    album: track.album,
-                    artwork: track.artwork,
-                    externalMetadata: {
-                        appleMusicId: track.id.toString(),
-                        previewUrl: track.previewUrl
-                    }
-                })
+        setIsAnalyzing(true)
+        setAnalysisProgress(0)
+        setAnalysisMessage('분석 준비 중...')
+        setIsCartOpen(false)
+
+        // Progress animation steps
+        const progressSteps = [
+            { progress: 15, message: '분석 준비 중...' },
+            { progress: 35, message: '플레이리스트 생성 중...' },
+            { progress: 55, message: `${selectedModel} 모델에 분석 요청 중...` },
+            { progress: 75, message: 'AI 추천 결과 대기 중...' },
+            { progress: 90, message: 'GMS 플레이리스트 생성 중...' },
+        ]
+
+        let stepIndex = 0
+        const progressInterval = setInterval(() => {
+            if (stepIndex < progressSteps.length) {
+                setAnalysisProgress(progressSteps[stepIndex].progress)
+                setAnalysisMessage(progressSteps[stepIndex].message)
+                stepIndex++
             }
+        }, 800)
 
-            // 3. 장바구니 분석 요청 (FastAPI에 전달하여 추천받고 GMS로 이동)
-            showToast('AI 분석 요청 중...', 'success')
-            showToast('모델 학습중입니다', 'info')
-            const result = await cartApi.analyzeCart({ model: 'M1' })
+        // 타임아웃 설정 (60초)
+        const timeoutId = setTimeout(() => {
+            clearInterval(progressInterval)
+            setAnalysisProgress(0)
+            setAnalysisMessage('')
+            setIsAnalyzing(false)
+            showToast('분석 요청 시간 초과 (60초). 다시 시도해주세요.', 'error')
+        }, 60000)
+
+        try {
+            // Spring Boot analyzeCart가 모든 것을 처리:
+            // 1. 장바구니 트랙으로 플레이리스트 생성
+            // 2. FastAPI에 분석 요청
+            // 3. GMS 플레이리스트 생성
+            // 4. 장바구니 비우기
+            const result = await cartApi.analyzeCart({ model: selectedModel })
+
+            clearTimeout(timeoutId)
+            clearInterval(progressInterval)
+            setAnalysisProgress(100)
+            setAnalysisMessage('분석 완료! 🎉')
 
             if (result.success) {
-                showToast(`AI 분석 완료! GMS로 이동 (${result.trackCount}곡)`, 'success')
+                showToast(`${selectedModel} 모델로 ${result.trackCount || cartTracks.length}곡 분석 완료!`, 'success')
+
+                // 장바구니 비우기 - Spring Boot에서 이미 처리됨
+                setCartTracks([])
+                setCartItemIds(new Map())
+
+                // GMS 페이지로 이동
+                setTimeout(() => {
+                    setIsAnalyzing(false)
+                    navigate('/music/lab')
+                }, 1500)
             } else {
-                showToast('AI 분석 실패', 'error')
+                const errorMsg = result.message || result.error || 'AI 분석 실패'
+                showToast(errorMsg, 'error')
+                setIsAnalyzing(false)
+            }
+        } catch (err: any) {
+            clearTimeout(timeoutId)
+            clearInterval(progressInterval)
+            console.error('Analysis request failed:', err)
+
+            // 에러 메시지 상세화
+            let errorMessage = '분석 요청 실패'
+            if (err.message) {
+                errorMessage = err.message
+            } else if (err.response?.status === 500) {
+                errorMessage = '서버 내부 오류가 발생했습니다.'
+            } else if (err.response?.status === 404) {
+                errorMessage = 'API 엔드포인트를 찾을 수 없습니다.'
+            } else if (!navigator.onLine) {
+                errorMessage = '네트워크 연결을 확인해주세요.'
             }
 
-            // 장바구니 비우기 (DB) - 이미 Spring Boot에서 처리됨
-            setCartTracks([])
-            setCartItemIds(new Map())
-            setIsCartOpen(false)
-            fetchPlaylists(true)
-        } catch (err: any) {
-            console.error('Analysis request failed', err)
-            showToast(err.message || '분석 요청 실패', 'error')
+            showToast(errorMessage, 'error')
+            setAnalysisProgress(0)
+            setAnalysisMessage('')
+            setIsAnalyzing(false)
         }
     }
 
     // 장바구니 전체 비우기
     const clearCart = async () => {
         if (cartTracks.length === 0) return
-        
+
         try {
             await cartApi.clearCart()
             setCartTracks([])
@@ -784,6 +833,38 @@ const trainModel = async () => {
 
             <UploadZone onFilesSelected={handleFileUpload} />
 
+            {/* Analysis Progress Overlay */}
+            {isAnalyzing && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center">
+                    <div className="bg-hud-bg-secondary border border-hud-border-secondary rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-hud-accent-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Sparkles className="w-8 h-8 text-hud-accent-primary animate-pulse" />
+                            </div>
+                            <h3 className="text-xl font-bold text-hud-text-primary mb-2">AI 분석 진행 중</h3>
+                            <p className="text-hud-text-secondary text-sm">{analysisMessage}</p>
+                        </div>
+
+                        <div className="mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-hud-accent-primary">{analysisMessage}</span>
+                                <span className="text-sm text-hud-text-muted">{analysisProgress}%</span>
+                            </div>
+                            <div className="h-3 bg-hud-bg-primary rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-hud-accent-primary to-hud-accent-warning transition-all duration-500 ease-out"
+                                    style={{ width: `${analysisProgress}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <p className="text-center text-xs text-hud-text-muted">
+                            분석이 완료되면 자동으로 GMS 페이지로 이동합니다
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* New Releases */}
             {newReleases.songs.length > 0 && (
                 <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
@@ -898,7 +979,7 @@ const trainModel = async () => {
                 onSaveToPlaylist={requestAnalysis}
             />
 
-{/* Modals */}
+            {/* Modals */}
             {(selectedDetailId || isModalLoading) && (
                 <PlaylistDetailModal
                     playlistId={selectedDetailId}
