@@ -78,6 +78,9 @@ import MusicConnections from './pages/music/MusicConnections'
 import MusicSettings from './pages/music/MusicSettings'
 import MusicPlayer from './components/music/MusicPlayer'
 
+// Demo Pages
+import AIModelDemo from './pages/demo/AIModelDemo'
+
 function App() {
     return (
         <AuthProvider>
@@ -95,6 +98,9 @@ function App() {
                         <Route path="/tidal-callback" element={<TidalCallback />} />
                         <Route path="/spotify-callback" element={<SpotifyCallback />} />
                         <Route path="/youtube-callback" element={<YouTubeCallback />} />
+
+                        {/* Demo Pages (No Layout - Full Screen) */}
+                        <Route path="/demo/ai-models" element={<AIModelDemo />} />
 
                         {/* Root redirect to Music Home */}
                         <Route path="/" element={<Navigate to="/music/home" replace />} />

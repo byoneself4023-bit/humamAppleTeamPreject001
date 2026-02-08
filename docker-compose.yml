@@ -43,7 +43,7 @@ services:
     networks:
       - musicspace-network
 
-  # Spring Boot 백엔드 (Java)
+  # Spring Boot 백엔드 (Java) - 메인 API
   spring-backend:
     build:
       context: ../2TeamFinalProject-BE
@@ -80,7 +80,40 @@ services:
     networks:
       - musicspace-network
 
-  # Node.js 백엔드 (기존 - 필요시 사용)
+  # FastAPI AI/ML 서버 (Python)
+  fastapi:
+    build:
+      context: ../FAST_API
+      dockerfile: Dockerfile
+    container_name: musicspace-fastapi
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      PORT: 8000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-musicspace}
+      DB_PASSWORD: ${DB_PASSWORD:-musicspace123}
+      DB_NAME: ${DB_NAME:-music_space_db}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../FAST_API/M1/user_models:/app/M1/user_models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - musicspace-network
+
+  # Node.js 백엔드 (Spotify Browser Playwright만 사용)
   backend:
     build:
       context: ./server
@@ -124,8 +157,9 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
       - spring-backend
+      - fastapi
+      - backend
     volumes:
       - ./public/images:/usr/share/nginx/html/images
       - ./public/uploads:/usr/share/nginx/html/uploads

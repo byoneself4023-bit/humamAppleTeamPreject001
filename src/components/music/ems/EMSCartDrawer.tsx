@@ -1,4 +1,4 @@
-import { ShoppingBag, X, Brain, Trash2, Music2 } from 'lucide-react'
+import { ShoppingBag, X, Brain, Trash2, Music2, RotateCcw } from 'lucide-react'
 import { ItunesTrack } from '../../../services/api/itunes'
 
 // Fix image URL helper
@@ -23,6 +23,7 @@ interface EMSCartDrawerProps {
     isCartOpen: boolean
     setIsCartOpen: (open: boolean) => void
     onRemoveFromCart: (trackId: number) => void
+    onClearCart: () => void
     onSaveToPlaylist: () => void
 }
 
@@ -31,12 +32,13 @@ const EMSCartDrawer = ({
     isCartOpen,
     setIsCartOpen,
     onRemoveFromCart,
+    onClearCart,
     onSaveToPlaylist
 }: EMSCartDrawerProps) => {
     return (
         <>
-            {/* Floating Cart Button */}
-            <div className="fixed bottom-8 right-8 z-50">
+            {/* Floating Cart Button - 플레이어 위로 위치 (bottom-28 = 112px) */}
+            <div className="fixed bottom-28 right-8 z-50">
                 <button
                     onClick={() => setIsCartOpen(!isCartOpen)}
                     className="relative bg-hud-accent-primary text-hud-bg-primary p-4 rounded-full shadow-lg hover:scale-110 transition-transform btn-glow"
@@ -50,11 +52,11 @@ const EMSCartDrawer = ({
                 </button>
             </div>
 
-            {/* Cart Drawer */}
+            {/* Cart Drawer - 플레이어 높이(약 96px)를 고려하여 하단 여백 추가 */}
             {isCartOpen && (
                 <div className="fixed inset-0 z-50 flex justify-end">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-                    <div className="relative w-full max-w-md bg-hud-bg-secondary border-l border-hud-border-secondary shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+                    <div className="relative w-full max-w-md bg-hud-bg-secondary border-l border-hud-border-secondary shadow-2xl flex flex-col h-[calc(100%-96px)] mt-0 animate-in slide-in-from-right duration-300">
                         <div className="p-4 border-b border-hud-border-secondary flex items-center justify-between">
                             <h3 className="text-lg font-bold text-hud-text-primary flex items-center gap-2">
                                 <ShoppingBag className="w-5 h-5 text-hud-accent-primary" />
@@ -102,7 +104,7 @@ const EMSCartDrawer = ({
                             )}
                         </div>
 
-                        <div className="p-4 border-t border-hud-border-secondary bg-hud-bg-primary">
+                        <div className="p-4 border-t border-hud-border-secondary bg-hud-bg-primary space-y-2">
                             <button
                                 onClick={onSaveToPlaylist}
                                 disabled={cartTracks.length === 0}
@@ -110,6 +112,14 @@ const EMSCartDrawer = ({
                             >
                                 <Brain className="w-5 h-5" />
                                 분석 요청
+                            </button>
+                            <button
+                                onClick={onClearCart}
+                                disabled={cartTracks.length === 0}
+                                className="w-full bg-transparent border border-hud-border-secondary text-hud-text-secondary py-2 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-hud-bg-secondary hover:text-hud-text-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                                전체 비우기
                             </button>
                         </div>
                     </div>

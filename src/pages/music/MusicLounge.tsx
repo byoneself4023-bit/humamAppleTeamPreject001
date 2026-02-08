@@ -2,7 +2,7 @@ import PlaylistCard from '../../components/music/PlaylistCard'
 import TrackListOverlay from '../../components/music/TrackListOverlay'
 import { playlistsApi, PlaylistWithTracks, Playlist } from '../../services/api/playlists'
 import { post } from '../../services/api/index'
-import { Play, ArrowRight, Sparkles, Music, Guitar, Headphones, Zap, Loader2, RefreshCw, Info, AlertTriangle, X } from 'lucide-react'
+import { ArrowRight, Music, Guitar, Headphones, Zap, Loader2, Info, AlertTriangle, X } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 
 const MusicLoungeContent = () => {
@@ -137,16 +137,7 @@ const MusicLoungeContent = () => {
                     <h1 className="text-4xl font-bold text-hud-accent-primary mb-3">Good Evening!</h1>
                     <p className="text-lg text-hud-text-secondary mb-6">오늘도 좋은 음악과 함께하세요</p>
 
-                    <div className="flex gap-4">
-                        <button className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all btn-glow">
-                            <Play className="w-5 h-5" fill="currentColor" />
-                            Continue Listening
-                        </button>
-                        <button className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                            <Sparkles className="w-5 h-5" />
-                            Surprise Me
-                        </button>
-                    </div>
+
                 </div>
             </section>
 
@@ -165,10 +156,6 @@ const MusicLoungeContent = () => {
                             <span>PMS에서의 변경(수정/삭제)은 원본 플랫폼(Tidal 등)에 영향을 주지 않습니다.</span>
                         </div>
                     </div>
-                    <a href="/music/external-space" className="text-hud-accent-primary font-medium flex items-center gap-2 hover:text-hud-accent-primary/80 transition-all">
-                        {isSyncing && <RefreshCw className="w-4 h-4 animate-spin" />}
-                        Add More <ArrowRight className="w-4 h-4" />
-                    </a>
                 </div>
 
                 {loading ? (

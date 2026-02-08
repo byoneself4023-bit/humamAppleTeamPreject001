@@ -569,6 +569,18 @@ router.post('/import', async (req, res) => {
 
         console.log(`[Tidal] Importing playlist "${playlist.title}" with ${tracks.length} tracks`)
 
+        // Skip empty playlists
+        if (tracks.length === 0) {
+            console.log(`[Tidal] Skipping empty playlist "${playlist.title}"`)
+            return res.json({
+                success: false,
+                message: 'Empty playlist - no valid tracks found',
+                playlistTitle: playlist.title,
+                importedTracks: 0,
+                totalTracks: 0
+            })
+        }
+
         // 3. Create playlist in DB
         const coverImage = playlist.squareImage
             ? `https://resources.tidal.com/images/${playlist.squareImage.replace(/-/g, '/')}/320x320.jpg`
@@ -576,11 +588,11 @@ router.post('/import', async (req, res) => {
 
         const result = await execute(`
             INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
-            VALUES (?, ?, ?, ?, 'tidal', ?, 'PMS', 'active')
+            VALUES (?, ?, ?, ?, 'Platform', ?, 'PMS', 'PRP')
         `, [
             userId,
             playlist.title,
-            playlist.description || '',
+            playlist.description || `Imported from Tidal`,
             coverImage,
             playlistId
         ])
@@ -668,6 +680,40 @@ router.post('/import', async (req, res) => {
         })
     } catch (error) {
         console.error('[Tidal] Import error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/tidal/search - General search (for artists, tracks, etc.)
+router.get('/search', async (req, res) => {
+    try {
+        const { query, type = 'TRACKS', limit = 20, countryCode = 'US' } = req.query
+
+        if (!query) return res.status(400).json({ error: 'Query is required' })
+
+        const token = await getClientToken()
+
+        const params = new URLSearchParams({
+            query,
+            type,
+            limit,
+            countryCode
+        })
+
+        const response = await fetch(`${TIDAL_API_URL}/search?${params}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.tidal.v1+json'
+            }
+        })
+
+        if (!response.ok) throw new Error(await response.text())
+        const data = await response.json()
+
+        res.json(data)
+    } catch (error) {
+        console.error('[Tidal Search] Error:', error)
         res.status(500).json({ error: error.message })
     }
 })

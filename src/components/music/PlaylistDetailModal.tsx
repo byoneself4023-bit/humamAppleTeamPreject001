@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Loader2, Music2, Clock, Calendar, Hash, GripHorizontal, Play, Heart, Share2, MoreHorizontal } from 'lucide-react'
-import { playlistsApi, PlaylistWithTracks } from '../../services/api/playlists'
+import { X, Loader2, Music2, Clock, Calendar, Hash, GripHorizontal, Play, Heart, Share2, MoreHorizontal, ShoppingCart } from 'lucide-react'
+import { playlistsApi, PlaylistWithTracks, Track } from '../../services/api/playlists'
 import { useMusic } from '../../context/MusicContext'
 
 interface PlaylistDetailModalProps {
     isOpen: boolean
     onClose: () => void
     playlistId: number | null
+    onAddToCart?: (track: Track) => void
+    cartTrackIds?: Set<number>
 }
 
-const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModalProps) => {
+const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTrackIds }: PlaylistDetailModalProps) => {
     const [playlist, setPlaylist] = useState<PlaylistWithTracks | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -259,9 +261,14 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
                                     <th className="px-6 py-4 text-xs font-black text-hud-text-muted uppercase tracking-wider">Title</th>
                                     <th className="px-6 py-4 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden md:table-cell">Artist</th>
                                     <th className="px-6 py-4 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden lg:table-cell">Album</th>
-                                    <th className="px-6 py-4 w-24 text-right text-xs font-black text-hud-text-muted uppercase tracking-wider">
+<th className="px-6 py-4 w-24 text-right text-xs font-black text-hud-text-muted uppercase tracking-wider">
                                         <Clock className="w-4 h-4 ml-auto" />
                                     </th>
+                                    {onAddToCart && (
+                                        <th className="px-6 py-4 w-16 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">
+                                            <ShoppingCart className="w-4 h-4 mx-auto" />
+                                        </th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
@@ -296,7 +303,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
                                             <td className="px-6 py-4 text-sm text-hud-text-muted hidden lg:table-cell truncate max-w-[200px]">
                                                 {track.album}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
+<td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-hud-bg-secondary rounded">
                                                         <Heart className="w-4 h-4 text-hud-text-muted hover:text-hud-accent-primary" />
@@ -306,11 +313,29 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId }: PlaylistDetailModa
                                                     </span>
                                                 </div>
                                             </td>
+                                            {onAddToCart && (
+                                                <td className="px-6 py-4 text-center">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            onAddToCart(track)
+                                                        }}
+                                                        className={`p-2 rounded-full transition-all hover:scale-110 ${
+                                                            cartTrackIds?.has(track.id)
+                                                                ? 'bg-hud-accent-warning/30 text-hud-accent-warning'
+                                                                : 'bg-hud-bg-secondary hover:bg-hud-accent-warning/20 text-hud-text-muted hover:text-hud-accent-warning'
+                                                        }`}
+                                                        title={cartTrackIds?.has(track.id) ? "장바구니에 담김" : "장바구니에 담기"}
+                                                    >
+                                                        <ShoppingCart className="w-4 h-4" fill={cartTrackIds?.has(track.id) ? "currentColor" : "none"} />
+                                                    </button>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr>
-                                        <td colSpan={5} className="p-16 text-center">
+<tr>
+                                        <td colSpan={onAddToCart ? 6 : 5} className="p-16 text-center">
                                             <Music2 className="w-16 h-16 text-hud-text-muted/30 mx-auto mb-4" />
                                             <p className="text-hud-text-muted text-lg">No tracks found in this playlist.</p>
                                         </td>

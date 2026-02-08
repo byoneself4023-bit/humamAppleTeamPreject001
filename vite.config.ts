@@ -54,6 +54,18 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false
             },
+            // Spotify Browser (Playwright) - Node.js Backend
+            '/api/spotify/browser': {
+                target: 'http://localhost:3001',
+                changeOrigin: true,
+                secure: false
+            },
+            // Spotify Token - Node.js Backend
+            '/api/spotify/token': {
+                target: 'http://localhost:3001',
+                changeOrigin: true,
+                secure: false
+            },
             '/api/spotify': {
                 target: 'http://localhost:8080',
                 changeOrigin: true,
@@ -72,6 +84,39 @@ export default defineConfig({
 
             '/api/training': {
                 target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false
+            },
+            // FastAPI AI/ML Service (M1, M2, M3 models)
+            '/api/m1': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/m2': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/m3': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/fastapi': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+                rewrite: (path) => path.replace(/^\/api\/fastapi/, '/api')
+            },
+            // FastAPI 통합 API 엔드포인트
+            '/api/recommend': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false
+            },
+            '/api/analyze': {
+                target: 'http://localhost:8000',
                 changeOrigin: true,
                 secure: false
             },

@@ -9,6 +9,27 @@ const SPOTIFY_API_URL = 'https://api.spotify.com/v1'
 // 브라우저 세션 저장소
 let browserSessions = {} // { visitorId: { browser, context, accessToken } }
 
+// 랜덤 지연 함수 (인간적인 행동 시뮬레이션)
+const randomDelay = (min, max) => {
+    const delay = Math.floor(Math.random() * (max - min + 1)) + min
+    return new Promise(resolve => setTimeout(resolve, delay))
+}
+
+// 마우스 이동 시뮬레이션
+const simulateHumanMouseMove = async (page, selector) => {
+    try {
+        const element = await page.locator(selector).boundingBox()
+        if (element) {
+            const x = element.x + element.width / 2 + Math.random() * 10 - 5
+            const y = element.y + element.height / 2 + Math.random() * 10 - 5
+            await page.mouse.move(x, y, { steps: 10 + Math.floor(Math.random() * 10) })
+            await randomDelay(100, 300)
+        }
+    } catch (e) {
+        // 실패해도 계속 진행
+    }
+}
+
 // POST /api/spotify/browser/login - Playwright로 Spotify 로그인
 router.post('/login', async (req, res) => {
     const { visitorId, email, password } = req.body
@@ -22,7 +43,7 @@ router.post('/login', async (req, res) => {
     try {
         console.log('[Spotify Browser] Starting login process...')
 
-        // 브라우저 시작 (Stealth 모드)
+        // 브라우저 시작 (Stealth 모드 강화)
         const browser = await chromium.launch({
             headless: true,
             args: [
@@ -30,34 +51,48 @@ router.post('/login', async (req, res) => {
                 '--disable-setuid-sandbox',
                 '--disable-blink-features=AutomationControlled',
                 '--disable-infobars',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
                 '--window-size=1920,1080',
                 '--start-maximized'
             ]
         })
 
         const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
             viewport: { width: 1920, height: 1080 },
             locale: 'en-US',
             timezoneId: 'America/New_York',
-            permissions: ['geolocation'],
+            permissions: [],
             extraHTTPHeaders: {
-                'Accept-Language': 'en-US,en;q=0.9'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
             }
         })
 
         const page = await context.newPage()
 
-        // Webdriver 속성 숨기기 (Bot 감지 우회)
+        // Webdriver 속성 숨기기 (Bot 감지 우회 강화)
         await page.addInitScript(() => {
             // webdriver 속성 제거
             Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined
             })
 
-            // plugins 추가
+            // plugins 추가 (실제 플러그인처럼 보이게)
             Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3, 4, 5]
+                get: () => [
+                    { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer' },
+                    { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai' },
+                    { name: 'Native Client', filename: 'internal-nacl-plugin' }
+                ]
             })
 
             // languages 추가
@@ -67,8 +102,28 @@ router.post('/login', async (req, res) => {
 
             // Chrome 객체 추가
             window.chrome = {
-                runtime: {}
+                runtime: {},
+                loadTimes: function() {},
+                csi: function() {},
+                app: {}
             }
+
+            // Permission API 모킹
+            const originalQuery = window.navigator.permissions.query
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            )
+
+            // 하드웨어 정보 추가
+            Object.defineProperty(navigator, 'hardwareConcurrency', {
+                get: () => 8
+            })
+
+            Object.defineProperty(navigator, 'deviceMemory', {
+                get: () => 8
+            })
         })
 
         // 토큰 캡처를 위한 request interceptor
@@ -86,14 +141,25 @@ router.post('/login', async (req, res) => {
             }
         })
 
-        // Spotify 로그인 페이지로 이동
-        await page.goto('https://accounts.spotify.com/login', { waitUntil: 'networkidle' })
+        // Spotify 메인 페이지 먼저 방문 (Referer 설정)
+        await page.goto('https://www.spotify.com', { waitUntil: 'networkidle' })
+        await randomDelay(1000, 2000)
+
+        // 로그인 페이지로 이동 (Referer 자동 설정됨)
+        await page.goto('https://accounts.spotify.com/login', {
+            waitUntil: 'networkidle',
+            referer: 'https://www.spotify.com/'
+        })
+        await randomDelay(1500, 2500)
 
         // 쿠키 동의 처리 (있는 경우)
         try {
             const cookieButton = page.locator('button[id="onetrust-accept-btn-handler"]')
-            if (await cookieButton.isVisible({ timeout: 2000 })) {
+            if (await cookieButton.isVisible({ timeout: 3000 })) {
+                await simulateHumanMouseMove(page, 'button[id="onetrust-accept-btn-handler"]')
+                await randomDelay(300, 600)
                 await cookieButton.click()
+                await randomDelay(500, 1000)
             }
         } catch (e) {
             // 쿠키 버튼 없으면 무시
@@ -101,23 +167,34 @@ router.post('/login', async (req, res) => {
 
         console.log('[Spotify Browser] Step 1: Entering email...')
 
-        // Step 1: 이메일 입력 (id="username" 또는 data-testid="login-username")
-        await page.fill('input[id="username"]', email)
+        // Step 1: 이메일 입력 (인간처럼 천천히)
+        await simulateHumanMouseMove(page, 'input[id="username"]')
+        await randomDelay(300, 600)
+        await page.click('input[id="username"]')
+        await randomDelay(200, 400)
+
+        // 글자 하나씩 타이핑 (인간처럼)
+        for (const char of email) {
+            await page.keyboard.type(char, { delay: 50 + Math.random() * 100 })
+        }
+        await randomDelay(500, 1000)
 
         // Continue 버튼 클릭
+        await simulateHumanMouseMove(page, 'button[data-testid="login-button"]')
+        await randomDelay(300, 600)
         await page.click('button[data-testid="login-button"]')
 
         // Step 2: 6자리 코드 화면 또는 비밀번호 선택 화면 대기
         console.log('[Spotify Browser] Step 2: Waiting for next screen...')
-        await page.waitForTimeout(3000)
+        await randomDelay(3000, 5000)
 
         // 현재 URL 로그
         console.log('[Spotify Browser] Current URL:', page.url())
 
         // 디버깅: 스크린샷 저장
         try {
-            await page.screenshot({ path: '/app/spotify_debug.png' })
-            console.log('[Spotify Browser] Screenshot saved to /app/spotify_debug.png')
+            await page.screenshot({ path: './spotify_debug.png' })
+            console.log('[Spotify Browser] Screenshot saved to ./spotify_debug.png')
         } catch (e) {
             console.log('[Spotify Browser] Screenshot failed:', e.message)
         }
@@ -143,11 +220,13 @@ router.post('/login', async (req, res) => {
         try {
             // 정확한 selector: data-encore-id="buttonTertiary"
             const passwordBtn = page.locator('button[data-encore-id="buttonTertiary"]')
-            if (await passwordBtn.isVisible({ timeout: 8000 })) {
+            if (await passwordBtn.isVisible({ timeout: 10000 })) {
                 console.log('[Spotify Browser] Found "Log in with a password" button (buttonTertiary)')
+                await simulateHumanMouseMove(page, 'button[data-encore-id="buttonTertiary"]')
+                await randomDelay(500, 1000)
                 await passwordBtn.click()
                 passwordLinkClicked = true
-                await page.waitForTimeout(2000)
+                await randomDelay(2000, 3000)
             }
         } catch (e) {
             console.log('[Spotify Browser] buttonTertiary not found:', e.message)
@@ -157,11 +236,12 @@ router.post('/login', async (req, res) => {
         if (!passwordLinkClicked) {
             try {
                 const passwordLink = page.getByRole('button', { name: /password/i })
-                if (await passwordLink.isVisible({ timeout: 3000 })) {
+                if (await passwordLink.isVisible({ timeout: 5000 })) {
                     console.log('[Spotify Browser] Found button with password text via getByRole')
+                    await randomDelay(500, 1000)
                     await passwordLink.click()
                     passwordLinkClicked = true
-                    await page.waitForTimeout(2000)
+                    await randomDelay(2000, 3000)
                 }
             } catch (e) {
                 console.log('[Spotify Browser] getByRole failed:', e.message)
@@ -171,13 +251,27 @@ router.post('/login', async (req, res) => {
         console.log('[Spotify Browser] Password link clicked:', passwordLinkClicked)
         console.log('[Spotify Browser] Current URL after click:', page.url())
 
-        // Step 3: 비밀번호 입력 (id="password" 또는 data-testid="login-password")
+        // Step 3: 비밀번호 입력 (인간처럼)
         console.log('[Spotify Browser] Step 3: Entering password...')
         try {
-            await page.waitForSelector('input[id="password"]', { timeout: 15000 })
-            await page.fill('input[id="password"]', password)
+            await page.waitForSelector('input[id="password"]', { timeout: 20000 })
+            await randomDelay(500, 1000)
+
+            // 비밀번호 필드 클릭
+            await simulateHumanMouseMove(page, 'input[id="password"]')
+            await randomDelay(300, 600)
+            await page.click('input[id="password"]')
+            await randomDelay(200, 400)
+
+            // 비밀번호 타이핑 (인간처럼)
+            for (const char of password) {
+                await page.keyboard.type(char, { delay: 50 + Math.random() * 100 })
+            }
+            await randomDelay(800, 1500)
 
             // Log in 버튼 클릭
+            await simulateHumanMouseMove(page, 'button[data-testid="login-button"]')
+            await randomDelay(400, 800)
             await page.click('button[data-testid="login-button"]')
         } catch (e) {
             console.error('[Spotify Browser] Password field not found:', e.message)
@@ -191,31 +285,65 @@ router.post('/login', async (req, res) => {
         // 로그인 결과 대기
         try {
             // 성공: Spotify 웹 플레이어로 리다이렉트
-            await page.waitForURL('**/open.spotify.com/**', { timeout: 20000 })
+            await page.waitForURL('**/open.spotify.com/**', { timeout: 60000 })
             console.log('[Spotify Browser] Login successful, redirected to web player')
         } catch (e) {
+            console.log('[Spotify Browser] Timeout or redirect failed. Current URL:', page.url())
+
+            // 스크린샷 저장
+            try {
+                await page.screenshot({ path: './spotify_login_error.png' })
+                console.log('[Spotify Browser] Error screenshot saved to ./spotify_login_error.png')
+            } catch (screenshotError) {
+                console.log('[Spotify Browser] Screenshot failed:', screenshotError.message)
+            }
+
             // 에러 메시지 확인
             const errorMsg = await page.locator('span[data-testid="login-error-message"]').textContent().catch(() => null)
             if (errorMsg) {
+                console.log('[Spotify Browser] Login error message:', errorMsg)
                 await browser.close()
                 return res.status(401).json({ error: errorMsg })
             }
 
-            // 2FA 등 다른 화면인지 확인
+            // 현재 URL 확인
             const currentUrl = page.url()
-            if (currentUrl.includes('challenge')) {
+            console.log('[Spotify Browser] Current URL after timeout:', currentUrl)
+
+            // 2FA 등 다른 화면인지 확인
+            if (currentUrl.includes('challenge') || currentUrl.includes('verify')) {
                 await browser.close()
-                return res.status(401).json({ error: '2FA or CAPTCHA required. Please use token method.' })
+                return res.status(401).json({ error: '이메일 또는 SMS 인증이 필요합니다. 해당 계정은 Browser 로그인이 제한됩니다.' })
             }
 
-            throw new Error('Login timeout')
+            // 여전히 로그인 페이지에 있는 경우
+            if (currentUrl.includes('accounts.spotify.com')) {
+                // 페이지 내용 확인
+                const pageContent = await page.content().catch(() => '')
+                if (pageContent.includes('incorrect') || pageContent.includes('wrong')) {
+                    await browser.close()
+                    return res.status(401).json({ error: '이메일 또는 비밀번호가 잘못되었습니다.' })
+                }
+                await browser.close()
+                return res.status(401).json({ error: '로그인 실패. 계정 정보를 확인해주세요.' })
+            }
+
+            // 다른 경우
+            await browser.close()
+            throw new Error(`로그인 타임아웃. 현재 URL: ${currentUrl}`)
         }
+
+        // 로그인 후 자연스럽게 대기
+        await randomDelay(2000, 3000)
 
         // 토큰이 캡처될 때까지 대기
         if (!capturedToken) {
             // 웹 플레이어에서 API 호출 유도
-            await page.goto('https://open.spotify.com/collection/playlists', { waitUntil: 'networkidle' })
-            await page.waitForTimeout(3000)
+            await page.goto('https://open.spotify.com/collection/playlists', {
+                waitUntil: 'networkidle',
+                referer: 'https://open.spotify.com/'
+            })
+            await randomDelay(3000, 5000)
         }
 
         if (!capturedToken) {
@@ -433,14 +561,26 @@ router.post('/import', async (req, res) => {
 
         console.log(`[Spotify Browser] Importing "${playlistData.name}" with ${allTracks.length} tracks`)
 
+        // Skip empty playlists
+        if (allTracks.length === 0) {
+            console.log(`[Spotify Browser] Skipping empty playlist "${playlistData.name}"`)
+            return res.json({
+                success: false,
+                message: 'Empty playlist - no valid tracks found',
+                playlistTitle: playlistData.name,
+                importedTracks: 0,
+                totalTracks: 0
+            })
+        }
+
         // 3. Create playlist in DB
         const result = await execute(`
             INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
-            VALUES (?, ?, ?, ?, 'spotify', ?, 'PMS', 'active')
+            VALUES (?, ?, ?, ?, 'Platform', ?, 'PMS', 'PRP')
         `, [
             userId,
             playlistData.name,
-            playlistData.description || '',
+            playlistData.description || `Imported from Spotify`,
             playlistData.images?.[0]?.url || null,
             playlistId
         ])

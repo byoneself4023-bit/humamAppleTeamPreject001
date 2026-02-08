@@ -268,7 +268,7 @@ const MusicPlayer = () => {
             )}
 
             {/* ===== MAIN PLAYER BAR ===== */}
-            <div className="fixed bottom-0 left-0 right-0 bg-hud-bg-secondary/95 backdrop-blur-xl border-t border-hud-border-secondary z-40 transition-all">
+            <div className="fixed bottom-0 left-0 right-0 bg-hud-bg-secondary/95 backdrop-blur-xl border-t border-hud-border-secondary z-[400] transition-all">
                 {/* Mobile Progress Bar (Top) */}
                 <div className="lg:hidden h-1 bg-hud-border-secondary">
                     <div className="h-full bg-hud-accent-primary transition-all" style={{ width: `${localProgress}%` }}></div>
@@ -400,7 +400,7 @@ const MusicPlayer = () => {
                     </div>
 
                     {/* Desktop Right Controls */}
-                    <div className="hidden lg:flex items-center gap-2 xl:gap-3 w-[200px] xl:w-[240px] justify-end">
+                    <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 w-auto justify-end flex-shrink-0">
                         <SourceBadge sourceType={audioState.sourceType} />
                         <button onClick={() => setIsLiked(!isLiked)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isLiked ? 'text-red-500' : 'text-hud-text-muted hover:text-red-500'}`}>
                             <Heart className="w-4 h-4" fill={isLiked ? 'currentColor' : 'none'} />

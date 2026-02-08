@@ -14,9 +14,9 @@ const MusicHomeLayout = () => {
     ]
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg">
+        <div className="h-screen bg-hud-bg-primary hud-grid-bg overflow-hidden flex flex-col">
             {/* Header without sidebar offset */}
-            <header className="bg-hud-bg-secondary/80 backdrop-blur-md border-b border-hud-border-secondary sticky top-0 z-40">
+            <header className="bg-hud-bg-secondary/80 backdrop-blur-md border-b border-hud-border-secondary z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link to="/" className="flex items-center gap-2">
@@ -70,7 +70,7 @@ const MusicHomeLayout = () => {
                     </nav>
                 </div>
             </header>
-            <main>
+            <main className="pb-16 overflow-y-auto flex-1 min-h-0">
                 <Outlet />
             </main>
         </div>

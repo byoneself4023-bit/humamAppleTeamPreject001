@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Music, Heart, ChevronDown, ChevronUp } from 'lucide-react'
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Music, Heart, ChevronDown, ChevronUp, Brain, CheckCircle } from 'lucide-react'
 import Button from '../../components/common/Button'
 import { register } from '../../services/api/auth'
 import { useAuth } from '../../contexts/AuthContext'
 import TermsModal from '../../components/auth/TermsModal'
 import PrivacyModal from '../../components/auth/PrivacyModal'
 import { genresApi, GenreCategory } from '../../services/api/genres'
-import TidalLoginModal from '../../components/auth/TidalLoginModal'
+import { post } from '../../services/api'
+// TidalLoginModal은 회원가입 페이지에서 사용하지 않음 (Onboarding에서 연동)
 
 const STREAMING_SERVICES = [
     { id: 'tidal', name: 'Tidal', icon: 'T', color: 'bg-black', activeColor: 'bg-hud-accent-primary text-hud-bg-primary' },
@@ -33,10 +34,14 @@ const Register = () => {
     const [streamingServices, setStreamingServices] = useState<string[]>([])
     const [otherService, setOtherService] = useState('')
 
-    // Tidal 연동 관련 상태
-    const [showTidalModal, setShowTidalModal] = useState(false)
-    const [tidalConnected, setTidalConnected] = useState(false)
-    const [tidalAuthData, setTidalAuthData] = useState<any>(null)
+    // AI 모델 학습 상태
+    const [isTraining, setIsTraining] = useState(false)
+    const [trainingProgress, setTrainingProgress] = useState(0)
+    const [trainingStatus, setTrainingStatus] = useState('')
+    const [trainingComplete, setTrainingComplete] = useState(false)
+    const [pendingUser, setPendingUser] = useState<any>(null)
+
+    // Tidal 연동은 Onboarding 페이지에서 진행 (회원가입에서는 선택만)
 
     // 장르 관련 상태
     const [genreCategories, setGenreCategories] = useState<GenreCategory[]>([])
@@ -69,11 +74,7 @@ const Register = () => {
                 ? prev.filter(id => id !== serviceId)
                 : [...prev, serviceId]
         )
-
-        // Tidal 선택 시 로그인 모달 표시
-        if (serviceId === 'tidal' && !tidalConnected) {
-            setShowTidalModal(true)
-        }
+        // Tidal 연동은 회원가입 후 Onboarding 페이지에서 진행
     }
 
     const toggleGenre = (genreCode: string) => {
@@ -127,31 +128,144 @@ const Register = () => {
                 email,
                 password,
                 streamingServices: finalServices,
-                genres: selectedGenres,
-                // Tidal 연동 데이터 포함
-                tidalConnected: tidalConnected,
-                tidalVisitorId: tidalAuthData?.visitorId,
-                tidalAccessToken: tidalAuthData?.accessToken,
-                tidalRefreshToken: tidalAuthData?.refreshToken
+                genres: selectedGenres
+                // Tidal 연동은 Onboarding에서 진행
             })
-            setUser(response.user)
 
-            // Redirect to onboarding if music services are selected
-            if (streamingServices.length > 0) {
+            // 회원가입 성공 - AI 모델 학습 시작
+            setIsLoading(false)
+            setPendingUser(response.user)
+
+            // Tidal 연동 서비스가 선택된 경우 Onboarding으로 이동
+            if (streamingServices.includes('tidal')) {
+                setUser(response.user)
                 const servicesParam = streamingServices.join(',')
                 navigate(`/onboarding?services=${servicesParam}`)
-            } else {
-                navigate('/')
+                return
             }
+
+            // 그 외의 경우 AI 모델 학습 진행
+            setIsTraining(true)
+            setTrainingProgress(0)
+            setTrainingStatus('AI 모델 준비 중...')
+
+            // user.id 사용 (Spring Boot 응답 필드명)
+            const userObj = response.user as any
+            const userId = userObj.userId || userObj.id
+            console.log('[Register] Calling FastAPI init-models:', { email, userId })
+
+            let trainingSuccess = false
+
+            try {
+                // ==================== 1단계: 플레이리스트 분석 (0-20%) ====================
+                setTrainingStatus('플레이리스트 분석 중...')
+                for (let i = 0; i <= 20; i += 2) {
+                    setTrainingProgress(i)
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                }
+
+                // ==================== 2단계: AI 모델 학습 (20-50%) ====================
+                setTrainingStatus('AI 모델 학습 중...')
+                
+                // 진행률 시뮬레이션 (학습 중)
+                const learningInterval = setInterval(() => {
+                    setTrainingProgress(prev => {
+                        if (prev >= 45) return 45
+                        return prev + 1
+                    })
+                }, 200)
+
+                // FastAPI init-models 호출 (학습 + EMS 평가 + GMS 저장)
+                const initResponse = await post<any>('/fastapi/init-models', {
+                    email: email,
+                    userId: userId,
+                    model: 'M1'
+                })
+
+                clearInterval(learningInterval)
+                console.log('[Register] FastAPI response:', initResponse)
+                
+                // 학습 성공 조건 확인
+                const m1Result = initResponse.models?.M1
+                const gmsResult = initResponse.models?.GMS
+
+                // ==================== 3단계: EMS 곡 평가 (50-80%) ====================
+                setTrainingStatus('EMS 곡 평가 중...')
+                for (let i = 50; i <= 80; i += 2) {
+                    setTrainingProgress(i)
+                    await new Promise(resolve => setTimeout(resolve, 50))
+                }
+
+                // ==================== 4단계: GMS 저장 (80-100%) ====================
+                setTrainingStatus('추천 결과 저장 중...')
+                for (let i = 80; i <= 95; i += 2) {
+                    setTrainingProgress(i)
+                    await new Promise(resolve => setTimeout(resolve, 50))
+                }
+
+                // 최종 결과 확인
+                const isReallyTrained = initResponse.success && 
+                                        initResponse.track_count > 0 && 
+                                        m1Result?.status === 'trained'
+                
+                if (isReallyTrained) {
+                    setTrainingProgress(100)
+                    const gmsCount = gmsResult?.track_count || 0
+                    if (gmsCount > 0) {
+                        setTrainingStatus(`완료! ${initResponse.track_count}곡 학습, ${gmsCount}곡 추천`)
+                    } else {
+                        setTrainingStatus(`학습 완료! (${initResponse.track_count}곡)`)
+                    }
+                    setTrainingComplete(true)
+                    trainingSuccess = true
+                    console.log('[Register] Model training SUCCESS:', {
+                        trackCount: initResponse.track_count,
+                        gmsCount,
+                        models: initResponse.models
+                    })
+                } else if (initResponse.success) {
+                    // 기본 모델만 복사된 경우
+                    console.warn('[Register] Base model copied:', initResponse)
+                    setTrainingProgress(100)
+                    setTrainingStatus('기본 모델로 시작합니다')
+                    setTrainingComplete(true)
+                    trainingSuccess = true
+                } else {
+                    console.warn('[Register] Model training failed:', initResponse)
+                    setTrainingProgress(100)
+                    setTrainingStatus('학습 실패')
+                    setTrainingComplete(false)
+                    trainingSuccess = false
+                }
+            } catch (initErr) {
+                console.error('[Register] AI 모델 초기화 실패:', initErr)
+                setTrainingProgress(100)
+                setTrainingStatus('학습 실패 - 다시 시도해주세요')
+                setTrainingComplete(false)
+                trainingSuccess = false
+            }
+
+            // 학습 성공 시에만 메인으로 이동
+            if (trainingSuccess) {
+                setTimeout(() => {
+                    setUser(response.user)
+                    navigate('/')
+                }, 2000)
+            } else {
+                setIsTraining(false)
+            }
+
         } catch (err) {
             setError(err instanceof Error ? err.message : '회원가입에 실패했습니다')
-        } finally {
             setIsLoading(false)
+            setIsTraining(false)
         }
     }
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary hud-grid-bg flex items-center justify-center p-6">
+        <>
+            <style>{'html, body { overflow: auto; }'}</style>
+            <div className="min-h-screen bg-hud-bg-primary hud-grid-bg flex items-center justify-center p-6">
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="text-center mb-8">
@@ -441,22 +555,62 @@ const Register = () => {
             <TermsModal isOpen={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
             <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
 
-            {/* Tidal Login Modal */}
-            <TidalLoginModal
-                isOpen={showTidalModal}
-                onClose={() => setShowTidalModal(false)}
-                onSuccess={(response) => {
-                    console.log('[Register] Tidal login success:', response)
-                    setTidalConnected(true)
-                    setTidalAuthData({
-                        visitorId: response.visitorId || response.user?.userId,
-                        accessToken: response.accessToken || response.access_token,
-                        refreshToken: response.refreshToken || response.refresh_token
-                    })
-                    setShowTidalModal(false)
-                }}
-            />
+            {/* AI 모델 학습 프로그레스 모달 */}
+            {isTraining && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-hud-bg-card border border-hud-border-secondary rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+                        <div className="flex flex-col items-center gap-6">
+                            {/* 아이콘 */}
+                            <div className={`w-20 h-20 rounded-full flex items-center justify-center ${trainingComplete ? 'bg-teal-500/20' : 'bg-hud-accent-primary/20'}`}>
+                                {trainingComplete ? (
+                                    <CheckCircle className="w-10 h-10 text-teal-400" />
+                                ) : (
+                                    <Brain className="w-10 h-10 text-hud-accent-primary animate-pulse" />
+                                )}
+                            </div>
+
+                            {/* 제목 */}
+                            <div className="text-center">
+                                <h2 className="text-xl font-bold text-hud-text-primary mb-2">
+                                    {trainingComplete ? '준비 완료!' : 'AI 모델 학습 중'}
+                                </h2>
+                                <p className="text-hud-text-secondary text-sm">
+                                    {trainingStatus}
+                                </p>
+                            </div>
+
+                            {/* 프로그레스 바 */}
+                            <div className="w-full">
+                                <div className="h-2 bg-hud-bg-secondary rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all duration-500 ease-out ${trainingComplete ? 'bg-teal-400' : 'bg-gradient-to-r from-hud-accent-primary to-hud-accent-info'}`}
+                                        style={{ width: `${Math.min(trainingProgress, 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-center text-xs text-hud-text-muted mt-2">
+                                    {Math.round(trainingProgress)}%
+                                </p>
+                            </div>
+
+                            {/* 안내 메시지 */}
+                            {!trainingComplete && (
+                                <p className="text-xs text-hud-text-muted text-center">
+                                    당신의 음악 취향을 분석하고 있습니다.<br />
+                                    잠시만 기다려 주세요...
+                                </p>
+                            )}
+
+                            {trainingComplete && (
+                                <p className="text-sm text-teal-400 text-center">
+                                    맞춤 추천이 준비되었습니다!
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+        </>
     )
 }
 

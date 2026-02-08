@@ -9,11 +9,15 @@
   box-sizing: border-box;
 }
 
+html, body {
+  overflow: hidden;
+  height: 100vh;
+}
+
 body {
   font-family: 'Inter', 'Roboto', system-ui, sans-serif;
   background-color: #0E1726;
   color: #FFFFFF;
-  min-height: 100vh;
 }
 
 /* HUD Grid Background */

@@ -425,14 +425,26 @@ router.post('/import', async (req, res) => {
 
         console.log(`[YouTube] Importing playlist "${playlist.snippet.title}" with ${allTracks.length} tracks`)
 
+        // Skip empty playlists
+        if (allTracks.length === 0) {
+            console.log(`[YouTube] Skipping empty playlist "${playlist.snippet.title}"`)
+            return res.json({
+                success: false,
+                message: 'Empty playlist - no valid tracks found',
+                playlistTitle: playlist.snippet.title,
+                importedTracks: 0,
+                totalTracks: 0
+            })
+        }
+
         // 3. Create playlist in DB
         const result = await execute(`
             INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
-            VALUES (?, ?, ?, ?, 'youtube', ?, 'PMS', 'active')
+            VALUES (?, ?, ?, ?, 'Platform', ?, 'PMS', 'PRP')
         `, [
             userId,
             playlist.snippet.title,
-            playlist.snippet.description || '',
+            playlist.snippet.description || `Imported from YouTube`,
             playlist.snippet.thumbnails?.high?.url || null,
             playlistId
         ])

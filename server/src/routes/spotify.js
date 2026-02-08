@@ -387,14 +387,26 @@ router.post('/import', async (req, res) => {
 
         console.log(`[Spotify] Importing playlist "${playlistData.name}" with ${allTracks.length} tracks`)
 
+        // Skip empty playlists
+        if (allTracks.length === 0) {
+            console.log(`[Spotify] Skipping empty playlist "${playlistData.name}"`)
+            return res.json({
+                success: false,
+                message: 'Empty playlist - no valid tracks found',
+                playlistTitle: playlistData.name,
+                importedTracks: 0,
+                totalTracks: 0
+            })
+        }
+
         // 3. Create playlist in DB
         const result = await execute(`
             INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
-            VALUES (?, ?, ?, ?, 'spotify', ?, 'PMS', 'active')
+            VALUES (?, ?, ?, ?, 'Platform', ?, 'PMS', 'PRP')
         `, [
             userId,
             playlistData.name,
-            playlistData.description || '',
+            playlistData.description || `Imported from Spotify`,
             playlistData.images?.[0]?.url || null,
             playlistId
         ])
@@ -710,14 +722,26 @@ router.post('/token/import', async (req, res) => {
 
         console.log(`[Spotify Token] Importing "${playlistData.name}" with ${allTracks.length} tracks`)
 
+        // Skip empty playlists
+        if (allTracks.length === 0) {
+            console.log(`[Spotify Token] Skipping empty playlist "${playlistData.name}"`)
+            return res.json({
+                success: false,
+                message: 'Empty playlist - no valid tracks found',
+                playlistTitle: playlistData.name,
+                importedTracks: 0,
+                totalTracks: 0
+            })
+        }
+
         // 3. Create playlist in DB
         const result = await execute(`
             INSERT INTO playlists (user_id, title, description, cover_image, source_type, external_id, space_type, status_flag)
-            VALUES (?, ?, ?, ?, 'spotify', ?, 'PMS', 'active')
+            VALUES (?, ?, ?, ?, 'Platform', ?, 'PMS', 'PRP')
         `, [
             userId,
             playlistData.name,
-            playlistData.description || '',
+            playlistData.description || `Imported from Spotify`,
             playlistData.images?.[0]?.url || null,
             playlistId
         ])

@@ -887,4 +887,32 @@ router.get('/proxy-image', async (req, res) => {
     }
 })
 
+// GET /api/tracks/search - Search tracks by artist/title
+router.get('/tracks/search', async (req, res) => {
+    try {
+        const { q, limit = 20 } = req.query
+
+        if (!q) {
+            return res.status(400).json({ error: 'Query parameter "q" is required' })
+        }
+
+        // Search in tracks table (artist or title)
+        const sql = `
+            SELECT DISTINCT t.*
+            FROM tracks t
+            WHERE t.artist LIKE ? OR t.title LIKE ?
+            ORDER BY t.id DESC
+            LIMIT ?
+        `
+
+        const searchPattern = `%${q}%`
+        const tracks = await query(sql, [searchPattern, searchPattern, parseInt(limit)])
+
+        res.json({ tracks })
+    } catch (error) {
+        console.error('[TracksSearch] Error:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 export default router

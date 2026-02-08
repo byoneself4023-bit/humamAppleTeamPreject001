@@ -26,6 +26,7 @@ const MusicConnections = () => {
 
     // Spotify state
     const [spotifyConnected, setSpotifyConnected] = useState(false)
+    const [spotifyConnectionMethod, setSpotifyConnectionMethod] = useState<'browser' | 'token' | null>(null)
     const [spotifyUser, setSpotifyUser] = useState<{ displayName: string; image?: string } | null>(null)
     const [spotifyPlaylists, setSpotifyPlaylists] = useState<SpotifyPlaylist[]>([])
     const [spotifyLoading, setSpotifyLoading] = useState(false)
@@ -34,8 +35,10 @@ const MusicConnections = () => {
 
     // Login modal state
     const [showLoginModal, setShowLoginModal] = useState(false)
+    const [loginMethod, setLoginMethod] = useState<'browser' | 'token'>('browser') // Browser 방식이 더 안정적
     const [emailInput, setEmailInput] = useState('')
     const [passwordInput, setPasswordInput] = useState('')
+    const [tokenInput, setTokenInput] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [loginLoading, setLoginLoading] = useState(false)
     const [loginError, setLoginError] = useState('')
@@ -73,10 +76,24 @@ const MusicConnections = () => {
 
     const checkSpotifyStatus = async () => {
         try {
-            const status = await spotifyApi.browserGetStatus()
-            setSpotifyConnected(status.connected)
-            if (status.connected && status.user) {
-                setSpotifyUser({ displayName: status.user.displayName, image: status.user.image })
+            // Token 방식 먼저 체크
+            const tokenStatus = await spotifyApi.tokenGetStatus()
+            if (tokenStatus.connected && tokenStatus.user) {
+                setSpotifyConnected(true)
+                setSpotifyConnectionMethod('token')
+                setSpotifyUser({ displayName: tokenStatus.user.displayName, image: tokenStatus.user.image })
+                return
+            }
+        } catch (e) {
+            // Token 실패하면 Browser 방식 체크
+        }
+
+        try {
+            const browserStatus = await spotifyApi.browserGetStatus()
+            if (browserStatus.connected && browserStatus.user) {
+                setSpotifyConnected(true)
+                setSpotifyConnectionMethod('browser')
+                setSpotifyUser({ displayName: browserStatus.user.displayName, image: browserStatus.user.image })
             }
         } catch (e) {
             console.error('Spotify status check failed:', e)
@@ -84,35 +101,68 @@ const MusicConnections = () => {
     }
 
     const handleLogin = async () => {
-        if (!emailInput.trim() || !passwordInput.trim()) {
-            setLoginError('이메일과 비밀번호를 입력해주세요')
-            return
-        }
-
-        setLoginLoading(true)
-        setLoginError('')
-
-        try {
-            const response = await spotifyApi.browserLogin(emailInput.trim(), passwordInput)
-            if (response.success) {
-                setSpotifyConnected(true)
-                setSpotifyUser({ displayName: response.user.displayName, image: response.user.image })
-                setShowLoginModal(false)
-                setEmailInput('')
-                setPasswordInput('')
+        if (loginMethod === 'browser') {
+            if (!emailInput.trim() || !passwordInput.trim()) {
+                setLoginError('이메일과 비밀번호를 입력해주세요')
+                return
             }
-        } catch (e: any) {
-            console.error('Spotify login failed:', e)
-            setLoginError(e.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
-        } finally {
-            setLoginLoading(false)
+
+            setLoginLoading(true)
+            setLoginError('')
+
+            try {
+                const response = await spotifyApi.browserLogin(emailInput.trim(), passwordInput)
+                if (response.success) {
+                    setSpotifyConnected(true)
+                    setSpotifyConnectionMethod('browser')
+                    setSpotifyUser({ displayName: response.user.displayName, image: response.user.image })
+                    setShowLoginModal(false)
+                    setEmailInput('')
+                    setPasswordInput('')
+                }
+            } catch (e: any) {
+                console.error('Spotify login failed:', e)
+                setLoginError(e.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+            } finally {
+                setLoginLoading(false)
+            }
+        } else {
+            // Token method
+            if (!tokenInput.trim() || !tokenInput.trim().startsWith('BQ')) {
+                setLoginError('올바른 Spotify Bearer 토큰을 입력해주세요 (BQ로 시작)')
+                return
+            }
+
+            setLoginLoading(true)
+            setLoginError('')
+
+            try {
+                const response = await spotifyApi.tokenConnect(tokenInput.trim())
+                if (response.success) {
+                    setSpotifyConnected(true)
+                    setSpotifyConnectionMethod('token')
+                    setSpotifyUser({ displayName: response.user.displayName, image: response.user.image })
+                    setShowLoginModal(false)
+                    setTokenInput('')
+                }
+            } catch (e: any) {
+                console.error('Spotify token connect failed:', e)
+                setLoginError(e.message || '토큰 연결에 실패했습니다. 토큰을 확인해주세요.')
+            } finally {
+                setLoginLoading(false)
+            }
         }
     }
 
     const handleSpotifyLogout = async () => {
         try {
-            await spotifyApi.browserLogout()
+            if (spotifyConnectionMethod === 'token') {
+                await spotifyApi.tokenDisconnect()
+            } else {
+                await spotifyApi.browserLogout()
+            }
             setSpotifyConnected(false)
+            setSpotifyConnectionMethod(null)
             setSpotifyUser(null)
             setSpotifyPlaylists([])
         } catch (e) {
@@ -123,12 +173,15 @@ const MusicConnections = () => {
     const loadSpotifyPlaylists = async () => {
         setSpotifyLoading(true)
         try {
-            const response = await spotifyApi.browserGetPlaylists()
+            const response = spotifyConnectionMethod === 'token'
+                ? await spotifyApi.tokenGetPlaylists()
+                : await spotifyApi.browserGetPlaylists()
             setSpotifyPlaylists(response.playlists)
         } catch (e: any) {
             console.error('Failed to load playlists:', e)
             if (e.message?.includes('expired') || e.message?.includes('401') || e.message?.includes('Not connected')) {
                 setSpotifyConnected(false)
+                setSpotifyConnectionMethod(null)
                 setSpotifyUser(null)
             }
         } finally {
@@ -143,7 +196,9 @@ const MusicConnections = () => {
         }
         setImportingPlaylist(playlist.id)
         try {
-            const result = await spotifyApi.browserImportPlaylist(playlist.id, user.id)
+            const result = spotifyConnectionMethod === 'token'
+                ? await spotifyApi.tokenImportPlaylist(playlist.id, user.id)
+                : await spotifyApi.browserImportPlaylist(playlist.id, user.id)
             if (result.success) {
                 setImportedPlaylists(prev => new Set(prev).add(playlist.id))
                 alert(`"${result.title}" 가져오기 완료! (${result.importedTracks}/${result.totalTracks} 트랙)`)
@@ -884,6 +939,7 @@ const MusicConnections = () => {
                                     setShowLoginModal(false)
                                     setEmailInput('')
                                     setPasswordInput('')
+                                    setTokenInput('')
                                     setLoginError('')
                                 }}
                                 className="text-hud-text-muted hover:text-hud-text-primary"
@@ -894,44 +950,106 @@ const MusicConnections = () => {
 
                         {/* Modal Body */}
                         <div className="p-4 space-y-4">
-                            {/* Email Input */}
-                            <div>
-                                <label className="block text-sm text-hud-text-secondary mb-2">이메일 또는 사용자명</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hud-text-muted" />
-                                    <input
-                                        type="email"
-                                        value={emailInput}
-                                        onChange={(e) => setEmailInput(e.target.value)}
-                                        placeholder="Spotify 이메일 입력"
-                                        className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg pl-10 pr-4 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954]"
-                                        onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                                    />
-                                </div>
+                            {/* Login Method Tabs */}
+                            <div className="flex gap-2 p-1 bg-hud-bg-secondary rounded-lg">
+                                <button
+                                    onClick={() => setLoginMethod('browser')}
+                                    className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                        loginMethod === 'browser'
+                                            ? 'bg-[#1DB954] text-white'
+                                            : 'text-hud-text-secondary hover:text-hud-text-primary'
+                                    }`}
+                                >
+                                    Browser 로그인 (권장)
+                                </button>
+                                <button
+                                    onClick={() => setLoginMethod('token')}
+                                    className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                                        loginMethod === 'token'
+                                            ? 'bg-[#1DB954] text-white'
+                                            : 'text-hud-text-secondary hover:text-hud-text-primary'
+                                    }`}
+                                >
+                                    Token 로그인
+                                </button>
                             </div>
 
-                            {/* Password Input */}
-                            <div>
-                                <label className="block text-sm text-hud-text-secondary mb-2">비밀번호</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hud-text-muted" />
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={passwordInput}
-                                        onChange={(e) => setPasswordInput(e.target.value)}
-                                        placeholder="비밀번호 입력"
-                                        className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg pl-10 pr-12 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954]"
-                                        onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-hud-text-muted hover:text-hud-text-primary"
-                                    >
-                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                    </button>
-                                </div>
-                            </div>
+                            {loginMethod === 'token' ? (
+                                <>
+                                    {/* Token Input */}
+                                    <div>
+                                        <label className="block text-sm text-hud-text-secondary mb-2">Bearer Token</label>
+                                        <textarea
+                                            value={tokenInput}
+                                            onChange={(e) => setTokenInput(e.target.value)}
+                                            placeholder="Bearer 토큰 입력 (BQ로 시작)"
+                                            className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg px-4 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954] font-mono resize-none"
+                                            rows={3}
+                                        />
+                                    </div>
+
+                                    {/* Token 가져오기 안내 */}
+                                    <div className="bg-hud-bg-secondary rounded-lg p-3 text-xs text-hud-text-muted space-y-2">
+                                        <p className="font-medium text-hud-text-secondary">✅ Token 가져오는 방법:</p>
+                                        <ol className="list-decimal list-inside space-y-1 pl-2">
+                                            <li>브라우저에서 <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" className="text-[#1DB954] hover:underline">open.spotify.com</a> 로그인</li>
+                                            <li>F12 개발자 도구 → Network 탭 열기</li>
+                                            <li>플레이리스트 클릭하여 API 요청 발생</li>
+                                            <li>요청 클릭 → Headers → Authorization: Bearer BQxxxx...</li>
+                                            <li>Bearer 토큰 복사 (BQ로 시작하는 긴 문자열)</li>
+                                        </ol>
+                                        <p className="mt-2 text-hud-accent-success">* 계정 차단 위험이 없고 안전합니다</p>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Email Input */}
+                                    <div>
+                                        <label className="block text-sm text-hud-text-secondary mb-2">이메일 또는 사용자명</label>
+                                        <div className="relative">
+                                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hud-text-muted" />
+                                            <input
+                                                type="email"
+                                                value={emailInput}
+                                                onChange={(e) => setEmailInput(e.target.value)}
+                                                placeholder="Spotify 이메일 입력"
+                                                className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg pl-10 pr-4 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954]"
+                                                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Password Input */}
+                                    <div>
+                                        <label className="block text-sm text-hud-text-secondary mb-2">비밀번호</label>
+                                        <div className="relative">
+                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-hud-text-muted" />
+                                            <input
+                                                type={showPassword ? 'text' : 'password'}
+                                                value={passwordInput}
+                                                onChange={(e) => setPasswordInput(e.target.value)}
+                                                placeholder="비밀번호 입력"
+                                                className="w-full bg-hud-bg-primary border border-hud-border-secondary rounded-lg pl-10 pr-12 py-3 text-sm text-hud-text-primary placeholder:text-hud-text-muted focus:outline-none focus:border-[#1DB954]"
+                                                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-hud-text-muted hover:text-hud-text-primary"
+                                            >
+                                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Browser Info */}
+                                    <div className="bg-hud-bg-secondary rounded-lg p-3 text-xs text-hud-text-muted">
+                                        <p>⚠️ 서버에서 Spotify 웹 브라우저를 통해 로그인합니다.</p>
+                                        <p className="mt-1">⚠️ 계정 차단 위험이 있을 수 있습니다.</p>
+                                        <p className="mt-1">⚠️ 2단계 인증(2FA)이 활성화된 계정은 사용이 제한될 수 있습니다.</p>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Error Message */}
                             {loginError && (
@@ -940,12 +1058,6 @@ const MusicConnections = () => {
                                     <span>{loginError}</span>
                                 </div>
                             )}
-
-                            {/* Info */}
-                            <div className="bg-hud-bg-secondary rounded-lg p-3 text-xs text-hud-text-muted">
-                                <p>* 서버에서 Spotify 웹 브라우저를 통해 로그인합니다.</p>
-                                <p className="mt-1">* 2단계 인증(2FA)이 활성화된 계정은 사용이 제한될 수 있습니다.</p>
-                            </div>
                         </div>
 
                         {/* Modal Footer */}
@@ -955,6 +1067,7 @@ const MusicConnections = () => {
                                     setShowLoginModal(false)
                                     setEmailInput('')
                                     setPasswordInput('')
+                                    setTokenInput('')
                                     setLoginError('')
                                 }}
                                 className="flex-1 px-4 py-2 bg-hud-bg-secondary rounded-lg text-sm text-hud-text-secondary hover:bg-hud-bg-hover transition-all"
@@ -963,18 +1076,22 @@ const MusicConnections = () => {
                             </button>
                             <button
                                 onClick={handleLogin}
-                                disabled={loginLoading || !emailInput.trim() || !passwordInput.trim()}
+                                disabled={
+                                    loginLoading ||
+                                    (loginMethod === 'browser' && (!emailInput.trim() || !passwordInput.trim())) ||
+                                    (loginMethod === 'token' && !tokenInput.trim())
+                                }
                                 className="flex-1 px-4 py-2 bg-[#1DB954] rounded-lg text-sm text-white font-medium hover:bg-[#1ed760] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {loginLoading ? (
                                     <>
                                         <Loader2 className="w-4 h-4 animate-spin" />
-                                        로그인 중...
+                                        {loginMethod === 'token' ? '연결 중...' : '로그인 중...'}
                                     </>
                                 ) : (
                                     <>
                                         <LogIn className="w-4 h-4" />
-                                        로그인
+                                        {loginMethod === 'token' ? '연결' : '로그인'}
                                     </>
                                 )}
                             </button>

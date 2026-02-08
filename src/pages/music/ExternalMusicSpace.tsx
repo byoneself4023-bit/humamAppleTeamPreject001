@@ -13,10 +13,11 @@ import { Filter, Sparkles, Plus, Link as LinkIcon } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { playlistsApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
 import { fastapiService } from '../../services/api/fastapi'
+import { itunesService, ItunesTrack, ItunesCollection } from '../../services/api/itunes'
 import { tidalApi } from '../../services/api/tidal'
 import { youtubeApi, YoutubePlaylist } from '../../services/api/youtube'
-import { itunesService, ItunesTrack, ItunesCollection } from '../../services/api/itunes'
 import { appleMusicApi, AppleMusicItem } from '../../services/api/apple'
+import { cartApi, CartItem } from '../../services/api/cart'
 import { useMusic } from '../../context/MusicContext'
 
 interface Playlist {
@@ -77,7 +78,7 @@ const ExternalMusicSpace = () => {
     const [kpopRecs, setKpopRecs] = useState<ItunesCollection[]>([])
 
     // Toast notification state
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
     // Spotify Special Event State
     const [spotifySpecial, setSpotifySpecial] = useState<{
@@ -94,9 +95,11 @@ const ExternalMusicSpace = () => {
     const [isYoutubeSearching, setIsYoutubeSearching] = useState(false)
     const [viewingYoutubeId, setViewingYoutubeId] = useState<string | null>(null)
 
-    // Track Cart State
+    // Track Cart State (DB 연동)
     const [cartTracks, setCartTracks] = useState<ItunesTrack[]>([])
+    const [cartItemIds, setCartItemIds] = useState<Map<number, number>>(new Map()) // trackId -> cartItemId
     const [isCartOpen, setIsCartOpen] = useState(false)
+    const [isCartLoading, setIsCartLoading] = useState(false)
 
     // Modal State
     const [isModalLoading, setIsModalLoading] = useState(false)
@@ -107,7 +110,7 @@ const ExternalMusicSpace = () => {
     // Music playback
     const { playTrack } = useMusic()
 
-    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
         setToast({ message, type })
         setTimeout(() => setToast(null), 3000)
     }
@@ -177,10 +180,44 @@ const ExternalMusicSpace = () => {
         }
     }, [])
 
+    // 장바구니 DB에서 로드
+    const loadCart = useCallback(async () => {
+        try {
+            setIsCartLoading(true)
+            const response = await cartApi.getCart()
+            if (response.success && response.cart) {
+                const tracks: ItunesTrack[] = response.cart.map((item: CartItem) => ({
+                    id: item.trackId || item.id,
+                    title: item.title,
+                    artist: item.artist,
+                    album: item.album || '',
+                    artwork: item.artwork || '',
+                    audio: item.previewUrl || '',
+                    url: '',
+                    date: item.createdAt || '',
+                    previewUrl: item.previewUrl || ''
+                }))
+                setCartTracks(tracks)
+                
+                // trackId -> cartItemId 매핑 저장
+                const idMap = new Map<number, number>()
+                response.cart.forEach((item: CartItem) => {
+                    idMap.set(item.trackId || item.id, item.id)
+                })
+                setCartItemIds(idMap)
+            }
+        } catch (err) {
+            console.error('Failed to load cart:', err)
+        } finally {
+            setIsCartLoading(false)
+        }
+    }, [])
+
     useEffect(() => {
         fetchPlaylists()
         checkConnections()
-    }, [fetchPlaylists, checkConnections])
+        loadCart()
+    }, [fetchPlaylists, checkConnections, loadCart])
 
     // Load Spotify Special Event
     useEffect(() => {
@@ -334,14 +371,9 @@ const ExternalMusicSpace = () => {
         }
     }
 
-    // Train Model
-    const trainModel = async () => {
-        try {
-            await analysisApi.train()
-            console.log('AI Model Retrained')
-        } catch (err) {
-            console.error('Training failed', err)
-        }
+// Train Model
+const trainModel = async () => {
+        console.log('Train Model - Not implemented')
     }
 
     useEffect(() => {
@@ -434,21 +466,61 @@ const ExternalMusicSpace = () => {
         }
     }
 
-    // Cart handlers
-    const addToCart = (track: ItunesTrack) => {
+    // Cart handlers (DB 연동)
+    const addToCart = async (track: ItunesTrack) => {
         if (cartTracks.some(t => t.id === track.id)) {
             showToast('이미 카트에 담긴 곡입니다.', 'error')
             return
         }
-        setCartTracks(prev => [...prev, track])
-        showToast('카트에 담았습니다.', 'success')
+        
+        try {
+            const response = await cartApi.addToCart({
+                trackId: track.id,
+                title: track.title,
+                artist: track.artist,
+                album: track.album || '',
+                artwork: track.artwork || '',
+                previewUrl: track.previewUrl || track.audio || ''
+            })
+            
+            if (response.success) {
+                setCartTracks(prev => [...prev, track])
+                setCartItemIds(prev => new Map(prev).set(track.id, response.cartItemId))
+                showToast('카트에 담았습니다.', 'success')
+            }
+        } catch (err: any) {
+            if (err.message?.includes('409') || err.message?.includes('already')) {
+                showToast('이미 카트에 담긴 곡입니다.', 'error')
+            } else {
+                console.error('Failed to add to cart:', err)
+                showToast('장바구니 추가 실패', 'error')
+            }
+        }
     }
 
-    const removeFromCart = (trackId: number) => {
-        setCartTracks(prev => prev.filter(t => t.id !== trackId))
+    const removeFromCart = async (trackId: number) => {
+        const cartItemId = cartItemIds.get(trackId)
+        if (!cartItemId) {
+            // fallback: 로컬 상태에서만 제거
+            setCartTracks(prev => prev.filter(t => t.id !== trackId))
+            return
+        }
+        
+        try {
+            await cartApi.removeFromCart(cartItemId)
+            setCartTracks(prev => prev.filter(t => t.id !== trackId))
+            setCartItemIds(prev => {
+                const newMap = new Map(prev)
+                newMap.delete(trackId)
+                return newMap
+            })
+        } catch (err) {
+            console.error('Failed to remove from cart:', err)
+            showToast('장바구니 삭제 실패', 'error')
+        }
     }
 
-    // 플레이리스트의 모든 트랙을 장바구니에 추가
+    // 플레이리스트의 모든 트랙을 장바구니에 추가 (DB 연동)
     const addPlaylistToCart = async (playlistId: number) => {
         try {
             const playlistDetail = await playlistsApi.getById(playlistId) as any
@@ -460,20 +532,41 @@ const ExternalMusicSpace = () => {
 
             let addedCount = 0
             for (const track of tracks) {
-                const cartTrack: ItunesTrack = {
-                    id: track.id,
-                    title: track.title,
-                    artist: track.artist,
-                    album: track.album || '',
-                    artwork: track.artwork || '',
-                    audio: track.audio || track.previewUrl || '',
-                    url: track.url || '',
-                    date: track.date || '',
-                    previewUrl: track.previewUrl || track.audio || ''
+                if (cartTracks.some(t => t.id === track.id)) {
+                    continue // 이미 있으면 스킵
                 }
-                if (!cartTracks.some(t => t.id === cartTrack.id)) {
-                    setCartTracks(prev => [...prev, cartTrack])
-                    addedCount++
+                
+                try {
+                    const response = await cartApi.addToCart({
+                        trackId: track.id,
+                        title: track.title,
+                        artist: track.artist,
+                        album: track.album || '',
+                        artwork: track.artwork || '',
+                        previewUrl: track.previewUrl || track.audio || ''
+                    })
+                    
+                    if (response.success) {
+                        const cartTrack: ItunesTrack = {
+                            id: track.id,
+                            title: track.title,
+                            artist: track.artist,
+                            album: track.album || '',
+                            artwork: track.artwork || '',
+                            audio: track.audio || track.previewUrl || '',
+                            url: track.url || '',
+                            date: track.date || '',
+                            previewUrl: track.previewUrl || track.audio || ''
+                        }
+                        setCartTracks(prev => [...prev, cartTrack])
+                        setCartItemIds(prev => new Map(prev).set(track.id, response.cartItemId))
+                        addedCount++
+                    }
+                } catch (err: any) {
+                    // 중복은 무시
+                    if (!err.message?.includes('409')) {
+                        console.warn('Failed to add track to cart:', track.title)
+                    }
                 }
             }
 
@@ -496,7 +589,7 @@ const ExternalMusicSpace = () => {
             const today = new Date().toLocaleDateString('ko-KR')
             const title = `분석 요청 (${today})`
             showToast('플레이리스트 생성 중...', 'success')
-            
+
             const createResult = await playlistsApi.create({
                 title: title,
                 description: `AI 분석 요청 (${cartTracks.length} tracks)`,
@@ -520,26 +613,40 @@ const ExternalMusicSpace = () => {
                 })
             }
 
-            // 3. FastAPI AI 분석 요청
+            // 3. 장바구니 분석 요청 (FastAPI에 전달하여 추천받고 GMS로 이동)
             showToast('AI 분석 요청 중...', 'success')
-            const result = await fastapiService.analyze(createResult.id)
-            
-            if (result.recommendation === 'approve' || result.score >= 70) {
-                // 승인되면 GMS로 이동
-                await playlistsApi.moveToSpace(createResult.id, 'GMS')
-                await playlistsApi.updateStatus(createResult.id, 'PRP') // Processing Ready to Publish
-                showToast(`AI 분석 완료! GMS로 이동 (${result.grade}등급, ${result.score}점)`, 'success')
+            showToast('모델 학습중입니다', 'info')
+            const result = await cartApi.analyzeCart({ model: 'M1' })
+
+            if (result.success) {
+                showToast(`AI 분석 완료! GMS로 이동 (${result.trackCount}곡)`, 'success')
             } else {
-                // 보류 또는 거절이면 EMS에 유지
-                showToast(`AI 분석 완료: ${result.grade}등급 (${result.score}점) - ${result.reason || 'EMS 보류'}`, 'success')
+                showToast('AI 분석 실패', 'error')
             }
 
+            // 장바구니 비우기 (DB) - 이미 Spring Boot에서 처리됨
             setCartTracks([])
+            setCartItemIds(new Map())
             setIsCartOpen(false)
             fetchPlaylists(true)
         } catch (err: any) {
             console.error('Analysis request failed', err)
             showToast(err.message || '분석 요청 실패', 'error')
+        }
+    }
+
+    // 장바구니 전체 비우기
+    const clearCart = async () => {
+        if (cartTracks.length === 0) return
+        
+        try {
+            await cartApi.clearCart()
+            setCartTracks([])
+            setCartItemIds(new Map())
+            showToast('장바구니가 비워졌습니다.', 'success')
+        } catch (err) {
+            console.error('Failed to clear cart:', err)
+            showToast('장바구니 비우기 실패', 'error')
         }
     }
 
@@ -787,10 +894,11 @@ const ExternalMusicSpace = () => {
                 isCartOpen={isCartOpen}
                 setIsCartOpen={setIsCartOpen}
                 onRemoveFromCart={removeFromCart}
+                onClearCart={clearCart}
                 onSaveToPlaylist={requestAnalysis}
             />
 
-            {/* Modals */}
+{/* Modals */}
             {(selectedDetailId || isModalLoading) && (
                 <PlaylistDetailModal
                     playlistId={selectedDetailId}
@@ -799,6 +907,34 @@ const ExternalMusicSpace = () => {
                         setSelectedDetailId(null)
                         setIsModalLoading(false)
                     }}
+                    onAddToCart={(track) => {
+                        // Track을 ItunesTrack 형식으로 변환하여 장바구니에 추가
+                        // externalMetadata가 string인 경우 파싱
+                        let previewUrl = ''
+                        if (track.externalMetadata) {
+                            if (typeof track.externalMetadata === 'string') {
+                                try {
+                                    const parsed = JSON.parse(track.externalMetadata)
+                                    previewUrl = parsed.previewUrl || ''
+                                } catch { /* ignore */ }
+                            } else {
+                                previewUrl = track.externalMetadata.previewUrl || ''
+                            }
+                        }
+                        const cartTrack: ItunesTrack = {
+                            id: track.id,
+                            title: track.title,
+                            artist: track.artist,
+                            album: track.album || '',
+                            artwork: track.artwork || '',
+                            audio: '',
+                            url: '',
+                            date: '',
+                            previewUrl
+                        }
+                        addToCart(cartTrack)
+                    }}
+                    cartTrackIds={new Set(cartTracks.map(t => t.id))}
                 />
             )}
         </div>
