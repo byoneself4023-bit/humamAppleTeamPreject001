@@ -464,7 +464,7 @@ const GatewayMusicSpace = () => {
                                     </div>
                                     
                                     {/* AI Score */}
-                                    {playlist.aiScore && (
+                                    {Number(playlist.aiScore) > 0 && (
                                         <div className={`px-3 py-1.5 rounded-full text-sm font-semibold border flex items-center gap-1.5 ${getScoreColor(Number(playlist.aiScore))}`}>
                                             <Star className="w-4 h-4" fill="currentColor" />
                                             {Math.round(Number(playlist.aiScore))}%
