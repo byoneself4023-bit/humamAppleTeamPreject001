@@ -74,7 +74,7 @@ const MusicHome = () => {
     const [bestTracks, setBestTracks] = useState<BestTrack[]>([])
     const [bestAlbums, setBestAlbums] = useState<BestAlbum[]>([])
     const [artistImages, setArtistImages] = useState<Record<string, string>>({})
-    
+
     // GMS Best Tracks with AI scores
     const [gmsBestTracks, setGmsBestTracks] = useState<(Track & { aiScore?: number })[]>([])
 
@@ -88,7 +88,7 @@ const MusicHome = () => {
 
     // Music context for playback
     const { playTrack, playPlaylist, setQueue } = useMusic()
-    
+
     // Auth context for user info
     const { user, isAuthenticated } = useAuth()
 
@@ -175,13 +175,13 @@ const MusicHome = () => {
             setPmsPlaylists(pmsRes.playlists || [])
             setGmsPlaylists(gmsRes.playlists || [])
             setEmsPlaylists(emsRes.playlists || [])
-            
+
             // Load GMS Best Tracks with AI scores
             // 회원: 본인 GMS (AI 점수순) / 비회원: 전체 GMS에서 랜덤
             if (gmsRes.playlists && gmsRes.playlists.length > 0) {
                 try {
                     let targetPlaylists: Playlist[] = []
-                    
+
                     if (isAuthenticated && user?.id) {
                         // 회원: 본인의 GMS 플레이리스트만
                         targetPlaylists = gmsRes.playlists.filter((p: Playlist) => (p as any).userId === user.id)
@@ -193,7 +193,7 @@ const MusicHome = () => {
                         // 비회원: 전체 GMS에서 랜덤 5개 플레이리스트
                         targetPlaylists = gmsRes.playlists.sort(() => Math.random() - 0.5).slice(0, 5)
                     }
-                    
+
                     // Get tracks from target playlists
                     const gmsTracksPromises = targetPlaylists.slice(0, 3).map(async (playlist: Playlist) => {
                         const details = await playlistsApi.getById(playlist.id) as any
@@ -206,7 +206,7 @@ const MusicHome = () => {
                         }))
                     })
                     const allGmsTracks = (await Promise.all(gmsTracksPromises)).flat()
-                    
+
                     let sortedTracks
                     if (isAuthenticated && user?.id) {
                         // 회원: AI 점수 높은 순
@@ -350,7 +350,7 @@ const MusicHome = () => {
                 const artistNames = (artistsRes.artists && artistsRes.artists.length > 0)
                     ? artistsRes.artists.map((a: BestArtist) => a.name)
                     : defaultArtists
-                
+
                 const imagePromises = artistNames.map(async (name: string) => {
                     try {
                         const tracks = await itunesService.search(name)
@@ -364,7 +364,7 @@ const MusicHome = () => {
                     }
                     return { name, image: null as string | null }
                 })
-                
+
                 const images = await Promise.all(imagePromises)
                 const imageMap: Record<string, string> = {}
                 images.forEach(({ name, image }) => {
@@ -416,8 +416,9 @@ const MusicHome = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-32 lg:pb-40">
+        <div className="min-h-screen bg-hud-bg-primary text-hud-text-primary px-6 md:px-10 py-8 space-y-12 pb-24 md:pb-32 lg:pb-40">
             {/* Hero Section */}
+
             <section className="hud-card hud-card-bottom rounded-xl p-6 md:p-10 mb-8 bg-gradient-to-br from-hud-accent-info/20 to-hud-accent-primary/10">
                 <div className="flex flex-col md:flex-row items-center gap-6">
                     <div className="flex-1">
@@ -439,12 +440,12 @@ const MusicHome = () => {
             </section>
 
             {/* AI Model Demo Banner */}
-            <Link 
+            <Link
                 to="/demo/ai-models"
                 className="block mb-8 group"
             >
-                <div className="hud-card rounded-xl p-6 bg-gradient-to-r from-cyan-900/40 via-purple-900/40 to-pink-900/40 border border-cyan-500/30 hover:border-cyan-400/50 transition-all overflow-hidden relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 group-hover:from-cyan-500/10 group-hover:via-purple-500/10 group-hover:to-pink-500/10 transition-all"></div>
+                <div className="hud-card rounded-xl p-6 bg-gradient-to-r from-hud-accent-primary/10 via-hud-accent-info/10 to-hud-accent-secondary/10 border border-hud-accent-primary/30 hover:border-hud-accent-primary/50 transition-all overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-hud-accent-primary/5 via-hud-accent-info/5 to-hud-accent-secondary/5 group-hover:from-hud-accent-primary/10 group-hover:via-hud-accent-info/10 group-hover:to-hud-accent-secondary/10 transition-all"></div>
                     <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-6">
                             <div className="flex -space-x-3">
@@ -473,63 +474,67 @@ const MusicHome = () => {
                         </div>
                     </div>
                 </div>
-            </Link>
+            </Link >
 
             {/* Quick Stats */}
-            <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {[
-                    { label: '총 플레이리스트', value: stats.totalPlaylists.toLocaleString(), icon: Disc, color: 'hud-accent-primary' },
-                    { label: '저장된 트랙', value: stats.totalTracks.toLocaleString(), icon: Music, color: 'hud-accent-secondary' },
-                    { label: 'AI 추천 대기', value: stats.aiPending.toLocaleString(), icon: Sparkles, color: 'hud-accent-warning' },
-                    { label: '좋아요', value: stats.likes.toLocaleString(), icon: Heart, color: 'hud-accent-danger' },
-                ].map((stat) => (
-                    <div key={stat.label} className="hud-card hud-card-bottom rounded-xl p-4 text-center">
-                        <stat.icon className={`w-6 h-6 mx-auto mb-2 text-${stat.color}`} />
-                        <div className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</div>
-                        <div className="text-xs text-hud-text-muted">{stat.label}</div>
-                    </div>
-                ))}
-            </section>
+            < section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" >
+                {
+                    [
+                        { label: '총 플레이리스트', value: stats.totalPlaylists.toLocaleString(), icon: Disc, color: 'hud-accent-primary' },
+                        { label: '저장된 트랙', value: stats.totalTracks.toLocaleString(), icon: Music, color: 'hud-accent-secondary' },
+                        { label: 'AI 추천 대기', value: stats.aiPending.toLocaleString(), icon: Sparkles, color: 'hud-accent-warning' },
+                        { label: '좋아요', value: stats.likes.toLocaleString(), icon: Heart, color: 'hud-accent-danger' },
+                    ].map((stat) => (
+                        <div key={stat.label} className="hud-card hud-card-bottom rounded-xl p-4 text-center">
+                            <stat.icon className={`w-6 h-6 mx-auto mb-2 text-${stat.color}`} />
+                            <div className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</div>
+                            <div className="text-xs text-hud-text-muted">{stat.label}</div>
+                        </div>
+                    ))
+                }
+            </section >
 
             {/* Empty State - Show if no data */}
-            {stats.totalPlaylists === 0 && (
-                <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 text-center border-2 border-dashed border-hud-border-secondary">
-                    <Music className="w-16 h-16 text-hud-text-muted mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-hud-text-primary mb-2">아직 음악 데이터가 없습니다</h3>
-                    <p className="text-hud-text-secondary mb-6">외부 플랫폼에서 플레이리스트를 가져와서 시작하세요</p>
-                    <div className="flex justify-center gap-4">
-                        <button
-                            onClick={handleForceSeed}
-                            disabled={seeding}
-                            className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all"
-                        >
-                            {seeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                            {seeding ? '데이터 로드 중...' : '자동으로 데이터 불러오기'}
-                        </button>
-                        <Link to="/music/external-space" className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                            <ArrowRight className="w-5 h-5" /> EMS로 이동
-                        </Link>
-                    </div>
-                </section>
-            )}
+            {
+                stats.totalPlaylists === 0 && (
+                    <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 text-center border-2 border-dashed border-hud-border-secondary">
+                        <Music className="w-16 h-16 text-hud-text-muted mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-hud-text-primary mb-2">아직 음악 데이터가 없습니다</h3>
+                        <p className="text-hud-text-secondary mb-6">외부 플랫폼에서 플레이리스트를 가져와서 시작하세요</p>
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={handleForceSeed}
+                                disabled={seeding}
+                                className="bg-hud-accent-primary text-hud-bg-primary px-6 py-3 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-primary/90 transition-all"
+                            >
+                                {seeding ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                                {seeding ? '데이터 로드 중...' : '자동으로 데이터 불러오기'}
+                            </button>
+                            <Link to="/music/external-space" className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
+                                <ArrowRight className="w-5 h-5" /> EMS로 이동
+                            </Link>
+                        </div>
+                    </section>
+                )
+            }
 
             {/* GMS BEST TOP % - AI 추천 베스트 */}
             <section className="mb-8">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-cyan-400" /> 
-                        <span className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                        <Sparkles className="w-5 h-5 text-hud-accent-primary" />
+                        <span className="bg-gradient-to-r from-hud-accent-primary to-hud-accent-secondary bg-clip-text text-transparent">
                             GMS BEST TOP %
                         </span>
-                        <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full ml-2">
+                        <span className="text-xs bg-hud-accent-primary/20 text-hud-accent-primary px-2 py-0.5 rounded-full ml-2">
                             {isAuthenticated ? 'My AI 추천' : '인기 추천'}
                         </span>
                     </h2>
-                    <Link to={isAuthenticated ? "/music/lab" : "/login"} className="text-cyan-400 text-sm flex items-center gap-1 hover:underline">
+                    <Link to={isAuthenticated ? "/music/lab" : "/login"} className="text-hud-accent-primary text-sm flex items-center gap-1 hover:underline">
                         {isAuthenticated ? 'GMS 전체보기' : '로그인하고 내 추천 받기'} <ArrowRight className="w-4 h-4" />
                     </Link>
                 </div>
-                
+
                 {gmsBestTracks.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                         {gmsBestTracks.slice(0, 10).map((track, idx) => (
@@ -543,44 +548,42 @@ const MusicHome = () => {
                             >
                                 {/* AI Score Badge */}
                                 <div className="absolute top-2 right-2 z-10">
-                                    <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
-                                        (track.aiScore || 0) >= 90 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' :
-                                        (track.aiScore || 0) >= 80 ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white' :
-                                        'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                                    }`}>
+                                    <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${(track.aiScore || 0) >= 90 ? 'bg-gradient-to-r from-hud-accent-warning to-hud-accent-error text-white' :
+                                        (track.aiScore || 0) >= 80 ? 'bg-gradient-to-r from-hud-accent-primary to-hud-accent-info text-white' :
+                                            'bg-gradient-to-r from-hud-accent-secondary to-hud-accent-info text-white'
+                                        }`}>
                                         <Star className="w-3 h-3" fill="currentColor" />
                                         {track.aiScore || 85}%
                                     </div>
                                 </div>
-                                
+
                                 {/* Rank Badge */}
                                 <div className="absolute top-2 left-2 z-10">
-                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                        idx === 0 ? 'bg-yellow-500 text-black' :
-                                        idx === 1 ? 'bg-gray-300 text-black' :
-                                        idx === 2 ? 'bg-orange-600 text-white' :
-                                        'bg-hud-bg-secondary text-hud-text-muted'
-                                    }`}>
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-hud-accent-warning text-black' :
+                                        idx === 1 ? 'bg-hud-text-secondary text-black' :
+                                            idx === 2 ? 'bg-hud-accent-secondary text-white' :
+                                                'bg-hud-bg-secondary text-hud-text-muted'
+                                        }`}>
                                         {idx + 1}
                                     </div>
                                 </div>
-                                
+
                                 {/* Album Art */}
-                                <div className="w-full aspect-square bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
+                                <div className="w-full aspect-square bg-gradient-to-br from-hud-accent-primary/20 to-hud-accent-secondary/20 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
                                     {track.artwork ? (
                                         <img src={track.artwork} alt={track.title} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-cyan-600 to-purple-600 flex items-center justify-center">
+                                        <div className="w-full h-full bg-gradient-to-br from-hud-accent-primary to-hud-accent-secondary flex items-center justify-center">
                                             <Music className="w-8 h-8 text-white/50" />
                                         </div>
                                     )}
-                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute inset-0 bg-hud-bg-primary/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Play className="w-10 h-10 text-white" fill="white" />
                                     </div>
                                 </div>
-                                
+
                                 {/* Track Info */}
-                                <div className="font-medium text-hud-text-primary text-sm truncate group-hover:text-cyan-400 transition-colors">
+                                <div className="font-medium text-hud-text-primary text-sm truncate group-hover:text-hud-accent-primary transition-colors">
                                     {track.title}
                                 </div>
                                 <div className="text-xs text-hud-text-muted truncate">{track.artist}</div>
@@ -588,21 +591,21 @@ const MusicHome = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="hud-card hud-card-bottom rounded-xl p-8 text-center border-2 border-dashed border-cyan-500/30 bg-gradient-to-br from-cyan-500/5 to-purple-500/5">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
-                            <Sparkles className="w-8 h-8 text-cyan-400" />
+                    <div className="hud-card hud-card-bottom rounded-xl p-8 text-center border-2 border-dashed border-hud-accent-primary/30 bg-gradient-to-br from-hud-accent-primary/5 to-hud-accent-secondary/5">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-hud-accent-primary/20 to-hud-accent-secondary/20 flex items-center justify-center">
+                            <Sparkles className="w-8 h-8 text-hud-accent-primary" />
                         </div>
                         <h3 className="text-lg font-bold text-hud-text-primary mb-2">
                             {isAuthenticated ? '아직 AI 추천 트랙이 없습니다' : 'AI 추천을 받아보세요!'}
                         </h3>
                         <p className="text-hud-text-muted text-sm mb-4">
-                            {isAuthenticated 
+                            {isAuthenticated
                                 ? 'GMS Lab에서 AI 모델로 새로운 추천을 생성해보세요!'
                                 : '로그인하고 나만의 AI 음악 추천을 받아보세요!'}
                         </p>
-                        <Link 
+                        <Link
                             to={isAuthenticated ? "/music/lab" : "/login"}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-lg hover:opacity-90 transition-all"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-hud-accent-primary to-hud-accent-secondary text-white font-semibold rounded-lg hover:opacity-90 transition-all"
                         >
                             <Sparkles className="w-4 h-4" />
                             {isAuthenticated ? '새 추천 생성하기' : '로그인하기'}
@@ -668,95 +671,97 @@ const MusicHome = () => {
                                 {platform.name} Top 5
                             </div>
                             <div className="p-4 space-y-2">
-                                                {platform.tracks.length > 0 ? platform.tracks.map((track, idx) => (
-                                                    <div
-                                                        key={`${track.title}-${idx}`}
-                                                        className="flex items-center gap-3 text-sm cursor-pointer hover:bg-hud-bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors group"
-                                                        onClick={() => {
-                                                            // Create a track object and play it
-                                                            const trackToPlay: Track = {
-                                                                id: Date.now() + idx,
-                                                                title: track.title,
-                                                                artist: track.artist,
-                                                                album: '',
-                                                                duration: 0,
-                                                                orderIndex: idx
-                                                            }
-                                                            playTrack(trackToPlay)
-                                                        }}
-                                                    >
-                                                        <span className="w-5 h-5 bg-hud-bg-secondary rounded-full flex items-center justify-center text-xs font-medium text-hud-text-muted group-hover:bg-hud-accent-primary group-hover:text-white transition-colors">{idx + 1}</span>
-                                                        <span className="text-hud-text-primary truncate flex-1">{track.title} - {track.artist}</span>
-                                                        <Play className="w-4 h-4 text-hud-accent-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                    </div>
-                                                )) : (
-                                                    <div className="text-hud-text-muted text-sm text-center py-4">데이터 로딩 중...</div>
-                                                )}
-                                            </div>
+                                {platform.tracks.length > 0 ? platform.tracks.map((track, idx) => (
+                                    <div
+                                        key={`${track.title}-${idx}`}
+                                        className="flex items-center gap-3 text-sm cursor-pointer hover:bg-hud-bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors group"
+                                        onClick={() => {
+                                            // Create a track object and play it
+                                            const trackToPlay: Track = {
+                                                id: Date.now() + idx,
+                                                title: track.title,
+                                                artist: track.artist,
+                                                album: '',
+                                                duration: 0,
+                                                orderIndex: idx
+                                            }
+                                            playTrack(trackToPlay)
+                                        }}
+                                    >
+                                        <span className="w-5 h-5 bg-hud-bg-secondary rounded-full flex items-center justify-center text-xs font-medium text-hud-text-muted group-hover:bg-hud-accent-primary group-hover:text-white transition-colors">{idx + 1}</span>
+                                        <span className="text-hud-text-primary truncate flex-1">{track.title} - {track.artist}</span>
+                                        <Play className="w-4 h-4 text-hud-accent-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                )) : (
+                                    <div className="text-hud-text-muted text-sm text-center py-4">데이터 로딩 중...</div>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
             </section>
 
             {/* Platform Playlists */}
-            {gmsPlaylists.length > 0 && (
-                <section className="mb-8">
-                    <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2 mb-4">
-                        <Disc className="w-5 h-5 text-hud-accent-info" /> 플랫폼 추천 플레이리스트
-                    </h2>
-                    <div className="grid gap-6">
-                        {[
-                            { name: 'Tidal', label: 'Tidal에서 지금 핫한', prefix: 'tidal_', color: 'from-blue-500 to-cyan-400', borderColor: 'border-blue-500' },
-                            // Apple Music removed
-                            { name: 'Spotify', label: 'Spotify 추천 플리', prefix: 'spotify_', color: 'from-green-500 to-emerald-400', borderColor: 'border-green-500' },
-                            { name: 'YouTube', label: 'YouTube 뮤직 Pick', prefix: 'youtube_', color: 'from-red-500 to-red-600', borderColor: 'border-red-500' },
-                        ].map((platform) => {
-                            const allPlatformPlaylists = gmsPlaylists.filter(p => p.externalId?.startsWith(platform.prefix))
-                            // 랜덤으로 5개 선택
-                            const platformPlaylists = getRandomItems(allPlatformPlaylists, 5)
-                            if (platformPlaylists.length === 0) return null
-                            return (
-                                <div key={platform.name} className={`hud-card hud-card-bottom rounded-xl overflow-hidden border-l-4 ${platform.borderColor}`}>
-                                    <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold flex items-center gap-2`}>
-                                        <Disc className="w-5 h-5" />
-                                        {platform.label}
-                                    </div>
-                                    <div className="p-4">
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                                            {platformPlaylists.map((playlist: Playlist) => (
-                                                <div
-                                                    key={playlist.id}
-                                                    onClick={() => setSelectedPlaylistId(playlist.id)}
-                                                    className="group cursor-pointer"
-                                                >
-                                                    <div className="aspect-square bg-hud-bg-secondary rounded-lg overflow-hidden mb-2 relative">
-                                                        {playlist.coverImage ? (
-                                                            <img
-                                                                src={playlist.coverImage}
-                                                                alt={playlist.title}
-                                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                                            />
-                                                        ) : (
-                                                            <div className={`w-full h-full bg-gradient-to-br ${platform.color} flex items-center justify-center`}>
-                                                                <Music className="w-8 h-8 text-white/70" />
+            {
+                gmsPlaylists.length > 0 && (
+                    <section className="mb-8">
+                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2 mb-4">
+                            <Disc className="w-5 h-5 text-hud-accent-info" /> 플랫폼 추천 플레이리스트
+                        </h2>
+                        <div className="grid gap-6">
+                            {[
+                                { name: 'Tidal', label: 'Tidal에서 지금 핫한', prefix: 'tidal_', color: 'from-blue-500 to-cyan-400', borderColor: 'border-blue-500' },
+                                // Apple Music removed
+                                { name: 'Spotify', label: 'Spotify 추천 플리', prefix: 'spotify_', color: 'from-green-500 to-emerald-400', borderColor: 'border-green-500' },
+                                { name: 'YouTube', label: 'YouTube 뮤직 Pick', prefix: 'youtube_', color: 'from-red-500 to-red-600', borderColor: 'border-red-500' },
+                            ].map((platform) => {
+                                const allPlatformPlaylists = gmsPlaylists.filter(p => p.externalId?.startsWith(platform.prefix))
+                                // 랜덤으로 5개 선택
+                                const platformPlaylists = getRandomItems(allPlatformPlaylists, 5)
+                                if (platformPlaylists.length === 0) return null
+                                return (
+                                    <div key={platform.name} className={`hud-card hud-card-bottom rounded-xl overflow-hidden border-l-4 ${platform.borderColor}`}>
+                                        <div className={`bg-gradient-to-r ${platform.color} px-4 py-3 text-white font-semibold flex items-center gap-2`}>
+                                            <Disc className="w-5 h-5" />
+                                            {platform.label}
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                                                {platformPlaylists.map((playlist: Playlist) => (
+                                                    <div
+                                                        key={playlist.id}
+                                                        onClick={() => setSelectedPlaylistId(playlist.id)}
+                                                        className="group cursor-pointer"
+                                                    >
+                                                        <div className="aspect-square bg-hud-bg-secondary rounded-lg overflow-hidden mb-2 relative">
+                                                            {playlist.coverImage ? (
+                                                                <img
+                                                                    src={playlist.coverImage}
+                                                                    alt={playlist.title}
+                                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                                                />
+                                                            ) : (
+                                                                <div className={`w-full h-full bg-gradient-to-br ${platform.color} flex items-center justify-center`}>
+                                                                    <Music className="w-8 h-8 text-white/70" />
+                                                                </div>
+                                                            )}
+                                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Play className="w-8 h-8 text-white" fill="white" />
                                                             </div>
-                                                        )}
-                                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Play className="w-8 h-8 text-white" fill="white" />
                                                         </div>
+                                                        <h4 className="text-sm font-medium text-hud-text-primary truncate">{playlist.title}</h4>
+                                                        <p className="text-xs text-hud-text-muted truncate">{playlist.description}</p>
                                                     </div>
-                                                    <h4 className="text-sm font-medium text-hud-text-primary truncate">{playlist.title}</h4>
-                                                    <p className="text-xs text-hud-text-muted truncate">{playlist.description}</p>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </section>
-            )}
+                                )
+                            })}
+                        </div>
+                    </section>
+                )
+            }
 
             {/* Recommended Playlists */}
             <section className="mb-8">
@@ -882,171 +887,174 @@ const MusicHome = () => {
             />
 
             {/* Artist Tracks Modal */}
-            {selectedArtist && (
-                <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
-                    onClick={closeArtistModal}
-                >
+            {
+                selectedArtist && (
                     <div
-                        className="bg-hud-bg-card border border-hud-accent-primary/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+                        onClick={closeArtistModal}
                     >
-                        {/* Header */}
-                        <div className="p-6 border-b border-hud-border-secondary bg-gradient-to-r from-hud-accent-primary/10 to-transparent">
-                            <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-hud-accent-primary shadow-lg">
-                                        {artistImages[selectedArtist] ? (
-                                            <img src={artistImages[selectedArtist]} alt={selectedArtist} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary flex items-center justify-center text-white font-bold text-2xl">
-                                                {selectedArtist.charAt(0)}
-                                            </div>
-                                        )}
+                        <div
+                            className="bg-hud-bg-card border border-hud-accent-primary/30 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="p-6 border-b border-hud-border-secondary bg-gradient-to-r from-hud-accent-primary/10 to-transparent">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-hud-accent-primary shadow-lg">
+                                            {artistImages[selectedArtist] ? (
+                                                <img src={artistImages[selectedArtist]} alt={selectedArtist} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full bg-gradient-to-br from-hud-accent-secondary to-hud-accent-primary flex items-center justify-center text-white font-bold text-2xl">
+                                                    {selectedArtist.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-hud-text-primary">{selectedArtist}</h2>
+                                            <p className="text-hud-text-muted text-sm">
+                                                {artistTracksLoading ? '검색 중...' : `${artistTracks.length}곡`}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-hud-text-primary">{selectedArtist}</h2>
-                                        <p className="text-hud-text-muted text-sm">
-                                            {artistTracksLoading ? '검색 중...' : `${artistTracks.length}곡`}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={closeArtistModal}
-                                    className="p-2 text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary rounded-lg transition-all"
-                                >
-                                    <X size={24} />
-                                </button>
-                            </div>
-                            {artistTracks.length > 0 && (
-                                <div className="mt-4 flex gap-3">
                                     <button
-                                        onClick={() => {
-                                            playPlaylist(artistTracks)
-                                            closeArtistModal()
-                                        }}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 transition-all"
+                                        onClick={closeArtistModal}
+                                        className="p-2 text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary rounded-lg transition-all"
                                     >
-                                        <Play className="w-4 h-4" fill="currentColor" />
-                                        전체 재생
+                                        <X size={24} />
                                     </button>
                                 </div>
-                            )}
-                        </div>
+                                {artistTracks.length > 0 && (
+                                    <div className="mt-4 flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                playPlaylist(artistTracks)
+                                                closeArtistModal()
+                                            }}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 transition-all"
+                                        >
+                                            <Play className="w-4 h-4" fill="currentColor" />
+                                            전체 재생
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
 
-                        {/* Track List */}
-                        <div className="flex-1 overflow-y-auto">
-                            {artistTracksLoading ? (
-                                <div className="flex flex-col items-center justify-center h-64 gap-4">
-                                    <Loader2 className="w-10 h-10 text-hud-accent-primary animate-spin" />
-                                    <p className="text-hud-text-muted">검색 중...</p>
-                                </div>
-                            ) : artistTracks.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-64 gap-4 text-hud-text-muted">
-                                    <Music className="w-16 h-16 opacity-30" />
-                                    <p>검색 결과가 없습니다</p>
-                                </div>
-                            ) : (
-                                <table className="w-full">
-                                    <thead className="bg-hud-bg-secondary/50 sticky top-0">
-                                        <tr className="border-b border-hud-border-secondary">
-                                            <th className="px-4 py-3 w-12 text-center text-xs font-bold text-hud-text-muted">#</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold text-hud-text-muted">제목</th>
-                                            <th className="px-4 py-3 text-left text-xs font-bold text-hud-text-muted hidden md:table-cell">앨범</th>
-                                            <th className="px-4 py-3 w-16 text-center text-xs font-bold text-hud-text-muted">
-                                                <Heart className="w-4 h-4 mx-auto" />
-                                            </th>
-                                            <th className="px-4 py-3 w-16 text-right text-xs font-bold text-hud-text-muted">
-                                                <Clock className="w-4 h-4 ml-auto" />
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {artistTracks.map((track, idx) => (
-                                            <tr
-                                                key={track.id}
-                                                className="group hover:bg-hud-accent-primary/10 cursor-pointer border-b border-hud-border-secondary/30 transition-colors"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <td
-                                                    className="px-4 py-3 text-center"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setQueue(artistTracks)
-                                                        playTrack(track)
-                                                    }}
-                                                >
-                                                    <span className="text-sm text-hud-text-muted group-hover:hidden">{idx + 1}</span>
-                                                    <Play className="w-4 h-4 text-hud-accent-primary hidden group-hover:block mx-auto" fill="currentColor" />
-                                                </td>
-                                                <td
-                                                    className="px-4 py-3"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setQueue(artistTracks)
-                                                        playTrack(track)
-                                                    }}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        {track.artwork ? (
-                                                            <img src={track.artwork} alt={track.title} className="w-10 h-10 rounded object-cover" />
-                                                        ) : (
-                                                            <div className="w-10 h-10 bg-hud-bg-secondary rounded flex items-center justify-center">
-                                                                <Music className="w-5 h-5 text-hud-text-muted" />
-                                                            </div>
-                                                        )}
-                                                        <div className="min-w-0">
-                                                            <div className="font-medium text-hud-text-primary truncate group-hover:text-hud-accent-primary transition-colors">
-                                                                {track.title}
-                                                            </div>
-                                                            <div className="text-xs text-hud-text-muted truncate md:hidden">{track.album}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    className="px-4 py-3 text-sm text-hud-text-muted truncate hidden md:table-cell max-w-[200px]"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setQueue(artistTracks)
-                                                        playTrack(track)
-                                                    }}
-                                                >
-                                                    {track.album}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <FavoriteButton
-                                                        track={{
-                                                            title: track.title,
-                                                            artist: track.artist,
-                                                            album: track.album,
-                                                            duration: track.duration,
-                                                            tidalId: track.tidalId,
-                                                            artwork: track.artwork
-                                                        }}
-                                                        size="sm"
-                                                    />
-                                                </td>
-                                                <td
-                                                    className="px-4 py-3 text-right text-sm text-hud-text-muted"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setQueue(artistTracks)
-                                                        playTrack(track)
-                                                    }}
-                                                >
-                                                    {track.duration > 0 ? formatDuration(track.duration) : '-'}
-                                                </td>
+                            {/* Track List */}
+                            <div className="flex-1 overflow-y-auto">
+                                {artistTracksLoading ? (
+                                    <div className="flex flex-col items-center justify-center h-64 gap-4">
+                                        <Loader2 className="w-10 h-10 text-hud-accent-primary animate-spin" />
+                                        <p className="text-hud-text-muted">검색 중...</p>
+                                    </div>
+                                ) : artistTracks.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-64 gap-4 text-hud-text-muted">
+                                        <Music className="w-16 h-16 opacity-30" />
+                                        <p>검색 결과가 없습니다</p>
+                                    </div>
+                                ) : (
+                                    <table className="w-full">
+                                        <thead className="bg-hud-bg-secondary/50 sticky top-0">
+                                            <tr className="border-b border-hud-border-secondary">
+                                                <th className="px-4 py-3 w-12 text-center text-xs font-bold text-hud-text-muted">#</th>
+                                                <th className="px-4 py-3 text-left text-xs font-bold text-hud-text-muted">제목</th>
+                                                <th className="px-4 py-3 text-left text-xs font-bold text-hud-text-muted hidden md:table-cell">앨범</th>
+                                                <th className="px-4 py-3 w-16 text-center text-xs font-bold text-hud-text-muted">
+                                                    <Heart className="w-4 h-4 mx-auto" />
+                                                </th>
+                                                <th className="px-4 py-3 w-16 text-right text-xs font-bold text-hud-text-muted">
+                                                    <Clock className="w-4 h-4 ml-auto" />
+                                                </th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
+                                        </thead>
+                                        <tbody>
+                                            {artistTracks.map((track, idx) => (
+                                                <tr
+                                                    key={track.id}
+                                                    className="group hover:bg-hud-accent-primary/10 cursor-pointer border-b border-hud-border-secondary/30 transition-colors"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <td
+                                                        className="px-4 py-3 text-center"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setQueue(artistTracks)
+                                                            playTrack(track)
+                                                        }}
+                                                    >
+                                                        <span className="text-sm text-hud-text-muted group-hover:hidden">{idx + 1}</span>
+                                                        <Play className="w-4 h-4 text-hud-accent-primary hidden group-hover:block mx-auto" fill="currentColor" />
+                                                    </td>
+                                                    <td
+                                                        className="px-4 py-3"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setQueue(artistTracks)
+                                                            playTrack(track)
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            {track.artwork ? (
+                                                                <img src={track.artwork} alt={track.title} className="w-10 h-10 rounded object-cover" />
+                                                            ) : (
+                                                                <div className="w-10 h-10 bg-hud-bg-secondary rounded flex items-center justify-center">
+                                                                    <Music className="w-5 h-5 text-hud-text-muted" />
+                                                                </div>
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <div className="font-medium text-hud-text-primary truncate group-hover:text-hud-accent-primary transition-colors">
+                                                                    {track.title}
+                                                                </div>
+                                                                <div className="text-xs text-hud-text-muted truncate md:hidden">{track.album}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td
+                                                        className="px-4 py-3 text-sm text-hud-text-muted truncate hidden md:table-cell max-w-[200px]"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setQueue(artistTracks)
+                                                            playTrack(track)
+                                                        }}
+                                                    >
+                                                        {track.album}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        <FavoriteButton
+                                                            track={{
+                                                                title: track.title,
+                                                                artist: track.artist,
+                                                                album: track.album,
+                                                                duration: track.duration,
+                                                                tidalId: track.tidalId,
+                                                                artwork: track.artwork
+                                                            }}
+                                                            size="sm"
+                                                        />
+                                                    </td>
+                                                    <td
+                                                        className="px-4 py-3 text-right text-sm text-hud-text-muted"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setQueue(artistTracks)
+                                                            playTrack(track)
+                                                        }}
+                                                    >
+                                                        {track.duration > 0 ? formatDuration(track.duration) : '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </div>
     )
 }
+
 
 export default MusicHome

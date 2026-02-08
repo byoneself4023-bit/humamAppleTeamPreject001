@@ -3,6 +3,7 @@ import { X, Loader2, Music2, Clock, Calendar, Hash, GripHorizontal, Play, Heart,
 import { playlistsApi, PlaylistWithTracks, Track } from '../../services/api/playlists'
 import { useMusic } from '../../context/MusicContext'
 import FavoriteButton from './FavoriteButton'
+import { useTheme } from '../../contexts/ThemeContext'
 
 interface PlaylistDetailModalProps {
     isOpen: boolean
@@ -18,6 +19,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
     const [error, setError] = useState<string | null>(null)
     const [imageError, setImageError] = useState(false)
     const { playPlaylist, playTrack, setQueue } = useMusic()
+    const { theme } = useTheme()
 
     // Drag state
     const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -128,70 +130,119 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
             <div
                 ref={modalRef}
                 style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-                className={`bg-hud-bg-card border-2 border-hud-accent-primary/30 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl shadow-hud-accent-primary/20 relative overflow-hidden animate-scale-up ${isDragging ? 'cursor-grabbing' : ''}`}
+                className={`
+                    border-2 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl relative overflow-hidden animate-scale-up ${isDragging ? 'cursor-grabbing' : ''}
+                    ${theme === 'jazz' || theme === 'soul'
+                        ? 'bg-hud-bg-primary/95 border-hud-accent-primary/50 shadow-hud-accent-primary/20 backdrop-blur-xl'
+                        : 'bg-hud-bg-card border-hud-accent-primary/30 shadow-hud-accent-primary/20'
+                    }
+                `}
             >
                 {/* Gradient Border Effect */}
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-hud-accent-primary/20 via-transparent to-hud-accent-info/20 pointer-events-none"></div>
+                <div className={`absolute inset-0 rounded-2xl pointer-events-none ${theme === 'jazz'
+                    ? 'bg-gradient-to-r from-hud-accent-primary/10 via-transparent to-hud-accent-secondary/10'
+                    : theme === 'soul'
+                        ? 'bg-gradient-to-r from-[#9D4EDD]/20 via-transparent to-[#4361EE]/20'
+                        : 'bg-gradient-to-r from-hud-accent-primary/20 via-transparent to-hud-accent-info/20'
+                    }`}></div>
 
                 {/* Header (draggable) */}
                 <div
-                    className="relative px-5 pt-3 pb-4 bg-gradient-to-b from-hud-accent-primary/10 to-hud-bg-card border-b border-hud-border-secondary shrink-0"
+                    className={`relative px-5 pt-5 pb-6 shrink-0 z-10 overflow-hidden ${theme === 'jazz' || theme === 'soul'
+                        ? 'border-b border-hud-accent-primary/20'
+                        : 'bg-gradient-to-b from-hud-accent-primary/10 to-hud-bg-card border-b border-hud-border-secondary'
+                        }`}
                 >
+                    {/* Theme Background for Header */}
+                    {(theme === 'jazz' || theme === 'soul') && playlist?.coverImage && !imageError && (
+                        <>
+                            <div className="absolute inset-0 bg-hud-bg-primary/80 z-0"></div>
+                            <img
+                                src={fixImageUrl(playlist.coverImage)}
+                                className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-40 z-[-1]"
+                                alt=""
+                            />
+                        </>
+                    )}
+
                     {/* Drag Handle */}
                     <div
                         onMouseDown={handleMouseDown}
-                        className="flex justify-center mb-3 cursor-grab active:cursor-grabbing"
+                        className="flex justify-center mb-4 cursor-grab active:cursor-grabbing relative z-10"
                     >
-                        <div className="w-10 h-1 rounded-full bg-hud-text-muted/30 hover:bg-hud-accent-primary/50 transition-colors" />
+                        <div className={`w-12 h-1.5 rounded-full transition-colors ${theme === 'jazz' ? 'bg-hud-accent-primary/40 hover:bg-hud-accent-primary/70' : 'bg-hud-text-muted/30 hover:bg-hud-accent-primary/50'
+                            }`} />
                     </div>
 
                     {loading ? (
-                        <div className="h-16 animate-pulse bg-hud-bg-secondary w-full rounded-lg"></div>
+                        <div className="h-16 animate-pulse bg-hud-bg-secondary w-full rounded-lg relative z-10"></div>
                     ) : playlist ? (
-                        <div className="flex items-center gap-4">
-                            {/* Album Cover - compact */}
-                            <div className="w-16 h-16 rounded-lg overflow-hidden shadow-lg border border-hud-accent-primary/20 shrink-0 relative group bg-hud-bg-secondary">
+                        <div className="flex items-center gap-5 relative z-10">
+                            {/* Album Cover */}
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden shadow-2xl shrink-0 relative group ${theme === 'jazz' ? 'border-2 border-hud-accent-primary/30 ring-4 ring-black/20' : 'border border-hud-accent-primary/20'
+                                }`}>
                                 {fixImageUrl(playlist.coverImage) && !imageError ? (
                                     <img
                                         src={fixImageUrl(playlist.coverImage)}
                                         alt={playlist.title}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                         onError={() => setImageError(true)}
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-hud-accent-primary/20 to-hud-accent-info/20">
-                                        <Music2 className="w-8 h-8 text-hud-accent-primary/50" />
+                                        <Music2 className="w-10 h-10 text-hud-accent-primary/50" />
                                     </div>
                                 )}
                             </div>
 
                             {/* Title + Stats */}
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-bold text-hud-accent-primary uppercase tracking-widest px-1.5 py-0.5 bg-hud-accent-primary/10 rounded">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded shadow-sm ${theme === 'jazz'
+                                        ? 'bg-hud-accent-primary text-hud-bg-primary'
+                                        : theme === 'soul'
+                                            ? 'bg-[#93C5FD] text-slate-900 shadow-[0_0_10px_rgba(147,197,253,0.5)]'
+                                            : 'text-hud-accent-primary bg-hud-accent-primary/10'
+                                        }`}>
                                         Playlist
                                     </span>
-                                    <span className="text-xs text-hud-text-muted">
+                                    <span className={`text-xs ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>
                                         {playlist.tracks?.length || 0} tracks
                                     </span>
                                 </div>
-                                <h2 className="text-xl font-bold text-hud-text-primary truncate">
+                                <h2 className={`text-2xl sm:text-3xl font-bold truncate mb-1 ${theme === 'jazz'
+                                    ? 'text-hud-accent-primary drop-shadow-md font-serif tracking-wide'
+                                    : theme === 'soul'
+                                        ? 'text-[#A5F3FC] drop-shadow-[0_0_5px_rgba(165,243,252,0.5)] tracking-tight'
+                                        : 'text-hud-text-primary'
+                                    }`}>
                                     {playlist.title}
                                 </h2>
+                                <p className={`text-sm line-clamp-1 ${theme === 'jazz' ? 'text-hud-text-primary/80' : theme === 'soul' ? 'text-[#CBD5E1]' : 'text-hud-text-secondary'}`}>
+                                    Created in {theme === 'jazz' ? 'the Jazz Lounge' : theme === 'soul' ? 'Cloud 9' : 'Music Space'}
+                                </p>
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-3 shrink-0">
                                 <button
                                     onClick={() => playlist?.tracks && playPlaylist(playlist.tracks)}
-                                    className="flex items-center gap-2 px-5 py-2 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 hover:shadow-lg hover:shadow-hud-accent-primary/50 transition-all text-sm"
+                                    className={`flex items-center gap-2 px-6 py-2.5 font-bold rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg ${theme === 'jazz'
+                                        ? 'bg-hud-accent-primary text-hud-bg-primary shadow-hud-accent-primary/30 hover:bg-hud-accent-primary/90'
+                                        : theme === 'soul'
+                                            ? 'bg-[#93C5FD] text-slate-900 shadow-[0_0_15px_rgba(147,197,253,0.4)] hover:bg-[#60A5FA]'
+                                            : 'bg-hud-accent-primary text-black shadow-hud-accent-primary/50'
+                                        }`}
                                 >
-                                    <Play className="w-4 h-4" fill="currentColor" />
+                                    <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
                                     Play All
                                 </button>
                                 <button
                                     onClick={onClose}
-                                    className="p-2 text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary rounded-lg transition-all"
+                                    className={`p-2.5 rounded-full transition-all ${theme === 'jazz' || theme === 'soul'
+                                        ? 'text-hud-accent-primary hover:bg-hud-accent-primary/10 border border-hud-accent-primary/20'
+                                        : 'text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary'
+                                        }`}
                                 >
                                     <X size={20} />
                                 </button>
@@ -203,7 +254,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                 </div>
 
                 {/* Content - Track List */}
-                <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-hud-bg-card">
+                <div className={`flex-1 overflow-y-auto p-0 custom-scrollbar ${theme === 'jazz' || theme === 'soul' ? 'bg-transparent' : 'bg-hud-bg-card'}`}>
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-full gap-4 text-hud-text-muted">
                             <Loader2 className="w-12 h-12 animate-spin text-hud-accent-primary" />
@@ -221,17 +272,22 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                         </div>
                     ) : (
                         <table className="w-full text-left border-collapse">
-                            <thead className="bg-hud-bg-secondary/80 backdrop-blur-sm sticky top-0 z-10">
-                                <tr className="border-b border-hud-border-secondary">
-                                    <th className="px-4 py-2.5 w-12 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">#</th>
-                                    <th className="px-4 py-2.5 text-xs font-black text-hud-text-muted uppercase tracking-wider">Title</th>
-                                    <th className="px-4 py-2.5 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden md:table-cell">Artist</th>
-                                    <th className="px-4 py-2.5 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden lg:table-cell">Album</th>
-                                    <th className="px-4 py-2.5 w-24 text-right text-xs font-black text-hud-text-muted uppercase tracking-wider">
+                            <thead className={`sticky top-0 z-10 backdrop-blur-md ${theme === 'jazz'
+                                ? 'bg-hud-bg-primary/60 border-b border-hud-accent-primary/20'
+                                : theme === 'soul'
+                                    ? 'bg-[#1E293B]/60 border-b border-[#93C5FD]/20'
+                                    : 'bg-hud-bg-secondary/80 border-b border-hud-border-secondary'
+                                }`}>
+                                <tr>
+                                    <th className={`px-4 py-3 w-12 text-center text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>#</th>
+                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Title</th>
+                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider hidden md:table-cell ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Artist</th>
+                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider hidden lg:table-cell ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Album</th>
+                                    <th className={`px-4 py-3 w-24 text-right text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>
                                         <Clock className="w-3.5 h-3.5 ml-auto" />
                                     </th>
                                     {onAddToCart && (
-                                        <th className="px-4 py-2.5 w-12 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">
+                                        <th className={`px-4 py-3 w-12 text-center text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>
                                             <ShoppingCart className="w-3.5 h-3.5 mx-auto" />
                                         </th>
                                     )}
@@ -248,51 +304,65 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                                                     playTrack(track)
                                                 }
                                             }}
-                                            className="group hover:bg-gradient-to-r hover:from-hud-accent-primary/10 hover:to-transparent transition-all duration-200 cursor-pointer border-b border-hud-border-secondary/30 hover:border-hud-accent-primary/30"
+                                            className={`
+                                                group transition-all duration-200 cursor-pointer border-b
+                                                ${theme === 'jazz'
+                                                    ? 'border-hud-accent-primary/5 hover:bg-hud-accent-primary/10 hover:border-hud-accent-primary/20'
+                                                    : theme === 'soul'
+                                                        ? 'border-[#93C5FD]/5 hover:bg-[#93C5FD]/10 hover:border-[#93C5FD]/20 hover:shadow-[0_0_10px_rgba(147,197,253,0.1)]'
+                                                        : 'border-hud-border-secondary hover:bg-hud-bg-hover'
+                                                }
+                                            `}
                                         >
-                                            <td className="px-4 py-2 text-center">
+                                            <td className="px-4 py-3 text-center">
                                                 <div className="flex items-center justify-center">
-                                                    <span className="text-xs text-hud-text-muted group-hover:hidden font-mono">
+                                                    <span className={`text-xs group-hover:hidden font-mono ${theme === 'jazz' ? 'text-hud-accent-primary/60' : 'text-hud-text-muted'}`}>
                                                         {index + 1}
                                                     </span>
                                                     <Play className="w-3.5 h-3.5 text-hud-accent-primary hidden group-hover:block" fill="currentColor" />
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-2">
-                                                <div className="text-sm font-medium text-hud-text-primary group-hover:text-hud-accent-primary transition-colors truncate">{track.title}</div>
-                                                <div className="text-xs text-hud-text-secondary md:hidden">{track.artist}</div>
+                                            <td className="px-4 py-3">
+                                                <div className={`text-sm font-medium transition-colors truncate ${theme === 'jazz'
+                                                    ? 'text-hud-text-primary group-hover:text-hud-accent-primary font-serif tracking-wide'
+                                                    : 'text-hud-text-primary group-hover:text-hud-accent-primary'
+                                                    }`}>{track.title}</div>
+                                                <div className={`text-xs md:hidden ${theme === 'jazz' ? 'text-hud-text-muted' : 'text-hud-text-secondary'}`}>{track.artist}</div>
                                             </td>
-                                            <td className="px-4 py-2 text-sm text-hud-text-secondary hidden md:table-cell group-hover:text-hud-text-primary transition-colors">
+                                            <td className={`px-4 py-3 text-sm hidden md:table-cell transition-colors ${theme === 'jazz' ? 'text-hud-text-primary/70 group-hover:text-hud-text-primary' : 'text-hud-text-secondary group-hover:text-hud-text-primary'
+                                                }`}>
                                                 {track.artist}
                                             </td>
-                                            <td className="px-4 py-2 text-xs text-hud-text-muted hidden lg:table-cell truncate max-w-[200px]">
+                                            <td className={`px-4 py-3 text-xs hidden lg:table-cell truncate max-w-[200px] ${theme === 'jazz' ? 'text-hud-text-muted/80' : 'text-hud-text-muted'
+                                                }`}>
                                                 {track.album}
                                             </td>
-                                            <td className="px-4 py-2 text-right">
-                                                <div className="flex items-center justify-end gap-2">
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-3">
                                                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                                                         <FavoriteButton
                                                             track={{ title: track.title, artist: track.artist, album: track.album, duration: track.duration, artwork: track.artwork }}
                                                             size="sm"
                                                         />
                                                     </div>
-                                                    <span className="text-xs text-hud-text-muted font-mono">
+                                                    <span className={`text-xs font-mono ${theme === 'jazz' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>
                                                         {formatDuration(track.duration)}
                                                     </span>
                                                 </div>
                                             </td>
                                             {onAddToCart && (
-                                                <td className="px-4 py-2 text-center">
+                                                <td className="px-4 py-3 text-center">
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             onAddToCart(track)
                                                         }}
-                                                        className={`p-1.5 rounded-full transition-all hover:scale-110 ${
-                                                            cartTrackIds?.has(track.id)
-                                                                ? 'bg-hud-accent-warning/30 text-hud-accent-warning'
+                                                        className={`p-1.5 rounded-full transition-all hover:scale-110 ${cartTrackIds?.has(track.id)
+                                                            ? 'bg-hud-accent-warning/30 text-hud-accent-warning'
+                                                            : theme === 'jazz'
+                                                                ? 'bg-hud-accent-primary/10 hover:bg-hud-accent-warning/20 text-hud-accent-primary hover:text-hud-accent-warning'
                                                                 : 'bg-hud-bg-secondary hover:bg-hud-accent-warning/20 text-hud-text-muted hover:text-hud-accent-warning'
-                                                        }`}
+                                                            }`}
                                                         title={cartTrackIds?.has(track.id) ? "장바구니에 담김" : "장바구니에 담기"}
                                                     >
                                                         <ShoppingCart className="w-3.5 h-3.5" fill={cartTrackIds?.has(track.id) ? "currentColor" : "none"} />
@@ -302,7 +372,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                                         </tr>
                                     ))
                                 ) : (
-<tr>
+                                    <tr>
                                         <td colSpan={onAddToCart ? 6 : 5} className="p-16 text-center">
                                             <Music2 className="w-16 h-16 text-hud-text-muted/30 mx-auto mb-4" />
                                             <p className="text-hud-text-muted text-lg">No tracks found in this playlist.</p>

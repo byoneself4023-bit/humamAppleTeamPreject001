@@ -1,4 +1,4 @@
-import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X } from 'lucide-react'
+import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X, LayoutDashboard } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 
@@ -20,7 +20,7 @@ const MusicSidebar = () => {
             {/* Overlay */}
             {isOpen && (
                 <div
-                    className="md:hidden fixed inset-0 bg-black/60 z-40"
+                    className="md:hidden fixed inset-0 bg-hud-bg-primary/80 backdrop-blur-sm z-40"
                     onClick={() => setIsOpen(false)}
                 />
             )}
@@ -125,7 +125,7 @@ const MusicSidebar = () => {
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/connections')
                                 ? 'menu-active text-hud-accent-primary'
                                 : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
-                            }`}
+                                }`}
                         >
                             <Plug className="w-5 h-5" />
                             <span>Connections</span>
@@ -136,10 +136,35 @@ const MusicSidebar = () => {
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/settings')
                                 ? 'menu-active text-hud-accent-primary'
                                 : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
-                            }`}
+                                }`}
                         >
                             <Settings className="w-5 h-5" />
                             <span>Settings</span>
+                        </Link>
+
+                        <Link
+                            to="/admin"
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/admin')
+                                ? 'menu-active text-hud-accent-primary'
+                                : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
+                                }`}
+                        >
+                            <LayoutDashboard className="w-5 h-5" />
+                            <span>Admin Portal</span>
+                        </Link>
+
+                        {/* Admin / Theme Config */}
+                        <Link
+                            to="/music/theme-config"
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all mt-6 border-t border-hud-border-secondary pt-4 ${isActive('/music/theme-config')
+                                ? 'text-hud-accent-warning'
+                                : 'text-hud-text-muted hover:text-hud-accent-warning'
+                                }`}
+                        >
+                            <span className="text-lg">🎨</span>
+                            <span>Theme Config</span>
                         </Link>
                     </nav>
                 </div>

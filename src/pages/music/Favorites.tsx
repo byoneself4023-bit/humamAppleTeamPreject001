@@ -3,6 +3,7 @@ import { Heart, Play, Trash2, Loader2, Music, LayoutGrid, List, CheckCircle, XCi
 import { favoritesService } from '../../services/api/favorites'
 import { Track } from '../../services/api/playlists'
 import { useMusic } from '../../context/MusicContext'
+import { useTheme } from '../../contexts/ThemeContext'
 
 type ViewMode = 'grid' | 'list'
 
@@ -68,15 +69,63 @@ const Favorites = () => {
         }
     }
 
+    const { theme } = useTheme()
+
+    // Theme-specific styles
+    const getHeroStyles = () => {
+        switch (theme) {
+            case 'jazz':
+                return {
+                    bgGradient: 'from-[#2C1F16] via-[#3C2A1E] to-[#1A0B05]',
+                    accentGradient: 'from-[#D4AF37]/20 via-[#B8860B]/10 to-[#8B4513]/20',
+                    orbColor: 'bg-[#D4AF37]/10',
+                    iconBg: 'bg-gradient-to-br from-[#D4AF37] via-[#C5A028] to-[#8B4513]',
+                    iconShadow: 'shadow-[#D4AF37]/25',
+                    textColor: 'text-[#D4AF37]',
+                    subTextColor: 'text-[#D4AF37]/80',
+                    buttonBg: 'bg-[#D4AF37] text-[#1A0B05]',
+                    buttonHover: 'hover:shadow-[#D4AF37]/20',
+                    borderGlow: 'from-transparent via-[#D4AF37]/40 to-transparent'
+                }
+            case 'soul':
+                return {
+                    bgGradient: 'from-[#1E293B] via-[#334155] to-[#0F172A]',
+                    accentGradient: 'from-[#93C5FD]/20 via-[#60A5FA]/10 to-[#3B82F6]/20',
+                    orbColor: 'bg-[#93C5FD]/10',
+                    iconBg: 'bg-gradient-to-br from-[#93C5FD] via-[#60A5FA] to-[#2563EB]',
+                    iconShadow: 'shadow-[#93C5FD]/25',
+                    textColor: 'text-[#93C5FD]',
+                    subTextColor: 'text-[#93C5FD]/80',
+                    buttonBg: 'bg-[#93C5FD] text-[#0F172A]',
+                    buttonHover: 'hover:shadow-[#93C5FD]/20',
+                    borderGlow: 'from-transparent via-[#93C5FD]/40 to-transparent'
+                }
+            default: // Default (Rose/Pink)
+                return {
+                    bgGradient: 'from-[#1a0a1e] via-[#2d1033] to-[#0f0a1a]',
+                    accentGradient: 'from-rose-500/15 via-pink-500/10 to-purple-600/15',
+                    orbColor: 'bg-rose-500/10',
+                    iconBg: 'bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600',
+                    iconShadow: 'shadow-rose-500/25',
+                    textColor: 'text-rose-400',
+                    subTextColor: 'text-rose-400/80',
+                    buttonBg: 'bg-white text-[#1a0a1e]',
+                    buttonHover: 'hover:shadow-rose-500/20',
+                    borderGlow: 'from-transparent via-rose-500/40 to-transparent'
+                }
+        }
+    }
+
+    const hero = getHeroStyles()
+
     return (
         <div className="p-4 md:p-6 pb-32">
             {/* Toast Notification */}
             {toast && (
-                <div className={`fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 ${
-                    toast.type === 'success'
-                        ? 'bg-hud-accent-success/20 border border-hud-accent-success/30 text-hud-accent-success'
-                        : 'bg-hud-accent-danger/20 border border-hud-accent-danger/30 text-hud-accent-danger'
-                }`}>
+                <div className={`fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 ${toast.type === 'success'
+                    ? 'bg-hud-accent-success/20 border border-hud-accent-success/30 text-hud-accent-success'
+                    : 'bg-hud-accent-danger/20 border border-hud-accent-danger/30 text-hud-accent-danger'
+                    }`}>
                     {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                     {toast.message}
                 </div>
@@ -85,14 +134,12 @@ const Favorites = () => {
             {/* Hero Section */}
             <section className="rounded-xl mb-8 relative overflow-hidden min-h-[200px]">
                 {/* Multi-layer gradient background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a1e] via-[#2d1033] to-[#0f0a1a]" />
-                <div className="absolute inset-0 bg-gradient-to-r from-rose-500/15 via-pink-500/10 to-purple-600/15" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(244,63,94,0.2),transparent_60%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(168,85,247,0.15),transparent_60%)]" />
+                <div className={`absolute inset-0 bg-gradient-to-br ${hero.bgGradient}`} />
+                <div className={`absolute inset-0 bg-gradient-to-r ${hero.accentGradient}`} />
 
                 {/* Decorative orbs */}
-                <div className="absolute -top-20 -right-20 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl" />
-                <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
+                <div className={`absolute -top-20 -right-20 w-64 h-64 ${hero.orbColor} rounded-full blur-3xl`} />
+                <div className={`absolute -bottom-16 -left-16 w-48 h-48 ${hero.orbColor} rounded-full blur-3xl`} />
 
                 {/* Grid pattern overlay */}
                 <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
@@ -102,22 +149,22 @@ const Favorites = () => {
                     <div className="flex items-center gap-6 md:gap-8">
                         {/* Heart icon with glow */}
                         <div className="relative shrink-0">
-                            <div className="absolute inset-0 bg-rose-500/30 rounded-2xl blur-xl scale-110" />
-                            <div className="relative w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-rose-500/25">
+                            <div className={`absolute inset-0 ${hero.iconBg} rounded-2xl blur-xl scale-110 opacity-30`} />
+                            <div className={`relative w-24 h-24 md:w-28 md:h-28 ${hero.iconBg} rounded-2xl flex items-center justify-center shadow-2xl ${hero.iconShadow}`}>
                                 <Heart className="w-12 h-12 md:w-14 md:h-14 text-white drop-shadow-lg" fill="white" />
                             </div>
                         </div>
 
                         {/* Title & info */}
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400/80 mb-2">Collection</p>
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-3 tracking-tight">
+                            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${hero.subTextColor} mb-2`}>Collection</p>
+                            <h1 className={`text-3xl md:text-5xl font-extrabold ${theme === 'jazz' ? 'text-[#D4AF37] font-serif' : theme === 'soul' ? 'text-white' : 'text-white'} mb-3 tracking-tight`}>
                                 My Favorites
                             </h1>
-                            <p className="text-base text-white/50">
-                                {loading ? '로딩 중...' : (
+                            <p className={`text-base ${theme === 'jazz' ? 'text-[#D4AF37]/60' : 'text-white/50'}`}>
+                                {loading ? 'Loading...' : (
                                     <>
-                                        <span className="text-white/80 font-medium">{favorites.length}</span>곡의 좋아요한 음악
+                                        <span className={`${theme === 'jazz' ? 'text-[#D4AF37]' : 'text-white/80'} font-medium`}>{favorites.length}</span> tracks liked
                                     </>
                                 )}
                             </p>
@@ -127,26 +174,29 @@ const Favorites = () => {
                         {favorites.length > 0 && (
                             <button
                                 onClick={handlePlayAll}
-                                className="group flex items-center gap-3 px-7 py-3.5 bg-white text-[#1a0a1e] rounded-full font-bold hover:scale-105 hover:shadow-xl hover:shadow-rose-500/20 transition-all duration-200 shrink-0"
+                                className={`group flex items-center gap-3 px-7 py-3.5 ${hero.buttonBg} rounded-full font-bold hover:scale-105 hover:shadow-xl ${hero.buttonHover} transition-all duration-200 shrink-0`}
                             >
                                 <Play className="w-5 h-5" fill="currentColor" />
-                                <span className="hidden sm:inline">전체 재생</span>
+                                <span className="hidden sm:inline">Play All</span>
                             </button>
                         )}
                     </div>
                 </div>
 
                 {/* Bottom border glow */}
-                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
+                <div className={`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r ${hero.borderGlow}`} />
             </section>
 
             {/* Section Header + View Toggle */}
             <section className="mb-8">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-bold text-hud-text-primary flex items-center gap-3">
+                        <h2 className={`text-2xl font-bold ${theme === 'jazz' ? 'text-[#D4AF37]' : theme === 'soul' ? 'text-[#93C5FD]' : 'text-hud-text-primary'} flex items-center gap-3`}>
                             Liked Songs
-                            <span className="bg-gradient-to-r from-pink-500 to-red-500 px-3 py-1 rounded-full text-xs font-semibold uppercase text-white">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${theme === 'jazz' ? 'bg-[#D4AF37] text-[#1A0B05]' :
+                                    theme === 'soul' ? 'bg-[#93C5FD] text-[#0F172A]' :
+                                        'bg-gradient-to-r from-pink-500 to-red-500 text-white'
+                                }`}>
                                 PMS
                             </span>
                         </h2>
@@ -158,11 +208,10 @@ const Favorites = () => {
                         <div className="flex items-center gap-1 bg-hud-bg-secondary rounded-lg p-1">
                             <button
                                 onClick={() => handleViewModeChange('grid')}
-                                className={`p-2 rounded-md transition-all flex items-center gap-1 ${
-                                    viewMode === 'grid'
-                                        ? 'bg-hud-accent-danger text-white'
-                                        : 'text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-hover'
-                                }`}
+                                className={`p-2 rounded-md transition-all flex items-center gap-1 ${viewMode === 'grid'
+                                    ? theme === 'jazz' ? 'bg-[#D4AF37] text-[#1A0B05]' : theme === 'soul' ? 'bg-[#93C5FD] text-[#0F172A]' : 'bg-hud-accent-danger text-white'
+                                    : 'text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-hover'
+                                    }`}
                                 title="그리드 뷰"
                             >
                                 <LayoutGrid size={18} />
@@ -170,11 +219,10 @@ const Favorites = () => {
                             </button>
                             <button
                                 onClick={() => handleViewModeChange('list')}
-                                className={`p-2 rounded-md transition-all flex items-center gap-1 ${
-                                    viewMode === 'list'
-                                        ? 'bg-hud-accent-danger text-white'
-                                        : 'text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-hover'
-                                }`}
+                                className={`p-2 rounded-md transition-all flex items-center gap-1 ${viewMode === 'list'
+                                    ? theme === 'jazz' ? 'bg-[#D4AF37] text-[#1A0B05]' : theme === 'soul' ? 'bg-[#93C5FD] text-[#0F172A]' : 'bg-hud-accent-danger text-white'
+                                    : 'text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-hover'
+                                    }`}
                                 title="목록 뷰"
                             >
                                 <List size={18} />
@@ -187,7 +235,7 @@ const Favorites = () => {
                 {/* Content */}
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-16">
-                        <Loader2 className="w-10 h-10 text-hud-accent-danger animate-spin mb-4" />
+                        <Loader2 className={`w-10 h-10 animate-spin mb-4 ${theme === 'jazz' ? 'text-[#D4AF37]' : theme === 'soul' ? 'text-[#93C5FD]' : 'text-hud-accent-danger'}`} />
                         <p className="text-hud-text-secondary">좋아요한 곡을 불러오는 중...</p>
                     </div>
                 ) : favorites.length === 0 ? (
@@ -199,7 +247,10 @@ const Favorites = () => {
                         <p className="text-hud-text-secondary mb-6">음악을 들으면서 하트를 눌러 좋아요를 추가해보세요</p>
                         <a
                             href="/music/lounge"
-                            className="inline-flex items-center gap-2 bg-hud-accent-danger text-white px-6 py-3 rounded-lg font-semibold hover:bg-hud-accent-danger/90 transition-all"
+                            className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${theme === 'jazz' ? 'bg-[#D4AF37] text-[#1A0B05] hover:bg-[#B8860B]' :
+                                theme === 'soul' ? 'bg-[#93C5FD] text-[#0F172A] hover:bg-[#60A5FA]' :
+                                    'bg-hud-accent-danger text-white hover:bg-hud-accent-danger/90'
+                                }`}
                         >
                             <Music className="w-5 h-5" />
                             Music Lounge로 이동
@@ -215,11 +266,14 @@ const Favorites = () => {
                                 className="hud-card rounded-xl overflow-hidden cursor-pointer group hover:border-hud-accent-danger/30 transition-all"
                             >
                                 {/* Artwork */}
-                                <div className="aspect-square bg-gradient-to-br from-hud-accent-danger/20 to-pink-500/20 flex items-center justify-center overflow-hidden relative">
+                                <div className={`aspect-square flex items-center justify-center overflow-hidden relative ${theme === 'jazz' ? 'bg-gradient-to-br from-[#D4AF37]/20 to-[#8B4513]/20' :
+                                    theme === 'soul' ? 'bg-gradient-to-br from-[#93C5FD]/20 to-[#3B82F6]/20' :
+                                        'bg-gradient-to-br from-hud-accent-danger/20 to-pink-500/20'
+                                    }`}>
                                     {track.artwork ? (
                                         <img src={track.artwork} alt={track.title} className="w-full h-full object-cover" />
                                     ) : (
-                                        <Music className="w-16 h-16 text-hud-accent-danger/50" />
+                                        <Music className={`w-16 h-16 ${theme === 'jazz' ? 'text-[#D4AF37]/50' : theme === 'soul' ? 'text-[#93C5FD]/50' : 'text-hud-accent-danger/50'}`} />
                                     )}
                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Play className="w-12 h-12 text-white" fill="white" />

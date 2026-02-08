@@ -2,6 +2,107 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   THEME VARIABLES
+   ============================================ */
+:root {
+  /* Default Theme (HUD / Cyberpunk) */
+  --hud-bg-primary: #0E1726;
+  --hud-bg-secondary: #141B2D;
+  --hud-bg-card: rgba(20, 27, 45, 0.8);
+  --hud-bg-hover: rgba(30, 40, 60, 0.9);
+
+  --hud-text-primary: #FFFFFF;
+  --hud-text-secondary: #A0AEC0;
+  --hud-text-muted: #64748B;
+
+  --hud-accent-primary: #00FFCC;
+  /* Cyan */
+  --hud-accent-secondary: #FF1493;
+  /* Pink */
+
+  --hud-border-primary: rgba(0, 255, 204, 0.3);
+  --hud-border-secondary: rgba(255, 255, 255, 0.1);
+
+  /* Semantic Colors (Default) */
+  --hud-accent-info: #6366F1;
+  --hud-accent-success: #10B981;
+  --hud-accent-warning: #FFA500;
+  --hud-accent-error: #EF4444;
+}
+
+/* Jazz Cafe Theme */
+/* Jazz Cafe Theme */
+.theme-jazz {
+  /* Warm Dark Brown Backgrounds */
+  --hud-bg-primary: #1A120B;
+  /* Deep Coffee */
+  --hud-bg-secondary: #2C1F16;
+  /* Dark Wood */
+  --hud-bg-card: rgba(44, 31, 22, 0.9);
+  /* Mahogany w/ higher opacity for better readability */
+  --hud-bg-hover: rgba(60, 42, 30, 0.95);
+
+  --hud-text-primary: #E5D0AC;
+  /* Warm Beige */
+  --hud-text-secondary: #C2A878;
+  /* Muted Gold */
+  --hud-text-muted: #8C7A5B;
+
+  --hud-accent-primary: #D4AF37;
+  /* Classic Gold */
+  --hud-accent-secondary: #C96825;
+  /* Burnt Orange */
+  --hud-accent-info: #8B4513;
+  /* Saddle Brown for info accents */
+  --hud-accent-success: #556B2F;
+  /* Olive Green */
+  --hud-accent-warning: #DAA520;
+  /* Goldenrod */
+  --hud-accent-error: #8B0000;
+  /* Dark Red */
+
+  --hud-border-primary: rgba(212, 175, 55, 0.5);
+  /* Gold Border */
+  --hud-border-secondary: rgba(229, 208, 172, 0.2);
+}
+
+/* Soul Theme (Pastel Blue) */
+.theme-soul {
+  /* Pastel Blue & Slate Palette */
+  --hud-bg-primary: #1E293B;
+  /* Slate 800 */
+  --hud-bg-secondary: #334155;
+  /* Slate 700 */
+  --hud-bg-card: rgba(30, 41, 59, 0.85);
+  /* Slate 800 alpha */
+  --hud-bg-hover: rgba(51, 65, 85, 0.9);
+
+  --hud-text-primary: #F1F5F9;
+  /* Slate 100 */
+  --hud-text-secondary: #CBD5E1;
+  /* Slate 300 */
+  --hud-text-muted: #94A3B8;
+  /* Slate 400 */
+
+  --hud-accent-primary: #93C5FD;
+  /* Pastel Blue */
+  --hud-accent-secondary: #A5F3FC;
+  /* Pastel Cyan */
+  --hud-accent-info: #60A5FA;
+  /* Blue 400 */
+  --hud-accent-success: #67E8F9;
+  /* Cyan 300 */
+  --hud-accent-warning: #FDBA74;
+  /* Pastel Orange */
+  --hud-accent-error: #F87171;
+  /* Pastel Red */
+
+  --hud-border-primary: rgba(147, 197, 253, 0.5);
+  /* Blue 300 alpha */
+  --hud-border-secondary: rgba(165, 243, 252, 0.2);
+}
+
 /* Global Styles */
 * {
   margin: 0;
@@ -9,31 +110,55 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   overflow: hidden;
   height: 100vh;
 }
 
 body {
   font-family: 'Inter', 'Roboto', system-ui, sans-serif;
-  background-color: #0E1726;
-  color: #FFFFFF;
+  background-color: var(--hud-bg-primary);
+  color: var(--hud-text-primary);
+  transition: background-color 0.5s ease, color 0.5s ease;
 }
 
 /* HUD Grid Background */
 .hud-grid-bg {
-  background-image: 
+  background-image:
     linear-gradient(rgba(0, 255, 204, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 255, 204, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
 }
 
+/* Theme-specific Grid for Jazz */
+.theme-jazz .hud-grid-bg {
+  background-image:
+    linear-gradient(rgba(26, 18, 11, 0.7), rgba(26, 18, 11, 0.8)),
+    url("/images/theme/jazz_bg_new.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Theme-specific Grid for Soul */
+.theme-soul .hud-grid-bg {
+  background-image:
+    linear-gradient(rgba(30, 41, 59, 0.7), rgba(30, 41, 59, 0.6)),
+    var(--soul-bg-image, url("/images/theme/soul_bg_new_1.png"));
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  transition: background-image 1s ease-in-out;
+}
+
 /* HUD Card Corner Brackets */
 .hud-card {
   position: relative;
-  background: rgba(20, 27, 45, 0.8);
+  background: var(--hud-bg-card);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--hud-border-secondary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .hud-card::before,
@@ -42,8 +167,9 @@ body {
   position: absolute;
   width: 20px;
   height: 20px;
-  border-color: rgba(0, 255, 204, 0.5);
+  border-color: var(--hud-border-primary);
   border-style: solid;
+  transition: border-color 0.3s ease;
 }
 
 .hud-card::before {
@@ -64,8 +190,9 @@ body {
   position: absolute;
   width: 20px;
   height: 20px;
-  border-color: rgba(0, 255, 204, 0.5);
+  border-color: var(--hud-border-primary);
   border-style: solid;
+  transition: border-color 0.3s ease;
 }
 
 .hud-card-bottom::before {
@@ -87,16 +214,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(20, 27, 45, 0.5);
+  background: var(--hud-bg-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 255, 204, 0.3);
+  background: var(--hud-border-primary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 255, 204, 0.5);
+  background: var(--hud-accent-primary);
 }
 
 /* Glow Effects */
@@ -253,6 +380,7 @@ body {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -277,4 +405,23 @@ body {
 
 .ems-glow:hover {
   box-shadow: 0 0 30px rgba(234, 179, 8, 0.5);
+}
+
+/* Jazz Theme specific animations */
+@keyframes vinyl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-vinyl-spin {
+  animation: vinyl-spin 8s linear infinite;
+}
+
+.paused {
+  animation-play-state: paused;
 }

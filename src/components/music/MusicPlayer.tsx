@@ -4,9 +4,15 @@ import { useMusic } from '../../context/MusicContext'
 import { audioService } from '../../services/audio/AudioService'
 import { statsApi } from '../../services/api/stats'
 import ReactPlayer from 'react-player'
+import { useTheme } from '../../contexts/ThemeContext'
 
 // Custom Repeat1 icon
-const Repeat1Icon = ({ className }: { className?: string }) => (
+// Custom Repeat1 icon
+interface Repeat1IconProps {
+    className?: string;
+}
+
+const Repeat1Icon = ({ className }: Repeat1IconProps) => (
     <div className={`relative ${className}`}>
         <Repeat className={className} />
         <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold">1</span>
@@ -42,93 +48,39 @@ const SourceBadge = ({ sourceType }: { sourceType: string }) => {
     )
 }
 
+
+
 const MusicPlayer = () => {
+    const { theme } = useTheme()
+
     const {
         currentTrack, isPlaying, togglePlay, audioState, resolvedUrl,
         playNext, playPrevious, queue,
         isShuffled, repeatMode, toggleShuffle, toggleRepeat
     } = useMusic()
 
-    const trackMetadata = useMemo(() => parseMetadata(currentTrack?.externalMetadata), [currentTrack?.externalMetadata])
-    const trackThumbnail = trackMetadata.thumbnail || (currentTrack as any)?.artwork
-
-    const [localProgress, setLocalProgress] = useState(0)
-    const [isDragging, setIsDragging] = useState(false)
-    const [volume, setVolume] = useState(70)
-    const [isMuted, setIsMuted] = useState(false)
+    // Local state
     const [isExpanded, setIsExpanded] = useState(false)
     const [showQueue, setShowQueue] = useState(false)
     const [isLiked, setIsLiked] = useState(false)
+    const [volume, setVolume] = useState(100)
+    const [isMuted, setIsMuted] = useState(false)
+    const [lastVolume, setLastVolume] = useState(100)
+    const [isDragging, setIsDragging] = useState(false)
+    const [localProgress, setLocalProgress] = useState(0)
 
+    // Refs
     const progressRef = useRef<HTMLDivElement>(null)
     const volumeRef = useRef<HTMLDivElement>(null)
 
-    // Sync progress bar
+    // Update local progress when not dragging
     useEffect(() => {
         if (!isDragging && audioState.duration > 0) {
             setLocalProgress((audioState.currentTime / audioState.duration) * 100)
         }
     }, [audioState.currentTime, audioState.duration, isDragging])
 
-    // Progress bar drag handlers
-    const handleProgressMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-        setIsDragging(true)
-        handleProgressChange(e)
-    }, [audioState.duration])
-
-    const handleProgressChange = useCallback((e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
-        if (!progressRef.current) return
-        const rect = progressRef.current.getBoundingClientRect()
-        const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
-        setLocalProgress(percent)
-        if (!isDragging) {
-            const time = (percent / 100) * audioState.duration
-            audioService.seekTo(time)
-        }
-    }, [audioState.duration, isDragging])
-
-    const handleProgressMouseUp = useCallback(() => {
-        if (isDragging) {
-            const time = (localProgress / 100) * audioState.duration
-            audioService.seekTo(time)
-            setIsDragging(false)
-        }
-    }, [isDragging, localProgress, audioState.duration])
-
-    // Global mouse events for dragging
-    useEffect(() => {
-        if (isDragging) {
-            const handleMouseMove = (e: MouseEvent) => handleProgressChange(e)
-            const handleMouseUp = () => handleProgressMouseUp()
-            window.addEventListener('mousemove', handleMouseMove)
-            window.addEventListener('mouseup', handleMouseUp)
-            return () => {
-                window.removeEventListener('mousemove', handleMouseMove)
-                window.removeEventListener('mouseup', handleMouseUp)
-            }
-        }
-    }, [isDragging, handleProgressChange, handleProgressMouseUp])
-
-    // Volume handlers
-    const handleVolumeClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!volumeRef.current) return
-        const rect = volumeRef.current.getBoundingClientRect()
-        const percent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
-        setVolume(percent)
-        setIsMuted(false)
-        audioService.setVolume(percent / 100)
-    }
-
-    const toggleMute = () => {
-        if (isMuted) {
-            audioService.setVolume(volume / 100)
-            setIsMuted(false)
-        } else {
-            audioService.setVolume(0)
-            setIsMuted(true)
-        }
-    }
-
+    // Helper to format time
     const formatTime = (seconds: number) => {
         if (!seconds || isNaN(seconds)) return '0:00'
         const mins = Math.floor(seconds / 60)
@@ -136,22 +88,90 @@ const MusicPlayer = () => {
         return `${mins}:${secs.toString().padStart(2, '0')}`
     }
 
-    const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2
+    // Volume handlers
+    const handleVolumeClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!volumeRef.current) return
+        const rect = volumeRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const width = rect.width
+        const newVolume = Math.min(100, Math.max(0, (x / width) * 100))
 
-    // Record play count
-    useEffect(() => {
-        if (isPlaying && currentTrack) {
-            const recordStats = async () => {
-                try {
-                    await statsApi.recordPlay('track', currentTrack.id, currentTrack.artist)
-                } catch (e) {
-                    console.error('[Stats] Failed to record play:', e)
-                }
-            }
-            const timer = setTimeout(recordStats, 5000)
-            return () => clearTimeout(timer)
+        setVolume(newVolume)
+        if (newVolume > 0) setIsMuted(false)
+    }
+
+    const toggleMute = () => {
+        if (isMuted) {
+            setVolume(lastVolume || 100)
+            setIsMuted(false)
+        } else {
+            setLastVolume(volume)
+            setVolume(0)
+            setIsMuted(true)
         }
-    }, [currentTrack?.id, isPlaying])
+    }
+
+    // Progress handlers
+    const handleProgressMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true)
+        handleProgressChange(e)
+        window.addEventListener('mousemove', handleProgressMouseMove)
+        window.addEventListener('mouseup', handleProgressMouseUp)
+    }
+
+    const handleProgressMouseMove = (e: MouseEvent) => {
+        if (!progressRef.current) return
+        const rect = progressRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const width = rect.width
+        const percentage = Math.min(100, Math.max(0, (x / width) * 100))
+        setLocalProgress(percentage)
+    }
+
+    const handleProgressMouseUp = (e: MouseEvent) => {
+        setIsDragging(false)
+        if (progressRef.current) {
+            const rect = progressRef.current.getBoundingClientRect()
+            const x = e.clientX - rect.left
+            const width = rect.width
+            const percentage = Math.min(100, Math.max(0, (x / width) * 100))
+            const time = (percentage / 100) * audioState.duration
+            audioService.seekTo(time)
+        }
+        window.removeEventListener('mousemove', handleProgressMouseMove)
+        window.removeEventListener('mouseup', handleProgressMouseUp)
+    }
+
+    const handleProgressChange = (e: React.MouseEvent) => {
+        if (!progressRef.current) return
+        const rect = progressRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const width = rect.width
+        const percentage = Math.min(100, Math.max(0, (x / width) * 100))
+
+        if (!isDragging) {
+            const time = (percentage / 100) * audioState.duration
+            audioService.seekTo(time)
+        } else {
+            setLocalProgress(percentage)
+        }
+    }
+
+    // Volume icon helper
+    const VolumeIcon = () => {
+        if (isMuted || volume === 0) return <VolumeX className="w-5 h-5 sm:w-6 sm:h-6" />
+        if (volume < 50) return <Volume1 className="w-5 h-5 sm:w-6 sm:h-6" />
+        return <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />
+    }
+
+    // Listen for global volume changes (optional - if audioService emits events)
+    // For now dealing with local volume state that controls the player
+
+    const trackThumbnail = useMemo(() => {
+        if (!currentTrack) return null
+        // Standardize artwork access
+        return currentTrack.artwork || (currentTrack as any).thumbnail || (currentTrack as any).coverImage || null
+    }, [currentTrack])
 
     if (!currentTrack) return null
 
@@ -159,7 +179,10 @@ const MusicPlayer = () => {
         <>
             {/* ===== MOBILE FULL SCREEN VIEW ===== */}
             {isExpanded && (
-                <div className="fixed inset-0 bg-gradient-to-b from-hud-bg-primary via-hud-bg-secondary to-hud-bg-primary z-50 lg:hidden flex flex-col animate-in slide-in-from-bottom duration-300">
+                <div className={`fixed inset-0 z-50 lg:hidden flex flex-col animate-in slide-in-from-bottom duration-300 ${theme === 'jazz'
+                    ? 'bg-hud-bg-primary/95 backdrop-blur-xl'
+                    : 'bg-gradient-to-b from-hud-bg-primary via-hud-bg-secondary to-hud-bg-primary'
+                    }`}>
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
                         <button onClick={() => setIsExpanded(false)} className="p-2 -ml-2 text-hud-text-muted hover:text-hud-text-primary">
@@ -172,18 +195,51 @@ const MusicPlayer = () => {
                     </div>
 
                     {/* Main Content */}
-                    <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 overflow-hidden">
+                    <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 overflow-hidden relative">
+                        {/* Jazz Theme Background Glow */}
+                        {theme === 'jazz' && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+                                <div className="w-[500px] h-[500px] bg-hud-accent-primary rounded-full blur-[100px] animate-pulse"></div>
+                            </div>
+                        )}
+                        {/* Soul Theme Background Glow (Pastel Blue) */}
+                        {theme === 'soul' && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40">
+                                <div className="w-[500px] h-[500px] bg-[#93C5FD] rounded-full blur-[120px] animate-pulse"></div>
+                            </div>
+                        )}
+
                         {/* Album Art */}
-                        <div className="w-full max-w-[280px] sm:max-w-[320px] md:max-w-[380px] aspect-square bg-gradient-to-br from-hud-accent-primary/20 to-hud-accent-info/20 rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-2xl overflow-hidden mb-6 sm:mb-8">
+                        <div className={`
+                            relative z-10 w-full max-w-[280px] sm:max-w-[320px] md:max-w-[380px] aspect-square 
+                            flex items-center justify-center shadow-2xl overflow-hidden mb-6 sm:mb-8
+                            ${theme === 'jazz'
+                                ? `rounded-full border-4 border-hud-bg-card ring-1 ring-hud-border-primary/30 ${isPlaying ? 'animate-vinyl-spin' : ''}`
+                                : theme === 'soul'
+                                    ? 'rounded-3xl border border-[#93C5FD]/50 shadow-[0_0_30px_rgba(147,197,253,0.4)]'
+                                    : 'bg-gradient-to-br from-hud-accent-primary/20 to-hud-accent-info/20 rounded-2xl sm:rounded-3xl'
+                            }
+                        `}>
                             {trackThumbnail ? (
                                 <img src={trackThumbnail} className="w-full h-full object-cover" alt="" />
                             ) : (
-                                <Music className="w-20 h-20 sm:w-24 sm:h-24 text-hud-text-muted/30" />
+                                <div className="w-full h-full flex items-center justify-center bg-hud-bg-secondary">
+                                    <Music className="w-20 h-20 sm:w-24 sm:h-24 text-hud-text-muted/30" />
+                                </div>
+                            )}
+
+                            {/* Vinyl Center Hole for Jazz Theme */}
+                            {theme === 'jazz' && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="w-16 h-16 bg-hud-bg-primary rounded-full border-2 border-hud-bg-card flex items-center justify-center">
+                                        <div className="w-3 h-3 bg-black rounded-full"></div>
+                                    </div>
+                                </div>
                             )}
                         </div>
 
                         {/* Track Info */}
-                        <div className="w-full max-w-md text-center mb-4 sm:mb-6">
+                        <div className="w-full max-w-md text-center mb-4 sm:mb-6 relative z-10">
                             <div className="flex items-center justify-center gap-2 mb-1">
                                 <SourceBadge sourceType={audioState.sourceType} />
                             </div>
