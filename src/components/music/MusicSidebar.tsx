@@ -1,4 +1,4 @@
-import { Music, Home, Beaker, Warehouse, Heart, Clock, List, Settings, Plug, Menu, X } from 'lucide-react'
+import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 
@@ -104,17 +104,13 @@ const MusicSidebar = () => {
                 <div className="mb-6 px-3">
                     <div className="text-xs text-hud-text-muted uppercase tracking-wider mb-3 px-3">라이브러리</div>
                     <nav className="space-y-1">
-                        <Link to="/music/favorites" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary transition-all">
+                        <Link to="/music/favorites" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-hud-text-secondary hover:bg-hud-accent-danger/10 hover:text-hud-accent-danger transition-all">
                             <Heart className="w-5 h-5" />
                             <span>Favorites</span>
                         </Link>
                         <Link to="/music/recent" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary transition-all">
                             <Clock className="w-5 h-5" />
                             <span>Recently Played</span>
-                        </Link>
-                        <Link to="/music/playlists" onClick={() => setIsOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary transition-all">
-                            <List className="w-5 h-5" />
-                            <span>All Playlists</span>
                         </Link>
                     </nav>
                 </div>

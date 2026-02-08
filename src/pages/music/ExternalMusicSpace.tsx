@@ -9,7 +9,7 @@ import {
     EMSPlaylistTable,
     EMSCartDrawer
 } from '../../components/music/ems'
-import { Filter, Sparkles, Plus, Link as LinkIcon } from 'lucide-react'
+import { Filter, Sparkles, Plus, Link as LinkIcon, Play } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { playlistsApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
@@ -290,7 +290,7 @@ const ExternalMusicSpace = () => {
                         try {
                             const today = new Date().toLocaleDateString('ko-KR')
                             const chartPlaylist = await playlistsApi.create({
-                                title: `Apple Music Top 20 (${today})`,
+                                title: `Apple Music Top 40 (${today})`,
                                 description: 'Auto-imported Top Charts',
                                 sourceType: 'Platform',
                                 spaceType: 'EMS',
@@ -870,7 +870,7 @@ const ExternalMusicSpace = () => {
                 <section className="hud-card hud-card-bottom rounded-xl p-6 mb-6">
                     <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-3 mb-6">
                         <Sparkles className="w-5 h-5 text-pink-500" />
-                        최신 인기 차트 (Apple Music Top 10)
+                        최신 인기 차트 (Apple Music Top 40)
                         <span className="text-sm font-normal text-hud-text-muted ml-2">(KR Store Real-time)</span>
                     </h2>
                     <div className="flex overflow-x-auto gap-4 pb-4 custom-scrollbar">
@@ -892,6 +892,24 @@ const ExternalMusicSpace = () => {
                                                 size="sm"
                                                 className="bg-black/50 hover:bg-hud-accent-danger/30"
                                             />
+                                            <button
+                                                onClick={() => playTrack({
+                                                    id: parseInt(song.id),
+                                                    title: song.attributes.name,
+                                                    artist: song.attributes.artistName || 'Unknown',
+                                                    album: song.attributes.name,
+                                                    duration: 0,
+                                                    orderIndex: 0,
+                                                    artwork: artworkUrl,
+                                                    externalMetadata: {
+                                                        previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
+                                                    }
+                                                })}
+                                                className="bg-white text-black p-2 rounded-full transform translate-y-2 group-hover:translate-y-0 transition-all hover:scale-110"
+                                                title="재생"
+                                            >
+                                                <Play className="w-5 h-5" fill="currentColor" />
+                                            </button>
                                             <button
                                                 onClick={() => addToCart({
                                                     id: parseInt(song.id),

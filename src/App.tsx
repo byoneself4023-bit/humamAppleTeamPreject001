@@ -76,6 +76,8 @@ import MusicHome from './pages/music/MusicHome'
 import GatewayMusicSpace from './pages/music/GatewayMusicSpace'
 import MusicConnections from './pages/music/MusicConnections'
 import MusicSettings from './pages/music/MusicSettings'
+import Favorites from './pages/music/Favorites'
+import RecentlyPlayed from './pages/music/RecentlyPlayed'
 import MusicPlayer from './components/music/MusicPlayer'
 
 // Demo Pages
@@ -166,6 +168,8 @@ function App() {
                         {/* Music Pages (with sidebar) */}
                         <Route path="/music" element={<MusicLayout />}>
                             <Route path="lounge" element={<ProtectedRoute><MusicLounge /></ProtectedRoute>} />
+                            <Route path="favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
+                            <Route path="recent" element={<ProtectedRoute><RecentlyPlayed /></ProtectedRoute>} />
                             <Route path="lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
                             <Route path="external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
                             <Route path="connections" element={<ProtectedRoute><MusicConnections /></ProtectedRoute>} />

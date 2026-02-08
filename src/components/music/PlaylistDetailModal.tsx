@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Loader2, Music2, Clock, Calendar, Hash, GripHorizontal, Play, Heart, Share2, MoreHorizontal, ShoppingCart } from 'lucide-react'
 import { playlistsApi, PlaylistWithTracks, Track } from '../../services/api/playlists'
 import { useMusic } from '../../context/MusicContext'
+import FavoriteButton from './FavoriteButton'
 
 interface PlaylistDetailModalProps {
     isOpen: boolean
@@ -132,108 +133,73 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                 {/* Gradient Border Effect */}
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-hud-accent-primary/20 via-transparent to-hud-accent-info/20 pointer-events-none"></div>
 
-                {/* Drag Handle */}
+                {/* Header (draggable) */}
                 <div
-                    onMouseDown={handleMouseDown}
-                    className="absolute top-0 left-0 right-0 h-12 flex items-center justify-center cursor-grab hover:bg-hud-bg-secondary/30 transition-all z-20 group backdrop-blur-sm"
+                    className="relative px-5 pt-3 pb-4 bg-gradient-to-b from-hud-accent-primary/10 to-hud-bg-card border-b border-hud-border-secondary shrink-0"
                 >
-                    <GripHorizontal className="w-6 h-6 text-hud-text-muted/50 group-hover:text-hud-accent-primary transition-colors" />
-                </div>
+                    {/* Drag Handle */}
+                    <div
+                        onMouseDown={handleMouseDown}
+                        className="flex justify-center mb-3 cursor-grab active:cursor-grabbing"
+                    >
+                        <div className="w-10 h-1 rounded-full bg-hud-text-muted/30 hover:bg-hud-accent-primary/50 transition-colors" />
+                    </div>
 
-                {/* Header with Gradient Background */}
-                <div className="relative pt-12 pb-6 px-6 bg-gradient-to-b from-hud-accent-primary/10 via-hud-bg-card to-hud-bg-card border-b border-hud-border-secondary">
                     {loading ? (
-                        <div className="h-40 animate-pulse bg-hud-bg-secondary w-full rounded-lg"></div>
+                        <div className="h-16 animate-pulse bg-hud-bg-secondary w-full rounded-lg"></div>
                     ) : playlist ? (
-                        <div className="flex gap-8">
-                            {/* Album Cover with Enhanced Styling */}
-                            <div className="w-48 h-48 rounded-xl overflow-hidden shadow-2xl border-2 border-hud-accent-primary/30 shrink-0 relative group bg-gradient-to-br from-hud-bg-secondary to-hud-bg-primary">
+                        <div className="flex items-center gap-4">
+                            {/* Album Cover - compact */}
+                            <div className="w-16 h-16 rounded-lg overflow-hidden shadow-lg border border-hud-accent-primary/20 shrink-0 relative group bg-hud-bg-secondary">
                                 {fixImageUrl(playlist.coverImage) && !imageError ? (
-                                    <>
-                                        <img
-                                            src={fixImageUrl(playlist.coverImage)}
-                                            alt={playlist.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            onError={(e) => {
-                                                console.error('[PlaylistDetail] Image failed to load:', e.currentTarget.src)
-                                                console.error('[PlaylistDetail] Original URL:', playlist.coverImage)
-                                                setImageError(true)
-                                            }}
-                                            onLoad={() => console.log('[PlaylistDetail] Image loaded:', fixImageUrl(playlist.coverImage))}
-                                        />
-                                        {/* Overlay on Hover */}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Play className="w-16 h-16 text-white drop-shadow-lg" fill="white" />
-                                        </div>
-                                    </>
+                                    <img
+                                        src={fixImageUrl(playlist.coverImage)}
+                                        alt={playlist.title}
+                                        className="w-full h-full object-cover"
+                                        onError={() => setImageError(true)}
+                                    />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-hud-accent-primary/20 to-hud-accent-info/20">
-                                        <Music2 className="w-20 h-20 text-hud-accent-primary/50" />
+                                        <Music2 className="w-8 h-8 text-hud-accent-primary/50" />
                                     </div>
                                 )}
                             </div>
 
-                            {/* Playlist Info */}
-                            <div className="flex flex-col justify-center flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-black text-hud-accent-primary uppercase tracking-widest px-2 py-1 bg-hud-accent-primary/10 rounded">
+                            {/* Title + Stats */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-bold text-hud-accent-primary uppercase tracking-widest px-1.5 py-0.5 bg-hud-accent-primary/10 rounded">
                                         Playlist
                                     </span>
+                                    <span className="text-xs text-hud-text-muted">
+                                        {playlist.tracks?.length || 0} tracks
+                                    </span>
                                 </div>
-                                <h2 className="text-5xl font-black text-hud-text-primary mb-3 leading-tight drop-shadow-lg">
+                                <h2 className="text-xl font-bold text-hud-text-primary truncate">
                                     {playlist.title}
                                 </h2>
-                                <p className="text-hud-text-secondary text-base mb-6 line-clamp-2 max-w-2xl">
-                                    {playlist.description || '음악과 함께하는 특별한 순간'}
-                                </p>
+                            </div>
 
-                                {/* Stats Row */}
-                                <div className="flex items-center gap-6 text-sm text-hud-text-muted mb-6">
-                                    <span className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-hud-accent-primary/20 flex items-center justify-center">
-                                            <Hash className="w-4 h-4 text-hud-accent-primary" />
-                                        </div>
-                                        <span className="text-hud-text-primary font-bold">{playlist.tracks?.length || 0}</span> tracks
-                                    </span>
-                                    <span className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-hud-accent-info/20 flex items-center justify-center">
-                                            <Calendar className="w-4 h-4 text-hud-accent-info" />
-                                        </div>
-                                        {new Date(playlist.createdAt).toLocaleDateString()}
-                                    </span>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => playlist?.tracks && playPlaylist(playlist.tracks)}
-                                        className="flex items-center gap-2 px-6 py-3 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 hover:shadow-lg hover:shadow-hud-accent-primary/50 transition-all">
-                                        <Play className="w-5 h-5" fill="currentColor" />
-                                        Play All
-                                    </button>
-                                    <button className="p-3 bg-hud-bg-secondary/50 hover:bg-hud-bg-secondary text-hud-text-primary rounded-full hover:scale-105 transition-all border border-hud-border-secondary hover:border-hud-accent-primary">
-                                        <Heart className="w-5 h-5" />
-                                    </button>
-                                    <button className="p-3 bg-hud-bg-secondary/50 hover:bg-hud-bg-secondary text-hud-text-primary rounded-full hover:scale-105 transition-all border border-hud-border-secondary hover:border-hud-accent-primary">
-                                        <Share2 className="w-5 h-5" />
-                                    </button>
-                                    <button className="p-3 bg-hud-bg-secondary/50 hover:bg-hud-bg-secondary text-hud-text-primary rounded-full hover:scale-105 transition-all border border-hud-border-secondary hover:border-hud-accent-primary">
-                                        <MoreHorizontal className="w-5 h-5" />
-                                    </button>
-                                </div>
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    onClick={() => playlist?.tracks && playPlaylist(playlist.tracks)}
+                                    className="flex items-center gap-2 px-5 py-2 bg-hud-accent-primary text-black font-bold rounded-full hover:scale-105 hover:shadow-lg hover:shadow-hud-accent-primary/50 transition-all text-sm"
+                                >
+                                    <Play className="w-4 h-4" fill="currentColor" />
+                                    Play All
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary rounded-lg transition-all"
+                                >
+                                    <X size={20} />
+                                </button>
                             </div>
                         </div>
                     ) : (
                         <div></div>
                     )}
-
-                    {/* Close Button - Positioned Absolutely */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-12 right-6 p-2 text-hud-text-muted hover:text-hud-text-primary hover:bg-hud-bg-secondary/80 rounded-lg transition-all backdrop-blur-sm"
-                    >
-                        <X size={24} />
-                    </button>
                 </div>
 
                 {/* Content - Track List */}
@@ -257,16 +223,16 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-hud-bg-secondary/80 backdrop-blur-sm sticky top-0 z-10">
                                 <tr className="border-b border-hud-border-secondary">
-                                    <th className="px-6 py-4 w-16 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">#</th>
-                                    <th className="px-6 py-4 text-xs font-black text-hud-text-muted uppercase tracking-wider">Title</th>
-                                    <th className="px-6 py-4 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden md:table-cell">Artist</th>
-                                    <th className="px-6 py-4 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden lg:table-cell">Album</th>
-<th className="px-6 py-4 w-24 text-right text-xs font-black text-hud-text-muted uppercase tracking-wider">
-                                        <Clock className="w-4 h-4 ml-auto" />
+                                    <th className="px-4 py-2.5 w-12 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">#</th>
+                                    <th className="px-4 py-2.5 text-xs font-black text-hud-text-muted uppercase tracking-wider">Title</th>
+                                    <th className="px-4 py-2.5 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden md:table-cell">Artist</th>
+                                    <th className="px-4 py-2.5 text-xs font-black text-hud-text-muted uppercase tracking-wider hidden lg:table-cell">Album</th>
+                                    <th className="px-4 py-2.5 w-24 text-right text-xs font-black text-hud-text-muted uppercase tracking-wider">
+                                        <Clock className="w-3.5 h-3.5 ml-auto" />
                                     </th>
                                     {onAddToCart && (
-                                        <th className="px-6 py-4 w-16 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">
-                                            <ShoppingCart className="w-4 h-4 mx-auto" />
+                                        <th className="px-4 py-2.5 w-12 text-center text-xs font-black text-hud-text-muted uppercase tracking-wider">
+                                            <ShoppingCart className="w-3.5 h-3.5 mx-auto" />
                                         </th>
                                     )}
                                 </tr>
@@ -277,7 +243,6 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                                         <tr
                                             key={track.id}
                                             onClick={() => {
-                                                // Set queue and play from this track
                                                 if (playlist.tracks) {
                                                     setQueue(playlist.tracks)
                                                     playTrack(track)
@@ -285,49 +250,52 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                                             }}
                                             className="group hover:bg-gradient-to-r hover:from-hud-accent-primary/10 hover:to-transparent transition-all duration-200 cursor-pointer border-b border-hud-border-secondary/30 hover:border-hud-accent-primary/30"
                                         >
-                                            <td className="px-6 py-4 text-center">
+                                            <td className="px-4 py-2 text-center">
                                                 <div className="flex items-center justify-center">
-                                                    <span className="text-sm text-hud-text-muted group-hover:hidden font-mono">
+                                                    <span className="text-xs text-hud-text-muted group-hover:hidden font-mono">
                                                         {index + 1}
                                                     </span>
-                                                    <Play className="w-4 h-4 text-hud-accent-primary hidden group-hover:block" fill="currentColor" />
+                                                    <Play className="w-3.5 h-3.5 text-hud-accent-primary hidden group-hover:block" fill="currentColor" />
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-hud-text-primary group-hover:text-hud-accent-primary transition-colors">{track.title}</div>
-                                                <div className="text-xs text-hud-text-secondary md:hidden mt-1">{track.artist}</div>
+                                            <td className="px-4 py-2">
+                                                <div className="text-sm font-medium text-hud-text-primary group-hover:text-hud-accent-primary transition-colors truncate">{track.title}</div>
+                                                <div className="text-xs text-hud-text-secondary md:hidden">{track.artist}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-hud-text-secondary hidden md:table-cell group-hover:text-hud-text-primary transition-colors">
+                                            <td className="px-4 py-2 text-sm text-hud-text-secondary hidden md:table-cell group-hover:text-hud-text-primary transition-colors">
                                                 {track.artist}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-hud-text-muted hidden lg:table-cell truncate max-w-[200px]">
+                                            <td className="px-4 py-2 text-xs text-hud-text-muted hidden lg:table-cell truncate max-w-[200px]">
                                                 {track.album}
                                             </td>
-<td className="px-6 py-4 text-right">
+                                            <td className="px-4 py-2 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-hud-bg-secondary rounded">
-                                                        <Heart className="w-4 h-4 text-hud-text-muted hover:text-hud-accent-primary" />
-                                                    </button>
-                                                    <span className="text-sm text-hud-text-muted font-mono">
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <FavoriteButton
+                                                            track={{ title: track.title, artist: track.artist, album: track.album, duration: track.duration, artwork: track.artwork }}
+                                                            size="sm"
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-hud-text-muted font-mono">
                                                         {formatDuration(track.duration)}
                                                     </span>
                                                 </div>
                                             </td>
                                             {onAddToCart && (
-                                                <td className="px-6 py-4 text-center">
+                                                <td className="px-4 py-2 text-center">
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation()
                                                             onAddToCart(track)
                                                         }}
-                                                        className={`p-2 rounded-full transition-all hover:scale-110 ${
+                                                        className={`p-1.5 rounded-full transition-all hover:scale-110 ${
                                                             cartTrackIds?.has(track.id)
                                                                 ? 'bg-hud-accent-warning/30 text-hud-accent-warning'
                                                                 : 'bg-hud-bg-secondary hover:bg-hud-accent-warning/20 text-hud-text-muted hover:text-hud-accent-warning'
                                                         }`}
                                                         title={cartTrackIds?.has(track.id) ? "장바구니에 담김" : "장바구니에 담기"}
                                                     >
-                                                        <ShoppingCart className="w-4 h-4" fill={cartTrackIds?.has(track.id) ? "currentColor" : "none"} />
+                                                        <ShoppingCart className="w-3.5 h-3.5" fill={cartTrackIds?.has(track.id) ? "currentColor" : "none"} />
                                                     </button>
                                                 </td>
                                             )}

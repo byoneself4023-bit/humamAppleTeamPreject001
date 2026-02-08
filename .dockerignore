@@ -11,10 +11,24 @@ dist
 *.sql
 nul
 
-# Server (프론트엔드 빌드 시 제외)
+# Server (프론트엔드 빌드에 불필요)
 server/
 public/images/
+public/uploads/
+
+# Docker 설정 자체
+docker-compose.yml
+docker-compose*.yml
+Dockerfile
 
 # IDE
 .vscode
 .idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 테스트/기타
+coverage/
+*.tsbuildinfo

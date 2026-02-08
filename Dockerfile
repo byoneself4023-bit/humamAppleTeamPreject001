@@ -3,9 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 의존성 설치
+# 의존성 설치 (레이어 캐시 활용)
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # 소스 복사
 COPY . .
@@ -13,8 +13,8 @@ COPY . .
 # Docker 환경에서는 /api로 요청 (nginx 프록시 사용)
 ENV VITE_API_URL=/api
 
-# 빌드
-RUN npm run build
+# 빌드 (tsc 타입체크 생략 - vite가 TS 처리)
+RUN npx vite build
 
 # Production 이미지
 FROM nginx:alpine

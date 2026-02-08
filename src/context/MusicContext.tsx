@@ -5,6 +5,15 @@ import { audioService, AudioState } from '../services/audio/AudioService'
 // Repeat modes
 export type RepeatMode = 'off' | 'all' | 'one'
 
+// Recently played types
+export interface RecentTrackEntry {
+    track: Track
+    playedAt: string // ISO timestamp
+}
+
+const RECENT_TRACKS_KEY = 'recently_played'
+const MAX_RECENT_TRACKS = 50
+
 interface MusicContextType {
     currentTrack: Track | null
     isPlaying: boolean
@@ -23,6 +32,10 @@ interface MusicContextType {
     repeatMode: RepeatMode
     toggleShuffle: () => void
     toggleRepeat: () => void
+    // Recently Played
+    recentTracks: RecentTrackEntry[]
+    getRecentTracks: () => RecentTrackEntry[]
+    clearRecentTracks: () => void
 }
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined)
@@ -53,6 +66,16 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
     const [isShuffled, setIsShuffled] = useState(false)
     const [repeatMode, setRepeatMode] = useState<RepeatMode>('off')
 
+    // Recently played state
+    const [recentTracks, setRecentTracks] = useState<RecentTrackEntry[]>(() => {
+        try {
+            const saved = localStorage.getItem(RECENT_TRACKS_KEY)
+            return saved ? JSON.parse(saved) : []
+        } catch {
+            return []
+        }
+    })
+
     // Subscribe to AudioService state
     const [audioState, setAudioState] = useState(audioService.state)
 
@@ -63,10 +86,33 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
         return unsubscribe
     }, [])
 
+    const addToRecentTracks = useCallback((track: Track) => {
+        setRecentTracks(prev => {
+            // Remove duplicate (same title + artist)
+            const filtered = prev.filter(
+                entry => !(entry.track.title === track.title && entry.track.artist === track.artist)
+            )
+            // Add to front with current timestamp
+            const updated = [{ track, playedAt: new Date().toISOString() }, ...filtered].slice(0, MAX_RECENT_TRACKS)
+            localStorage.setItem(RECENT_TRACKS_KEY, JSON.stringify(updated))
+            return updated
+        })
+    }, [])
+
+    const getRecentTracks = useCallback(() => recentTracks, [recentTracks])
+
+    const clearRecentTracks = useCallback(() => {
+        localStorage.removeItem(RECENT_TRACKS_KEY)
+        setRecentTracks([])
+    }, [])
+
     const playTrack = async (track: Track) => {
         setCurrentTrack(track)
         setResolvedUrl(null) // Reset URL to prevent playing previous track
         audioService.pause() // Pause previous track
+
+        // Save to recently played
+        addToRecentTracks(track)
 
         // Resolve URL (Smart Match)
         const url = await audioService.resolveAndPlay(track)
@@ -209,7 +255,11 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
                 isShuffled,
                 repeatMode,
                 toggleShuffle,
-                toggleRepeat
+                toggleRepeat,
+                // Recently Played
+                recentTracks,
+                getRecentTracks,
+                clearRecentTracks
             }}
         >
             {children}

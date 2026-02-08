@@ -1,9 +1,11 @@
 import PlaylistCard from '../../components/music/PlaylistCard'
 import TrackListOverlay from '../../components/music/TrackListOverlay'
-import { playlistsApi, PlaylistWithTracks, Playlist } from '../../services/api/playlists'
+import { playlistsApi, PlaylistWithTracks, Playlist, Track } from '../../services/api/playlists'
+import { favoritesService } from '../../services/api/favorites'
 import { post } from '../../services/api/index'
-import { ArrowRight, Music, Guitar, Headphones, Zap, Loader2, Info, AlertTriangle, X, LayoutGrid, List, Play, Trash2, Edit3 } from 'lucide-react'
+import { ArrowRight, Music, Guitar, Headphones, Zap, Loader2, Info, AlertTriangle, X, LayoutGrid, List, Play, Trash2, Edit3, Heart } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { useMusic } from '../../context/MusicContext'
 
 type ViewMode = 'gallery' | 'list'
 
@@ -21,6 +23,13 @@ const MusicLoungeContent = () => {
         const saved = localStorage.getItem('pms_view_mode')
         return (saved === 'list' || saved === 'gallery') ? saved : 'gallery'
     })
+
+    // Favorites state
+    const [favorites, setFavorites] = useState<Track[]>([])
+    const [favoritesLoading, setFavoritesLoading] = useState(true)
+
+    // Music context
+    const { playTrack, playPlaylist } = useMusic()
 
     // 뷰 모드 변경 시 localStorage에 저장
     const handleViewModeChange = (mode: ViewMode) => {
@@ -68,9 +77,23 @@ const MusicLoungeContent = () => {
         }
     }, [syncTidal])
 
+    // Fetch favorites
+    const fetchFavorites = useCallback(async () => {
+        try {
+            setFavoritesLoading(true)
+            const tracks = await favoritesService.getFavorites(true)
+            setFavorites(tracks)
+        } catch (error) {
+            console.error('Failed to fetch favorites:', error)
+        } finally {
+            setFavoritesLoading(false)
+        }
+    }, [])
+
     useEffect(() => {
         fetchPlaylists()
-    }, [fetchPlaylists])
+        fetchFavorites()
+    }, [fetchPlaylists, fetchFavorites])
 
     const handlePlaylistClick = async (id: number) => {
         try {
@@ -161,10 +184,75 @@ const MusicLoungeContent = () => {
                 <div className="relative z-10">
                     <h1 className="text-4xl font-bold text-hud-accent-primary mb-3">Good Evening!</h1>
                     <p className="text-lg text-hud-text-secondary mb-6">오늘도 좋은 음악과 함께하세요</p>
-
-
                 </div>
             </section>
+
+            {/* My Favorites Section */}
+            {!favoritesLoading && favorites.length > 0 && (
+                <section className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
+                            <Heart className="w-5 h-5 text-hud-accent-danger" fill="currentColor" />
+                            My Favorites
+                            <span className="text-sm font-normal text-hud-text-muted">({favorites.length}곡)</span>
+                        </h2>
+                        <button
+                            onClick={() => playPlaylist(favorites)}
+                            className="flex items-center gap-2 px-4 py-2 bg-hud-accent-danger/20 hover:bg-hud-accent-danger/30 text-hud-accent-danger rounded-lg font-medium transition-colors"
+                        >
+                            <Play className="w-4 h-4" fill="currentColor" />
+                            전체 재생
+                        </button>
+                    </div>
+
+                    <div className="hud-card rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4">
+                            {favorites.slice(0, 8).map((track, idx) => (
+                                <div
+                                    key={track.id}
+                                    onClick={() => {
+                                        playPlaylist(favorites, idx)
+                                    }}
+                                    className="flex items-center gap-3 p-3 bg-hud-bg-secondary/50 hover:bg-hud-bg-secondary rounded-lg cursor-pointer group transition-colors"
+                                >
+                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-hud-accent-danger/30 to-pink-500/30 flex items-center justify-center overflow-hidden relative shrink-0">
+                                        {track.artwork ? (
+                                            <img src={track.artwork} alt={track.title} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <Music className="w-6 h-6 text-hud-accent-danger" />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Play className="w-5 h-5 text-white" fill="white" />
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-hud-text-primary truncate text-sm group-hover:text-hud-accent-danger transition-colors">
+                                            {track.title}
+                                        </div>
+                                        <div className="text-xs text-hud-text-muted truncate">{track.artist}</div>
+                                    </div>
+                                    <Heart className="w-4 h-4 text-hud-accent-danger shrink-0" fill="currentColor" />
+                                </div>
+                            ))}
+                        </div>
+                        {favorites.length > 8 && (
+                            <div className="px-4 pb-4">
+                                <button
+                                    onClick={async () => {
+                                        const info = await favoritesService.getFavoritesInfo()
+                                        if (info.playlist) {
+                                            handlePlaylistClick(info.playlist.id)
+                                        }
+                                    }}
+                                    className="w-full py-2 text-center text-hud-accent-danger text-sm hover:underline"
+                                >
+                                    + {favorites.length - 8}곡 더 보기
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* AI 추천 섹션 */}
             <section className="mb-8">

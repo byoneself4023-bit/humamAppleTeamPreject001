@@ -1,6 +1,6 @@
 import { playlistsApi, Playlist, Track, PlaylistWithTracks } from './playlists'
 
-const FAVORITES_PLAYLIST_TITLE = 'My Favorites'
+const FAVORITES_PLAYLIST_TITLE = '❤️ My Favorites'
 
 export interface FavoriteTrack {
     title: string
@@ -27,7 +27,7 @@ const clearCache = () => {
 
 // Favorites Service - Uses existing playlist system
 export const favoritesService = {
-    // Get or create the user's favorites playlist
+    // Get or create the user's favorites playlist (PMS - 사용자가 직접 좋아요한 곡)
     getFavoritesPlaylist: async (): Promise<Playlist | null> => {
         // Use cache if valid
         if (favoritePlaylistCache && Date.now() - cacheTimestamp < CACHE_TTL) {
@@ -35,8 +35,16 @@ export const favoritesService = {
         }
 
         try {
-            const response = await playlistsApi.getPlaylists('EMS')
-            const favPlaylist = response.playlists.find(p => p.title === FAVORITES_PLAYLIST_TITLE)
+            // PMS에서 먼저 찾기
+            const pmsResponse = await playlistsApi.getPlaylists('PMS')
+            let favPlaylist = pmsResponse.playlists.find(p => p.title === FAVORITES_PLAYLIST_TITLE)
+
+            // 기존 EMS에 있으면 마이그레이션 (하위 호환)
+            if (!favPlaylist) {
+                const emsResponse = await playlistsApi.getPlaylists('EMS')
+                favPlaylist = emsResponse.playlists.find(p => p.title === FAVORITES_PLAYLIST_TITLE || p.title === 'My Favorites')
+            }
+
             if (favPlaylist) {
                 favoritePlaylistCache = favPlaylist
                 cacheTimestamp = Date.now()
@@ -48,15 +56,15 @@ export const favoritesService = {
         }
     },
 
-    // Create favorites playlist if it doesn't exist
+    // Create favorites playlist if it doesn't exist (PMS에 생성)
     createFavoritesPlaylist: async (): Promise<Playlist | null> => {
         try {
             const response = await playlistsApi.create({
                 title: FAVORITES_PLAYLIST_TITLE,
                 description: '내가 좋아요한 곡 모음',
-                spaceType: 'EMS',
+                spaceType: 'PMS',  // PMS로 변경 - 사용자가 직접 호감 표시
                 sourceType: 'System',
-                status: 'PTP'
+                status: 'PFP'  // Processing Finished (완료)
             })
             clearCache()
             return response
@@ -181,5 +189,21 @@ export const favoritesService = {
     },
 
     // Clear cache (call when needed)
-    clearCache
+    clearCache,
+
+    // Get favorites count
+    getFavoritesCount: async (): Promise<number> => {
+        const favorites = await favoritesService.getFavorites()
+        return favorites.length
+    },
+
+    // Get favorites playlist info (for display)
+    getFavoritesInfo: async (): Promise<{ playlist: Playlist | null; tracks: Track[]; count: number }> => {
+        const playlist = await favoritesService.getFavoritesPlaylist()
+        if (!playlist) {
+            return { playlist: null, tracks: [], count: 0 }
+        }
+        const tracks = await favoritesService.getFavorites()
+        return { playlist, tracks, count: tracks.length }
+    }
 }
