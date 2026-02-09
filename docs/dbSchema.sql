@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE COMMENT '이메일 (로그인 ID)',
     password_hash VARCHAR(255) NOT NULL COMMENT '비밀번호 해시',
     nickname VARCHAR(100) NOT NULL COMMENT '사용자 닉네임',
-    user_role ENUM('USER', 'ADMIN') NOT NULL DEFAULT 'USER' COMMENT '사용자 역할',
+    user_role ENUM('MASTER', 'ADMIN', 'USER') NOT NULL DEFAULT 'USER' COMMENT '사용자 역할',
+    user_grade VARCHAR(10) DEFAULT '5' COMMENT '사용자 등급 (1-5)',
     streaming_services JSON DEFAULT NULL COMMENT '연결된 스트리밍 서비스 목록',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '가입일시',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시'
