@@ -156,6 +156,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - spring-backend
       - fastapi
@@ -163,6 +164,7 @@ services:
     volumes:
       - ./public/images:/usr/share/nginx/html/images
       - ./public/uploads:/usr/share/nginx/html/uploads
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - musicspace-network
 
