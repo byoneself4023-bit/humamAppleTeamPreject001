@@ -158,10 +158,10 @@ const MusicPlayer = () => {
     }
 
     // Volume icon helper
-    const VolumeIcon = () => {
-        if (isMuted || volume === 0) return <VolumeX className="w-5 h-5 sm:w-6 sm:h-6" />
-        if (volume < 50) return <Volume1 className="w-5 h-5 sm:w-6 sm:h-6" />
-        return <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />
+    const VolumeIcon = ({ className = "w-5 h-5 sm:w-6 sm:h-6" }: { className?: string }) => {
+        if (isMuted || volume === 0) return <VolumeX className={className} />
+        if (volume < 50) return <Volume1 className={className} />
+        return <Volume2 className={className} />
     }
 
     // Listen for global volume changes (optional - if audioService emits events)

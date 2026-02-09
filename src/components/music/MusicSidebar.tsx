@@ -1,11 +1,13 @@
-import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X, LayoutDashboard } from 'lucide-react'
+import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X, LayoutDashboard, Sparkles } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
+import { LLMModal } from './LLMModal'
 
 const MusicSidebar = () => {
     const location = useLocation()
     const isActive = (path: string) => location.pathname === path
     const [isOpen, setIsOpen] = useState(false)
+    const [isLLMModalOpen, setIsLLMModalOpen] = useState(false)
 
     return (
         <>
@@ -112,6 +114,23 @@ const MusicSidebar = () => {
                             <Clock className="w-5 h-5" />
                             <span>Recently Played</span>
                         </Link>
+                        {/* Kuka House 모달 버튼 */}
+                        <button
+                            onClick={() => {
+                                setIsOpen(false)
+                                setIsLLMModalOpen(true)
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
+                                       text-hud-text-secondary hover:bg-gradient-to-r hover:from-hud-accent-primary/10 hover:to-hud-accent-info/10
+                                       hover:text-hud-accent-primary transition-all group"
+                        >
+                            <Sparkles className="w-5 h-5 group-hover:animate-pulse" />
+                            <span>Kuka House</span>
+                            <span className="ml-auto px-2 py-0.5 bg-gradient-to-r from-hud-accent-primary/20 to-hud-accent-info/20
+                                             border border-hud-accent-primary/30 rounded-full text-[10px] text-hud-accent-primary font-semibold">
+                                L1
+                            </span>
+                        </button>
                     </nav>
                 </div>
 
@@ -169,6 +188,12 @@ const MusicSidebar = () => {
                     </nav>
                 </div>
             </aside>
+
+            {/* LLM Modal */}
+            <LLMModal
+                isOpen={isLLMModalOpen}
+                onClose={() => setIsLLMModalOpen(false)}
+            />
         </>
     )
 }

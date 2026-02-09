@@ -103,6 +103,7 @@ services:
         condition: service_healthy
     volumes:
       - ../FAST_API/M1/user_models:/app/M1/user_models
+      - ../FAST_API/LLM:/app/LLM
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

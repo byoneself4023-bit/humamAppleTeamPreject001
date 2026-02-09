@@ -87,6 +87,13 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false
             },
+            // L1 Kuka Spotify 추천 API (FastAPI)
+            '/api/kuka': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+                rewrite: (path) => path.replace(/^\/api\/kuka/, '/api/spotify')
+            },
             // FastAPI AI/ML Service (M1, M2, M3 models)
             '/api/m1': {
                 target: 'http://localhost:8000',
