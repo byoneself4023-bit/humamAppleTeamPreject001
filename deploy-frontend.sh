@@ -8,16 +8,28 @@ cd ~/Final_team_project/humamAppleTeamPreject001
 
 echo "=== MusicSpace Frontend Deploy ==="
 
-# 1. 최신 코드 가져오기
-echo "[1/3] Pulling latest code..."
-git pull
+# 0. 네트워크 확인 및 생성
+if ! docker network inspect musicspace-network >/dev/null 2>&1; then
+    echo "[0/4] Creating network..."
+    docker network create musicspace-network
+fi
 
-# 2. 프론트엔드 빌드 및 재시작
-echo "[2/3] Building and restarting frontend..."
+# 1. 최신 코드 가져오기
+echo "[1/4] Pulling latest code..."
+git stash
+git pull
+git stash pop 2>/dev/null || true
+
+# 2. 기존 컨테이너 정리
+echo "[2/4] Cleaning up old container..."
+docker rm -f musicspace-frontend 2>/dev/null || true
+
+# 3. 프론트엔드 빌드 및 시작
+echo "[3/4] Building and starting frontend..."
 docker-compose -f docker-compose.frontend.yml up -d --build
 
-# 3. 상태 확인
-echo "[3/3] Checking status..."
+# 4. 상태 확인
+echo "[4/4] Checking status..."
 docker ps --filter "name=musicspace-frontend"
 
 echo ""
