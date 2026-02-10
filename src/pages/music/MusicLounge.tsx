@@ -178,7 +178,7 @@ const MusicLoungeContent = () => {
     }
 
     return (
-        <div className="p-4 md:p-6 pb-32">
+        <div className="max-w-7xl mx-auto p-4 md:p-6 pb-32">
             {/* Hero Section */}
             <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 relative overflow-hidden">
                 <div className="relative z-10">
