@@ -416,7 +416,7 @@ const MusicHome = () => {
     }
 
     return (
-        <div className="min-h-screen bg-hud-bg-primary text-hud-text-primary max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12 pb-24 md:pb-32 lg:pb-40">
+        <div className="min-h-screen bg-hud-bg-primary text-hud-text-primary max-w-7xl mx-auto px-6 md:px-10 py-8 space-y-12 pb-24 md:pb-32 lg:pb-40">
             {/* Hero Section */}
 
             <section className="hud-card hud-card-bottom rounded-xl p-6 md:p-10 mb-8 bg-gradient-to-br from-hud-accent-info/20 to-hud-accent-primary/10">
