@@ -31,11 +31,28 @@ docker-compose -f docker-compose.local.yml up -d --build
 
 ## 서버 배포
 
+### 사전 조건
+- 백엔드 컨테이너 실행 중: `musicspace-backend`, `musicspace-spring-backend`, `musicspace-fastapi`
+- Docker 네트워크 존재: `humamappleteampreject001_musicspace-network`
+- SSL 인증서 존재: `/etc/letsencrypt/live/imaiplan.sytes.net/`
+
 ### 배포 명령어
 ```bash
 cd /home/mibeen/music_space_place/Final_team_project/humamAppleTeamPreject001
 git pull
 docker-compose -f docker-compose.frontend.yml up -d --build
+```
+
+### 배포 후 확인
+```bash
+# 컨테이너 실행 확인
+docker ps | grep musicspace-frontend
+
+# 로그 확인 (에러 없는지)
+docker logs musicspace-frontend --tail 20
+
+# HTTPS 접속 테스트
+curl -sI https://imaiplan.sytes.net | head -3
 ```
 
 ### 접속

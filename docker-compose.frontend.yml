@@ -20,3 +20,4 @@ services:
 networks:
   musicspace-network:
     external: true
+    name: humamappleteampreject001_musicspace-network
