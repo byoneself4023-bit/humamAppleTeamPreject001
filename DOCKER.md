@@ -5,8 +5,8 @@
 ```
 humamAppleTeamPreject001/
 ├── Dockerfile                    # Docker 빌드 설정
-├── docker-compose.local.yml      # 로컬 개발용
-├── docker-compose.frontend.yml   # 서버 배포용
+├── docker-compose.frontend-local.yml      # 로컬 개발용
+├── docker-compose.frontend-server.yml   # 서버 배포용
 ├── nginx.conf                    # 서버용 (HTTPS 포함)
 └── nginx.local.conf              # 로컬용 (HTTP only)
 ```
@@ -16,12 +16,12 @@ humamAppleTeamPreject001/
 ### 최초 실행
 ```bash
 cd humamAppleTeamPreject001
-docker-compose -f docker-compose.local.yml up -d --build
+docker-compose -f docker-compose.frontend-local.yml up -d --build
 ```
 
 ### 코드 변경 후 적용
 ```bash
-docker-compose -f docker-compose.local.yml up -d --build
+docker-compose -f docker-compose.frontend-local.yml up -d --build
 ```
 
 ### 접속
@@ -40,7 +40,7 @@ docker-compose -f docker-compose.local.yml up -d --build
 ```bash
 cd /home/mibeen/music_space_place/Final_team_project/humamAppleTeamPreject001
 git pull
-docker-compose -f docker-compose.frontend.yml up -d --build
+docker-compose -f docker-compose.frontend-server.yml up -d --build
 ```
 
 ### 배포 후 확인
@@ -64,7 +64,7 @@ curl -sI https://imaiplan.sytes.net | head -3
 
 | 항목 | 로컬 | 서버 |
 |------|------|------|
-| compose 파일 | docker-compose.local.yml | docker-compose.frontend.yml |
+| compose 파일 | docker-compose.frontend-local.yml | docker-compose.frontend-server.yml |
 | nginx 설정 | nginx.local.conf (마운트) | nginx.conf (빌드 포함) |
 | HTTPS | X | O (Let's Encrypt) |
 | 포트 | 80 | 80, 443 |
@@ -108,7 +108,7 @@ docker restart musicspace-frontend
 
 ### 컨테이너 중지/삭제
 ```bash
-docker-compose -f docker-compose.local.yml down
+docker-compose -f docker-compose.frontend-local.yml down
 ```
 
 ### 불필요한 이미지 정리
