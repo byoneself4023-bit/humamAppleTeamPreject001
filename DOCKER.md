@@ -54,6 +54,24 @@ docker-compose -f docker-compose.frontend.yml up -d --build
 
 ---
 
+## API 라우팅
+
+nginx 설정에서 API 요청을 백엔드 컨테이너로 프록시합니다.
+
+| API 경로 | 백엔드 | 설명 |
+|----------|--------|------|
+| `/api/auth/*` | Spring Boot | 인증 |
+| `/api/playlists/*` | Spring Boot | 플레이리스트 |
+| `/api/pms/*` | Spring Boot | Personal Music Space |
+| `/api/ems/*` | Spring Boot | External Music Space |
+| `/api/gms/*` | Spring Boot | Gateway Music Space |
+| `/api/kuka/*` | FastAPI | L1 Kuka 추천 (→ `/api/spotify/*`) |
+| `/api/m1/*`, `/api/m2/*`, `/api/m3/*` | FastAPI | AI 모델 |
+| `/api/analyze`, `/api/recommend` | FastAPI | 통합 AI API |
+| `/api/spotify/browser/*` | Node.js | Spotify 브라우저 자동화 |
+
+---
+
 ## 유용한 명령어
 
 ### 컨테이너 상태 확인
