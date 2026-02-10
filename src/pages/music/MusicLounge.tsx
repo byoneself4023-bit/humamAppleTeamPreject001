@@ -180,74 +180,85 @@ const MusicLoungeContent = () => {
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-6 pb-32">
             {/* Hero Section */}
-            <section className="hud-card hud-card-bottom rounded-xl p-8 mb-8 relative overflow-hidden">
-                <div className="relative z-10">
-                    <h1 className="text-4xl font-bold text-hud-accent-primary mb-3">Good Evening!</h1>
-                    <p className="text-lg text-hud-text-secondary mb-6">오늘도 좋은 음악과 함께하세요</p>
+            <section className="hud-card rounded-xl p-6 mb-8 relative overflow-hidden">
+                {/* 배경 장식 */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div className="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-hud-accent-success/10 blur-3xl" />
+                    <div className="absolute right-16 bottom-0 w-36 h-36 rounded-full bg-hud-accent-primary/10 blur-2xl" />
+                    <Headphones className="absolute right-6 top-1/2 -translate-y-1/2 w-28 h-28 text-hud-accent-success/10" strokeWidth={1} />
+                </div>
+                <div className="relative z-10 flex items-center justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="bg-hud-accent-success/20 text-hud-accent-success text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest">PMS</span>
+                            <span className="text-hud-text-muted text-sm">Personal Music Space</span>
+                        </div>
+                        <h1 className="text-3xl font-bold text-hud-text-primary mb-1">My Lounge</h1>
+                        <p className="text-hud-text-secondary text-sm">나만의 음악을 모아두는 공간</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-center bg-hud-bg-primary/60 border border-hud-border-secondary rounded-xl px-5 py-3">
+                            <div className="text-2xl font-bold text-hud-accent-success">{playlists.length}</div>
+                            <div className="text-xs text-hud-text-muted mt-0.5">플레이리스트</div>
+                        </div>
+                        <div className="text-center bg-hud-bg-primary/60 border border-hud-border-secondary rounded-xl px-5 py-3">
+                            <div className="text-2xl font-bold text-hud-accent-danger">{favorites.length}</div>
+                            <div className="text-xs text-hud-text-muted mt-0.5">즐겨찾기</div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             {/* My Favorites Section */}
             {!favoritesLoading && favorites.length > 0 && (
-                <section className="mb-8">
+                <section className="mb-8 hud-card rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-hud-text-primary flex items-center gap-2">
-                            <Heart className="w-5 h-5 text-hud-accent-danger" fill="currentColor" />
+                        <h2 className="text-xl font-bold text-hud-text-primary flex items-baseline gap-2">
                             My Favorites
-                            <span className="text-sm font-normal text-hud-text-muted">({favorites.length}곡)</span>
+                            <span className="text-sm font-normal text-hud-text-muted">{favorites.length}곡</span>
                         </h2>
                         <button
                             onClick={() => playPlaylist(favorites)}
-                            className="flex items-center gap-2 px-4 py-2 bg-hud-accent-danger/20 hover:bg-hud-accent-danger/30 text-hud-accent-danger rounded-lg font-medium transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-hud-accent-danger text-white rounded-full text-sm font-medium hover:bg-hud-accent-danger/90 transition-colors"
                         >
-                            <Play className="w-4 h-4" fill="currentColor" />
+                            <Play className="w-3.5 h-3.5" fill="currentColor" />
                             전체 재생
                         </button>
                     </div>
 
-                    <div className="hud-card rounded-xl overflow-hidden">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4">
-                            {favorites.slice(0, 8).map((track, idx) => (
-                                <div
-                                    key={track.id}
-                                    onClick={() => {
-                                        playPlaylist(favorites, idx)
-                                    }}
-                                    className="flex items-center gap-3 p-3 bg-hud-bg-secondary/50 hover:bg-hud-bg-secondary rounded-lg cursor-pointer group transition-colors"
-                                >
-                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-hud-accent-danger/30 to-pink-500/30 flex items-center justify-center overflow-hidden relative shrink-0">
-                                        {track.artwork ? (
-                                            <img src={track.artwork} alt={track.title} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <Music className="w-6 h-6 text-hud-accent-danger" />
-                                        )}
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Play className="w-5 h-5 text-white" fill="white" />
-                                        </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
+                        {favorites.slice(0, 16).map((track, idx) => (
+                            <div
+                                key={track.id}
+                                onClick={() => playPlaylist(favorites, idx)}
+                                className="flex-none w-32 cursor-pointer group"
+                            >
+                                <div className="w-32 h-32 rounded-xl bg-gradient-to-br from-hud-accent-danger/30 to-pink-500/20 flex items-center justify-center overflow-hidden relative mb-2 shadow-md">
+                                    {track.artwork ? (
+                                        <img src={track.artwork} alt={track.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Music className="w-10 h-10 text-hud-accent-danger/60" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+                                        <Play className="w-8 h-8 text-white drop-shadow-lg" fill="white" />
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-hud-text-primary truncate text-sm group-hover:text-hud-accent-danger transition-colors">
-                                            {track.title}
-                                        </div>
-                                        <div className="text-xs text-hud-text-muted truncate">{track.artist}</div>
-                                    </div>
-                                    <Heart className="w-4 h-4 text-hud-accent-danger shrink-0" fill="currentColor" />
                                 </div>
-                            ))}
-                        </div>
-                        {favorites.length > 8 && (
-                            <div className="px-4 pb-4">
-                                <button
-                                    onClick={async () => {
-                                        const info = await favoritesService.getFavoritesInfo()
-                                        if (info.playlist) {
-                                            handlePlaylistClick(info.playlist.id)
-                                        }
-                                    }}
-                                    className="w-full py-2 text-center text-hud-accent-danger text-sm hover:underline"
-                                >
-                                    + {favorites.length - 8}곡 더 보기
-                                </button>
+                                <div className="text-sm font-medium text-hud-text-primary truncate group-hover:text-hud-accent-danger transition-colors">{track.title}</div>
+                                <div className="text-xs text-hud-text-muted truncate mt-0.5">{track.artist}</div>
+                            </div>
+                        ))}
+                        {favorites.length > 16 && (
+                            <div
+                                onClick={async () => {
+                                    const info = await favoritesService.getFavoritesInfo()
+                                    if (info.playlist) handlePlaylistClick(info.playlist.id)
+                                }}
+                                className="flex-none w-32 cursor-pointer group flex flex-col items-center justify-center gap-2"
+                            >
+                                <div className="w-32 h-32 rounded-xl border-2 border-dashed border-hud-border-secondary flex items-center justify-center group-hover:border-hud-accent-danger transition-colors">
+                                    <span className="text-2xl font-bold text-hud-text-muted group-hover:text-hud-accent-danger transition-colors">+{favorites.length - 16}</span>
+                                </div>
+                                <div className="text-xs text-hud-text-muted">더 보기</div>
                             </div>
                         )}
                     </div>

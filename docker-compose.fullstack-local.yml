@@ -162,9 +162,9 @@ services:
       - fastapi
       - backend
     volumes:
+      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
       - ./public/images:/usr/share/nginx/html/images
       - ./public/uploads:/usr/share/nginx/html/uploads
-      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - musicspace-network
 
