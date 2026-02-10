@@ -7,8 +7,8 @@ humamAppleTeamPreject001/
 ├── Dockerfile                           # Frontend 빌드
 ├── docker-compose.frontend-local.yml    # 로컬 프론트엔드
 ├── docker-compose.frontend-server.yml   # 서버 프론트엔드
-├── docker-compose.backend-local.yml     # 로컬 전체 스택 (빌드)
-├── docker-compose.backend-server.yml    # 서버 전체 스택 (Docker Hub)
+├── docker-compose.fullstack-local.yml     # 로컬 전체 스택 (빌드)
+├── docker-compose.fullstack-server.yml    # 서버 전체 스택 (Docker Hub)
 ├── nginx.conf                           # 서버용 (HTTPS)
 └── nginx.local.conf                     # 로컬용 (HTTP)
 ```
@@ -21,8 +21,8 @@ humamAppleTeamPreject001/
 |------|------|------|
 | docker-compose.frontend-local.yml | 로컬 프론트엔드 | 빌드 |
 | docker-compose.frontend-server.yml | 서버 프론트엔드 | 빌드 |
-| docker-compose.backend-local.yml | 로컬 전체 스택 | 빌드 |
-| docker-compose.backend-server.yml | 서버 전체 스택 | Docker Hub pull |
+| docker-compose.fullstack-local.yml | 로컬 전체 스택 | 빌드 |
+| docker-compose.fullstack-server.yml | 서버 전체 스택 | Docker Hub pull |
 
 ---
 
@@ -50,14 +50,14 @@ docker-compose -f docker-compose.frontend-server.yml up -d --build
 ### 로컬 (전체 스택 빌드)
 ```bash
 cd humamAppleTeamPreject001
-docker-compose -f docker-compose.backend-local.yml up -d --build
+docker-compose -f docker-compose.fullstack-local.yml up -d --build
 ```
 
 ### 서버 (Docker Hub pull)
 ```bash
 cd /home/mibeen/music_space_place/Final_team_project/humamAppleTeamPreject001
-docker-compose -f docker-compose.backend-server.yml pull
-docker-compose -f docker-compose.backend-server.yml up -d
+docker-compose -f docker-compose.fullstack-server.yml pull
+docker-compose -f docker-compose.fullstack-server.yml up -d
 ```
 
 ---
