@@ -1,79 +1,77 @@
-# Frontend Docker 환경 가이드
+# Docker 환경 가이드
 
 ## 파일 구조
 
 ```
 humamAppleTeamPreject001/
-├── Dockerfile                    # Docker 빌드 설정
-├── docker-compose.frontend-local.yml      # 로컬 개발용
-├── docker-compose.frontend-server.yml   # 서버 배포용
-├── nginx.conf                    # 서버용 (HTTPS 포함)
-└── nginx.local.conf              # 로컬용 (HTTP only)
+├── Dockerfile                           # Frontend 빌드
+├── docker-compose.frontend-local.yml    # 로컬 프론트엔드
+├── docker-compose.frontend-server.yml   # 서버 프론트엔드
+├── docker-compose.backend-local.yml     # 로컬 전체 스택 (빌드)
+├── docker-compose.backend-server.yml    # 서버 전체 스택 (Docker Hub)
+├── nginx.conf                           # 서버용 (HTTPS)
+└── nginx.local.conf                     # 로컬용 (HTTP)
 ```
 
-## 로컬 개발
+---
 
-### 최초 실행
+## Docker Compose 파일 정리
+
+| 파일 | 용도 | 방식 |
+|------|------|------|
+| docker-compose.frontend-local.yml | 로컬 프론트엔드 | 빌드 |
+| docker-compose.frontend-server.yml | 서버 프론트엔드 | 빌드 |
+| docker-compose.backend-local.yml | 로컬 전체 스택 | 빌드 |
+| docker-compose.backend-server.yml | 서버 전체 스택 | Docker Hub pull |
+
+---
+
+## 프론트엔드 배포
+
+### 로컬
 ```bash
 cd humamAppleTeamPreject001
 docker-compose -f docker-compose.frontend-local.yml up -d --build
 ```
+- 접속: http://localhost
 
-### 코드 변경 후 적용
-```bash
-docker-compose -f docker-compose.frontend-local.yml up -d --build
-```
-
-### 접속
-- http://localhost
-
----
-
-## 서버 배포
-
-### 사전 조건
-- 백엔드 컨테이너 실행 중: `musicspace-backend`, `musicspace-spring-backend`, `musicspace-fastapi`
-- Docker 네트워크 존재: `humamappleteampreject001_musicspace-network`
-- SSL 인증서 존재: `/etc/letsencrypt/live/imaiplan.sytes.net/`
-
-### 배포 명령어
+### 서버
 ```bash
 cd /home/mibeen/music_space_place/Final_team_project/humamAppleTeamPreject001
 git pull
 docker-compose -f docker-compose.frontend-server.yml up -d --build
 ```
-
-### 배포 후 확인
-```bash
-# 컨테이너 실행 확인
-docker ps | grep musicspace-frontend
-
-# 로그 확인 (에러 없는지)
-docker logs musicspace-frontend --tail 20
-
-# HTTPS 접속 테스트
-curl -sI https://imaiplan.sytes.net | head -3
-```
-
-### 접속
-- https://imaiplan.sytes.net
+- 접속: https://imaiplan.sytes.net
 
 ---
 
-## 로컬 vs 서버 차이
+## 백엔드 배포
 
-| 항목 | 로컬 | 서버 |
-|------|------|------|
-| compose 파일 | docker-compose.frontend-local.yml | docker-compose.frontend-server.yml |
-| nginx 설정 | nginx.local.conf (마운트) | nginx.conf (빌드 포함) |
-| HTTPS | X | O (Let's Encrypt) |
-| 포트 | 80 | 80, 443 |
+### 로컬 (전체 스택 빌드)
+```bash
+cd humamAppleTeamPreject001
+docker-compose -f docker-compose.backend-local.yml up -d --build
+```
+
+### 서버 (Docker Hub pull)
+```bash
+cd /home/mibeen/music_space_place/Final_team_project/humamAppleTeamPreject001
+docker-compose -f docker-compose.backend-server.yml pull
+docker-compose -f docker-compose.backend-server.yml up -d
+```
+
+---
+
+## 사전 조건
+
+### 프론트엔드 배포 시
+- 백엔드 컨테이너 실행 중: `musicspace-backend`, `musicspace-spring-backend`, `musicspace-fastapi`
+- Docker 네트워크: `humamappleteampreject001_musicspace-network`
+- SSL 인증서 (서버): `/etc/letsencrypt/live/imaiplan.sytes.net/`
 
 ---
 
 ## API 라우팅
-
-nginx 설정에서 API 요청을 백엔드 컨테이너로 프록시합니다.
 
 | API 경로 | 백엔드 | 설명 |
 |----------|--------|------|
@@ -82,36 +80,24 @@ nginx 설정에서 API 요청을 백엔드 컨테이너로 프록시합니다.
 | `/api/pms/*` | Spring Boot | Personal Music Space |
 | `/api/ems/*` | Spring Boot | External Music Space |
 | `/api/gms/*` | Spring Boot | Gateway Music Space |
-| `/api/kuka/*` | FastAPI | L1 Kuka 추천 (→ `/api/spotify/*`) |
+| `/api/kuka/*` | FastAPI | L1 Kuka 추천 |
 | `/api/m1/*`, `/api/m2/*`, `/api/m3/*` | FastAPI | AI 모델 |
-| `/api/analyze`, `/api/recommend` | FastAPI | 통합 AI API |
 | `/api/spotify/browser/*` | Node.js | Spotify 브라우저 자동화 |
 
 ---
 
 ## 유용한 명령어
 
-### 컨테이너 상태 확인
 ```bash
-docker ps | grep musicspace-frontend
-```
+# 컨테이너 상태
+docker ps | grep musicspace
 
-### 로그 확인
-```bash
-docker logs musicspace-frontend
-```
+# 로그 확인
+docker logs musicspace-frontend --tail 50
 
-### 컨테이너 재시작
-```bash
+# 컨테이너 재시작
 docker restart musicspace-frontend
-```
 
-### 컨테이너 중지/삭제
-```bash
-docker-compose -f docker-compose.frontend-local.yml down
-```
-
-### 불필요한 이미지 정리
-```bash
+# 불필요한 이미지 정리
 docker system prune -f
 ```
