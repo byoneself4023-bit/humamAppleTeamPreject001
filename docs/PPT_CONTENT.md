@@ -112,7 +112,7 @@ MusicSpace
 
 | 플랫폼 | 로그인 방식 | Import 방식 | 대상 |
 |--------|------------|------------|------|
-| Spotify | 브라우저 자동화 (Playwright) | 수동 — 플레이리스트별 버튼 클릭 | PMS |
+| Spotify | 브라우저 로그인 | 수동 — 플레이리스트별 버튼 클릭 | PMS |
 | YouTube Music | OAuth 팝업 | 자동 — 연결 즉시 전체 Import | PMS |
 | Tidal | 모달 로그인 | 자동 — 연결 즉시 전체 Import | PMS |
 
@@ -232,18 +232,19 @@ MusicSpace
 ┌─────────────────────────────────┐
 │   nginx (musicspace-frontend)   │
 │   React SPA + Reverse Proxy     │
-└──┬──────┬────────────┬──────────┘
-   │      │            │
-   ▼      ▼            ▼
-[Spring] [Node.js]  [FastAPI]
-  :8080    :3001      :8000
-   │                   │
-   └──────┬────────────┘
-          ▼
-   ┌─────────────┐    ┌──────────┐
-   │  MariaDB    │    │  Redis   │
-   │  :3306      │    │  :6379   │
-   └─────────────┘    └──────────┘
+└──────────┬──────────────────────┘
+           │
+      ┌────┴────┐
+      ▼         ▼
+  [Spring]  [FastAPI]
+    :8080     :8000
+      │         │
+      └────┬────┘
+           ▼
+  ┌─────────────┐    ┌──────────┐
+  │  MariaDB    │    │  Redis   │
+  │  :3306      │    │  :6379   │
+  └─────────────┘    └──────────┘
 ```
 
 ---
@@ -254,7 +255,6 @@ MusicSpace
 |----------|--------|------|
 | musicspace-frontend | React + nginx | SPA 서빙 + API 리버스 프록시 |
 | musicspace-spring-backend | Spring Boot :8080 | 메인 REST API (인증, 플레이리스트, 외부 API 연동) |
-| musicspace-backend | Node.js :3001 | Spotify Playwright 브라우저 자동화 |
 | musicspace-fastapi | FastAPI :8000 | AI 음악 추천 (M1/M2/M3/L1) |
 | musicspace-db | MariaDB 10.11 :3306 | 메인 데이터베이스 |
 | musicspace-redis | Redis 7 :6379 | JWT Refresh Token 캐시 |
@@ -270,7 +270,6 @@ MusicSpace
 | `/api/pms/*` | Spring Boot | PMS 공간 API |
 | `/api/ems/*` | Spring Boot | EMS 공간 API |
 | `/api/gms/*` | Spring Boot | GMS 공간 API |
-| `/api/spotify/browser/*` | Node.js | Playwright 자동화 |
 | `/api/spotify/*` | Spring Boot | Spotify REST API |
 | `/api/analyze` | FastAPI | 통합 AI 분석 |
 | `/api/recommend` | FastAPI | 통합 AI 추천 |
@@ -297,8 +296,7 @@ MusicSpace
 | 분류 | 기술 |
 |------|------|
 | **Frontend** | React 18, Vite, TypeScript, Tailwind CSS |
-| **Backend (메인)** | Spring Boot 3, JPA, Spring Security, JWT |
-| **Backend (자동화)** | Node.js, Playwright, Puppeteer |
+| **Backend** | Spring Boot 3, JPA, Spring Security, JWT |
 | **AI/ML** | FastAPI, scikit-learn, CatBoost, FAISS, Sentence-Transformers, Gemini |
 | **DB** | MariaDB 10.11, Redis 7 |
 | **인프라** | Docker, Docker Compose, nginx |
