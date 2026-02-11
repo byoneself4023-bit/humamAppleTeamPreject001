@@ -74,6 +74,7 @@ import MusicLounge from './pages/music/MusicLounge'
 import ExternalMusicSpace from './pages/music/ExternalMusicSpace'
 import MusicHome from './pages/music/MusicHome'
 import GatewayMusicSpace from './pages/music/GatewayMusicSpace'
+import DeepDive from './pages/music/DeepDive'
 import MusicConnections from './pages/music/MusicConnections'
 import MusicSettings from './pages/music/MusicSettings'
 import Favorites from './pages/music/Favorites'
@@ -190,6 +191,7 @@ function App() {
                                 <Route path="favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
                                 <Route path="recent" element={<ProtectedRoute><RecentlyPlayed /></ProtectedRoute>} />
                                 <Route path="lab" element={<ProtectedRoute><GatewayMusicSpace /></ProtectedRoute>} />
+                                <Route path="deep-dive" element={<ProtectedRoute><DeepDive /></ProtectedRoute>} />
                                 <Route path="external-space" element={<ProtectedRoute><ExternalMusicSpace /></ProtectedRoute>} />
                                 <Route path="connections" element={<ProtectedRoute><MusicConnections /></ProtectedRoute>} />
                                 <Route path="settings" element={<ProtectedRoute><MusicSettings /></ProtectedRoute>} />

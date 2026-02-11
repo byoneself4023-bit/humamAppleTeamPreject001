@@ -70,6 +70,8 @@ const MusicSidebar = () => {
                             </span>
                         </Link>
 
+
+
                         <Link
                             to="/music/lab"
                             onClick={() => setIsOpen(false)}
@@ -131,6 +133,21 @@ const MusicSidebar = () => {
                                 L1
                             </span>
                         </button>
+
+                        <Link
+                            to="/music/deep-dive"
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/deep-dive')
+                                ? 'menu-active text-hud-accent-purple'
+                                : 'text-hud-text-secondary hover:bg-hud-accent-purple/10 hover:text-hud-text-primary'
+                                }`}
+                        >
+                            <Sparkles className="w-5 h-5" />
+                            <span>Deep Dive</span>
+                            <span className="ml-auto px-2 py-0.5 bg-hud-accent-purple/20 border border-hud-accent-purple/30 rounded-full text-[10px] text-hud-accent-purple font-semibold">
+                                L2
+                            </span>
+                        </Link>
                     </nav>
                 </div>
 

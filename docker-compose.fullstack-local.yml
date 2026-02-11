@@ -96,6 +96,7 @@ services:
       DB_NAME: ${DB_NAME:-music_space_db}
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID:-}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:

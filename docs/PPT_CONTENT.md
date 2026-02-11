@@ -22,7 +22,8 @@ MusicSpace
     ├── 라이브러리
     │   ├── Favorites      /music/favorites      좋아요 한 트랙 모음
     │   ├── Recently Played /music/recent        최근 재생 기록
-    │   └── Kuka House     (모달)                L1 AI 음악 추천
+    │   ├── Kuka House     (모달)                L1 AI 음악 추천
+    │   └── Deep Dive      /music/deep-dive      L2 자연어 음악 검색
     │
     └── 설정
         ├── Connections    /music/connections    외부 플랫폼 연동
@@ -105,6 +106,19 @@ MusicSpace
 | 결과 재생 | 추천곡 클릭 → 플레이어 연동 |
 | Favorites 추가 | 추천 결과에서 바로 하트 버튼 |
 | 드래그 앤 드롭 | 모달 위치 자유롭게 이동 가능 |
+
+---
+
+### Deep Dive (L2 자연어 검색)
+
+| 기능 | 설명 |
+|------|------|
+| 자연어 검색 | 한국어 쿼리 입력 → LLM 번역·감정 분석 → ChromaDB 벡터 검색 |
+| 결과 표시 | 유사도 %, 아티스트, 장르, 오디오 특성 바 |
+| AI 설명 | Gemini 2.0 Flash 기반 트랙별 한국어 추천 이유 생성 |
+| 페이지네이션 | 5곡씩, 최대 3페이지 (15곡) |
+| 데이터 규모 | 81,765곡 ChromaDB 벡터 DB (all-MiniLM-L6-v2 임베딩) |
+| 즉시 재생 | 결과 트랙 클릭 → 뮤직 플레이어 연동 |
 
 ---
 
@@ -255,7 +269,7 @@ MusicSpace
 |----------|--------|------|
 | musicspace-frontend | React + nginx | SPA 서빙 + API 리버스 프록시 |
 | musicspace-spring-backend | Spring Boot :8080 | 메인 REST API (인증, 플레이리스트, 외부 API 연동) |
-| musicspace-fastapi | FastAPI :8000 | AI 음악 추천 (M1/M2/M3/L1) |
+| musicspace-fastapi | FastAPI :8000 | AI 음악 추천 (M1/M2/M3/L1/L2) |
 | musicspace-db | MariaDB 10.11 :3306 | 메인 데이터베이스 |
 | musicspace-redis | Redis 7 :6379 | JWT Refresh Token 캐시 |
 
@@ -275,6 +289,7 @@ MusicSpace
 | `/api/recommend` | FastAPI | 통합 AI 추천 |
 | `/api/m1/*` `/api/m2/*` `/api/m3/*` | FastAPI | 모델별 API |
 | `/api/kuka/*` | FastAPI (`/api/spotify/*` rewrite) | L1 Kuka 추천 |
+| `/api/llm/*` | FastAPI | L2 Deep Dive 자연어 검색 |
 | `/swagger-ui/*` | Spring Boot | API 문서 |
 | `/*` | React SPA | 프론트엔드 SPA 라우팅 |
 
@@ -288,6 +303,7 @@ MusicSpace
 | **M2** | SVM + TF-IDF 텍스트 임베딩 (393D) | PMS(긍정) + EMS(부정) | 콘텐츠 기반 필터링 |
 | **M3** | CatBoost 협업 필터링 | 사용자 행동 이력 | 협업 필터링 추천 |
 | **L1 Kuka** | FAISS + MiniLM-L6-v2 텍스트 임베딩 + 오디오 앙상블 | Spotify 89,740곡 | 아티스트/곡명 기반 추천 |
+| **L2 Deep Dive** | ChromaDB + all-MiniLM-L6-v2 + Gemini 2.0 Flash | Spotify 81,765곡 태그 벡터 | 자연어 의미 기반 탐색 |
 
 ---
 
