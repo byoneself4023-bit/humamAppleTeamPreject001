@@ -1,4 +1,4 @@
-import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X, LayoutDashboard, Sparkles } from 'lucide-react'
+import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X, LayoutDashboard, Sparkles, Headphones, ScanSearch } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { LLMModal } from './LLMModal'
@@ -63,7 +63,7 @@ const MusicSidebar = () => {
                                 : 'text-hud-text-secondary hover:bg-hud-accent-success/10 hover:text-hud-text-primary'
                                 }`}
                         >
-                            <Home className="w-5 h-5" />
+                            <Headphones className="w-5 h-5" />
                             <span>My Lounge</span>
                             <span className="ml-auto px-2 py-0.5 bg-hud-accent-success/20 border border-hud-accent-success/30 rounded-full text-[10px] text-hud-accent-success font-semibold">
                                 PMS
@@ -142,7 +142,7 @@ const MusicSidebar = () => {
                                 : 'text-hud-text-secondary hover:bg-hud-accent-purple/10 hover:text-hud-text-primary'
                                 }`}
                         >
-                            <Sparkles className="w-5 h-5" />
+                            <ScanSearch className="w-5 h-5" />
                             <span>Deep Dive</span>
                             <span className="ml-auto px-2 py-0.5 bg-hud-accent-purple/20 border border-hud-accent-purple/30 rounded-full text-[10px] text-hud-accent-purple font-semibold">
                                 L2

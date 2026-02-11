@@ -12,6 +12,7 @@
   "dependencies": {
     "@tidal-music/player": "^0.11.3",
     "chart.js": "^4.4.1",
+    "framer-motion": "^12.34.0",
     "hls.js": "^1.6.15",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",

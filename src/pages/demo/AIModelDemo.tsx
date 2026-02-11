@@ -259,6 +259,9 @@ const AIModelDemo = () => {
         const startTime = Date.now()
 
         try {
+            // 화면에 표시된 EMS 트랙 ID 배열을 전달하여 동일한 트랙으로 모델 비교
+            const trackIds = emsTracks.map(t => t.id).filter(id => id !== undefined)
+
             const response = await fetch('/api/recommend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -266,7 +269,8 @@ const AIModelDemo = () => {
                     user_id: userId,
                     model: selectedModel,
                     top_k: topK,
-                    ems_track_limit: emsTrackLimit
+                    ems_track_limit: emsTrackLimit,
+                    track_ids: trackIds  // 동일한 EMS 트랙으로 비교
                 })
             })
             
@@ -371,7 +375,6 @@ const AIModelDemo = () => {
                             <button
                                 key={model}
                                 onClick={() => setSelectedModel(model)}
-                                disabled={model === 'M2'}
                                 className={`p-4 rounded-xl border-2 transition-all ${
                                     isSelected
                                         ? `border-transparent bg-gradient-to-br ${m.color} shadow-lg ${m.bgGlow}`

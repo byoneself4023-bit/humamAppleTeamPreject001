@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Search, Sparkles, Send, Loader2, Music } from 'lucide-react'
+import { Search, Sparkles, Send, Loader2, Music, Play } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { post } from '../../services/api'
 import { useMusic } from '../../context/MusicContext'
 import type { Track as PmsTrack } from '../../services/api/playlists'
+import FavoriteButton from '../../components/music/FavoriteButton'
 
 interface Track {
     track_id: string
@@ -26,17 +27,39 @@ interface SearchResponse {
     analyzed_query?: string
     detected_emotion?: string
     collection_size?: number
+    has_more?: boolean
+    page?: number
+    max_page?: number
     error?: string
 }
 
+const CACHE_KEY = 'deep_dive_cache'
+
 const DeepDive = () => {
-    const [query, setQuery] = useState('')
+    const [query, setQuery] = useState(() => {
+        try { return JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}').query || '' } catch { return '' }
+    })
     const [isLoading, setIsLoading] = useState(false)
-    const [results, setResults] = useState<Track[]>([])
-    const [analyzedInfo, setAnalyzedInfo] = useState<{ query: string; emotion: string } | null>(null)
+    const [results, setResults] = useState<Track[]>(() => {
+        try { return JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}').results || [] } catch { return [] }
+    })
+    const [analyzedInfo, setAnalyzedInfo] = useState<{ query: string; emotion: string } | null>(() => {
+        try { return JSON.parse(sessionStorage.getItem(CACHE_KEY) || '{}').analyzedInfo || null } catch { return null }
+    })
     const [searchError, setSearchError] = useState<string | null>(null)
     const [placeholderIndex, setPlaceholderIndex] = useState(0)
-    const { playTrack } = useMusic()
+    const { playPlaylist } = useMusic()
+
+    const toPmsTrack = (track: Track, index: number): PmsTrack => ({
+        id: index,
+        title: track.title,
+        artist: track.artist,
+        album: track.genre,
+        duration: 0,
+        orderIndex: index,
+        sourceId: track.track_id,
+        sourceType: 'deep-dive',
+    } as PmsTrack)
 
     const placeholders = [
         "비오는 날 카페에서 들을 잔잔한 재즈...",
@@ -69,13 +92,17 @@ const DeepDive = () => {
             })
 
             if (response.success) {
+                const info = response.analyzed_query
+                    ? { query: response.analyzed_query, emotion: response.detected_emotion || '' }
+                    : null
                 setResults(response.tracks)
-                if (response.analyzed_query) {
-                    setAnalyzedInfo({
-                        query: response.analyzed_query,
-                        emotion: response.detected_emotion || '',
-                    })
-                }
+                setAnalyzedInfo(info)
+                // 페이지 이동 후 복원을 위해 sessionStorage에 캐시
+                sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+                    query,
+                    results: response.tracks,
+                    analyzedInfo: info,
+                }))
             } else {
                 setSearchError(response.error || '검색에 실패했습니다.')
             }
@@ -210,6 +237,18 @@ const DeepDive = () => {
                         animate={{ opacity: 1 }}
                         className="space-y-2"
                     >
+                        {/* Play All header */}
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs text-hud-text-muted">{results.length}곡</span>
+                            <button
+                                onClick={() => playPlaylist(results.map(toPmsTrack))}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-hud-accent-purple hover:bg-hud-accent-purple/80 text-white text-sm font-medium transition-colors"
+                            >
+                                <Play className="w-3.5 h-3.5" fill="currentColor" />
+                                전체 재생
+                            </button>
+                        </div>
+
                         {results.map((track, index) => {
                             const energy = track.audio_features?.energy ?? 0
                             const valence = track.audio_features?.valence ?? 0
@@ -223,18 +262,7 @@ const DeepDive = () => {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0, transition: { delay: index * 0.07 } }}
                                     className="group flex items-start gap-4 px-5 py-4 rounded-xl bg-hud-bg-card/40 hover:bg-hud-bg-card border border-transparent hover:border-hud-border-secondary transition-all cursor-pointer"
-                                    onClick={() =>
-                                        playTrack({
-                                            id: 0,
-                                            title: track.title,
-                                            artist: track.artist,
-                                            album: track.genre,
-                                            duration: 0,
-                                            orderIndex: index,
-                                            sourceId: track.track_id,
-                                            sourceType: 'deep-dive',
-                                        } as PmsTrack)
-                                    }
+                                    onClick={() => playPlaylist(results.map(toPmsTrack), index)}
                                 >
                                     {/* Index */}
                                     <div className="w-6 shrink-0 text-center mt-0.5">
@@ -260,7 +288,7 @@ const DeepDive = () => {
                                                 </p>
                                             </div>
 
-                                            {/* Similarity + Genre */}
+                                            {/* Similarity + Genre + Favorite */}
                                             <div className="flex items-center gap-2 shrink-0">
                                                 {track.genre && (
                                                     <span className="px-2 py-0.5 rounded-md bg-hud-bg-tertiary border border-hud-border-secondary text-[10px] text-hud-text-muted">
@@ -270,6 +298,12 @@ const DeepDive = () => {
                                                 <span className="text-xs font-medium text-green-400 tabular-nums">
                                                     {Math.round(track.similarity_score * 100)}%
                                                 </span>
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <FavoriteButton
+                                                        track={{ title: track.title, artist: track.artist }}
+                                                        size="sm"
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
 
