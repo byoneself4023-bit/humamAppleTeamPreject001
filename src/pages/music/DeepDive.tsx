@@ -86,19 +86,34 @@ const DeepDive = () => {
         }
     }
 
-    // 트랙별 explanation이 모두 동일한지 체크
-    const hasUniqueExplanations = (() => {
-        if (results.length < 2) return true
-        const first = results[0]?.explanation
-        return results.some((t) => t.explanation && t.explanation !== first)
-    })()
-
     const getTagList = (tags: string) =>
         tags
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean)
             .slice(0, 4)
+
+    // Gemini fallback: tags + audio features 기반 로컬 설명 생성
+    const buildLocalExplanation = (track: Track): string => {
+        const tags = getTagList(track.tags)
+        const energy = track.audio_features?.energy ?? 0.5
+        const valence = track.audio_features?.valence ?? 0.5
+        const mood = energy < 0.3 ? '잔잔하고 차분한' : energy < 0.6 ? '부드러운' : '신나고 활기찬'
+        const feeling = valence < 0.3 ? '감성적인' : valence < 0.6 ? '중립적인' : '밝고 긍정적인'
+        const mainTags = tags.slice(0, 2).join(', ')
+        const score = Math.round(track.similarity_score * 100)
+        return `${mood} ${feeling} 분위기의 ${mainTags} 트랙 — 검색어와 ${score}% 매칭`
+    }
+
+    // Gemini 설명이 모두 동일(quota 초과 fallback)이면 로컬 설명으로 교체
+    const getExplanation = (track: Track): string => {
+        const apiExplanation = track.explanation
+        if (!apiExplanation) return buildLocalExplanation(track)
+        // generic fallback 패턴 감지: 모든 트랙이 동일한 텍스트
+        const first = results[0]?.explanation
+        const allSame = results.length > 1 && results.every(t => t.explanation === first)
+        return allSame ? buildLocalExplanation(track) : apiExplanation
+    }
 
     const getAcousticnessColor = (v: number) => {
         if (v > 0.7) return 'bg-emerald-500'
@@ -200,8 +215,7 @@ const DeepDive = () => {
                             const valence = track.audio_features?.valence ?? 0
                             const acousticness = track.audio_features?.acousticness ?? 0
                             const tags = getTagList(track.tags)
-                            const showExplanation =
-                                hasUniqueExplanations && track.explanation
+                            const explanation = getExplanation(track)
 
                             return (
                                 <motion.div
@@ -273,10 +287,10 @@ const DeepDive = () => {
                                             </div>
                                         )}
 
-                                        {/* Unique AI explanation */}
-                                        {showExplanation && (
+                                        {/* AI explanation (Gemini or local fallback) */}
+                                        {explanation && (
                                             <p className="mt-2 text-xs text-hud-text-secondary/70 italic leading-relaxed">
-                                                {track.explanation}
+                                                {explanation}
                                             </p>
                                         )}
 
