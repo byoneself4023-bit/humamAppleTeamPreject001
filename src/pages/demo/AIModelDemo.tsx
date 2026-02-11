@@ -371,8 +371,9 @@ const AIModelDemo = () => {
                             <button
                                 key={model}
                                 onClick={() => setSelectedModel(model)}
+                                disabled={model === 'M2'}
                                 className={`p-4 rounded-xl border-2 transition-all ${
-                                    isSelected 
+                                    isSelected
                                         ? `border-transparent bg-gradient-to-br ${m.color} shadow-lg ${m.bgGlow}`
                                         : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
                                 }`}

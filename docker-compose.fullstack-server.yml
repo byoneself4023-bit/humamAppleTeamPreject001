@@ -102,7 +102,9 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - fastapi_models:/app/M1/user_models
+      - fastapi_m1_models:/app/M1/user_models
+      - fastapi_m2_models:/app/M2/user_models
+      - fastapi_m3_models:/app/M3/user_models
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -183,7 +185,9 @@ services:
 volumes:
   mariadb_data:
   redis_data:
-  fastapi_models:
+  fastapi_m1_models:
+  fastapi_m2_models:
+  fastapi_m3_models:
 
 networks:
   musicspace-network:

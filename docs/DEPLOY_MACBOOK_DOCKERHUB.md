@@ -484,6 +484,36 @@ git pull
 docker exec musicspace-frontend nginx -s reload
 ```
 
+### 로컬 개발 환경 (docker-compose.fullstack-local.yml)
+
+> **로컬 개발 시** 코드 수정 후 재빌드 없이 반영하려면 볼륨 마운트 설정 확인 필요
+
+**현재 FastAPI 볼륨 마운트 설정:**
+```yaml
+fastapi:
+  volumes:
+    - ../FAST_API/M1:/app/M1           # M1 전체 (소스코드 + 모델)
+    - ../FAST_API/M2:/app/M2           # M2 전체
+    - ../FAST_API/M3:/app/M3           # M3 전체
+    - ../FAST_API/LLM:/app/LLM
+    - ../FAST_API/main.py:/app/main.py
+    - ../FAST_API/database.py:/app/database.py
+```
+
+**코드 수정 후 반영 (재빌드 불필요):**
+```bash
+# FastAPI 코드 수정 후
+docker restart musicspace-fastapi
+
+# 반영 확인
+docker logs musicspace-fastapi --tail 20
+```
+
+> **참고:** 볼륨 마운트가 안 된 경우 `--build` 옵션 필요
+> ```bash
+> docker-compose -f docker-compose.fullstack-local.yml up -d --build fastapi
+> ```
+
 ### 이미지 정리 (디스크 공간 확보)
 ```bash
 # 사용하지 않는 이전 이미지 삭제

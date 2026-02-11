@@ -103,8 +103,12 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ../FAST_API/M1/user_models:/app/M1/user_models
+      - ../FAST_API/M1:/app/M1
+      - ../FAST_API/M2:/app/M2
+      - ../FAST_API/M3:/app/M3
       - ../FAST_API/LLM:/app/LLM
+      - ../FAST_API/main.py:/app/main.py
+      - ../FAST_API/database.py:/app/database.py
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
