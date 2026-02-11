@@ -9,11 +9,15 @@
 ### 1.1 재생 우선순위
 | 순위 | 소스 | 조건 | 품질 |
 |------|------|------|------|
-| 1 | **Tidal HLS** | tidalId 존재 + Tidal 로그인 (playback scope) | LOSSLESS (무손실) |
-| 2 | **iTunes Preview (저장됨)** | externalMetadata.previewUrl 존재 | 256kbps (30초) |
+| 1 | **Tidal HLS** | tidalId 존재 + Tidal 로그인 | LOSSLESS (무손실) |
+| 2 | **Tidal Search** | tidalId 없이 artist+title로 Tidal 검색 | LOSSLESS (무손실) |
 | 3 | **YouTube (저장됨)** | externalMetadata.youtubeId 존재 | 가변 |
-| 4 | **iTunes 실시간 검색** | artist + title로 iTunes API 검색 | 256kbps (30초) |
-| 5 | **YouTube 실시간 검색** | 위 소스 모두 실패 시 YouTube 검색 | 가변 |
+| 4 | **YouTube URL** | track.url에 youtube.com 포함 | 가변 |
+| 5 | **YouTube Smart Match** | artist+title로 YouTube 실시간 검색 | 가변 |
+| 6 | **iTunes Preview (저장됨)** | externalMetadata.previewUrl 존재 | 256kbps (30초) |
+| 7 | **iTunes URL** | track.url에 audio-ssl.itunes 포함 | 256kbps (30초) |
+| 8 | **iTunes Smart Match** | artist+title로 iTunes API 실시간 검색 | 256kbps (30초) |
+| — | **자동 다음 곡 이동** | 모든 소스 실패 시 큐의 다음 트랙으로 자동 skip | — |
 
 ### 1.2 기술 스택
 - **hls.js**: Tidal HLS 스트리밍 (m3u8 매니페스트 파싱)
@@ -240,3 +244,5 @@ user.read playlists.read playlists.write collection.read playback
 | 2026-02-05 | AudioService-TidalPlayerAdapter 연동 완료 |
 | 2026-02-05 | iTunes 실시간 검색 폴백 추가 |
 | 2026-02-05 | Tidal OAuth scope에 `playback` 추가 (스트리밍 권한) |
+| 2026-02-11 | 재생 우선순위 변경: Tidal → YouTube → iTunes (YouTube를 iTunes보다 우선) |
+| 2026-02-11 | 소스 없을 시 자동 다음 곡 skip 기능 추가 (MusicContext queueRef 패턴) |

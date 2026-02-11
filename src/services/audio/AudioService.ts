@@ -312,19 +312,7 @@ class AudioService {
             // Will try to find alternatives below
         }
 
-        // === PRIORITY 3: iTunes Preview (Fast, reliable preview) ===
-        const previewUrl = parsedMetadata.previewUrl || track.previewUrl || track.audio
-        if (previewUrl && previewUrl.includes('audio-ssl.itunes.apple.com')) {
-            console.log('[AudioService] Using iTunes Preview URL')
-            this.updateState({
-                sourceType: 'ITUNES_PREVIEW',
-                isBuffering: true,
-                error: null
-            })
-            return previewUrl
-        }
-
-        // === PRIORITY 4: Existing YouTube ID ===
+        // === PRIORITY 3: Existing YouTube ID (stored) ===
         if (parsedMetadata.youtubeId) {
             url = `https://www.youtube.com/watch?v=${parsedMetadata.youtubeId}`
             console.log('[AudioService] Using stored YouTube ID:', parsedMetadata.youtubeId)
@@ -336,45 +324,15 @@ class AudioService {
             return url
         }
 
-        // === PRIORITY 5: Direct URL ===
-        if (track.url) {
-            if (track.url.includes('youtube.com') || track.url.includes('youtu.be')) {
-                console.log('[AudioService] Using direct YouTube URL')
-                this.updateState({ sourceType: 'YOUTUBE', isBuffering: true, error: null })
-                return track.url
-            }
-            if (track.url.includes('audio-ssl.itunes.apple.com')) {
-                console.log('[AudioService] Using direct iTunes URL')
-                this.updateState({ sourceType: 'ITUNES_PREVIEW', isBuffering: true, error: null })
-                return track.url
-            }
+        // === PRIORITY 4: Direct YouTube URL ===
+        if (track.url && (track.url.includes('youtube.com') || track.url.includes('youtu.be'))) {
+            console.log('[AudioService] Using direct YouTube URL')
+            this.updateState({ sourceType: 'YOUTUBE', isBuffering: true, error: null })
+            return track.url
         }
 
-        // === PRIORITY 6: iTunes Smart Match (30-sec preview, always works) ===
+        // === PRIORITY 5: YouTube Smart Match ===
         this.updateState({ isBuffering: true, error: null })
-        try {
-            const itunesQuery = `${track.artist} ${track.title}`.trim()
-            console.log(`[iTunes SmartMatch] Searching: "${itunesQuery}"`)
-            const itunesResults = await itunesService.search(itunesQuery)
-
-            if (itunesResults && itunesResults.length > 0) {
-                const match = itunesResults[0]
-                const itunesPreviewUrl = match.audio || match.previewUrl
-                if (itunesPreviewUrl) {
-                    console.log(`[iTunes SmartMatch] Found: ${match.title} by ${match.artist}`)
-                    this.updateState({
-                        sourceType: 'ITUNES_PREVIEW',
-                        isBuffering: true,
-                        error: null
-                    })
-                    return itunesPreviewUrl
-                }
-            }
-        } catch (e) {
-            console.warn('[iTunes SmartMatch] Failed:', e)
-        }
-
-        // === PRIORITY 7: YouTube Smart Match (Fallback) ===
         const searchQueries = [
             `${track.artist} - ${track.title} audio`,
             `${track.title} ${track.artist}`,
@@ -400,6 +358,48 @@ class AudioService {
             } catch (e) {
                 console.warn(`[YouTube SmartMatch] Query failed: "${query}"`, e)
             }
+        }
+
+        // === PRIORITY 6: iTunes Preview (stored) ===
+        const previewUrl = parsedMetadata.previewUrl || track.previewUrl || track.audio
+        if (previewUrl && previewUrl.includes('audio-ssl.itunes.apple.com')) {
+            console.log('[AudioService] Using iTunes Preview URL')
+            this.updateState({
+                sourceType: 'ITUNES_PREVIEW',
+                isBuffering: true,
+                error: null
+            })
+            return previewUrl
+        }
+
+        // === PRIORITY 7: Direct iTunes URL ===
+        if (track.url?.includes('audio-ssl.itunes.apple.com')) {
+            console.log('[AudioService] Using direct iTunes URL')
+            this.updateState({ sourceType: 'ITUNES_PREVIEW', isBuffering: true, error: null })
+            return track.url
+        }
+
+        // === PRIORITY 8: iTunes Smart Match (30-sec preview) ===
+        try {
+            const itunesQuery = `${track.artist} ${track.title}`.trim()
+            console.log(`[iTunes SmartMatch] Searching: "${itunesQuery}"`)
+            const itunesResults = await itunesService.search(itunesQuery)
+
+            if (itunesResults && itunesResults.length > 0) {
+                const match = itunesResults[0]
+                const itunesPreviewUrl = match.audio || match.previewUrl
+                if (itunesPreviewUrl) {
+                    console.log(`[iTunes SmartMatch] Found: ${match.title} by ${match.artist}`)
+                    this.updateState({
+                        sourceType: 'ITUNES_PREVIEW',
+                        isBuffering: true,
+                        error: null
+                    })
+                    return itunesPreviewUrl
+                }
+            }
+        } catch (e) {
+            console.warn('[iTunes SmartMatch] Failed:', e)
         }
 
         // === NO SOURCE FOUND ===

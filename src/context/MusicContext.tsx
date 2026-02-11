@@ -106,6 +106,10 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
         setRecentTracks([])
     }, [])
 
+    // queueRef: always reflects current queue (avoids stale closure in async callbacks)
+    const queueRef = useRef<Track[]>([])
+    useEffect(() => { queueRef.current = queue }, [queue])
+
     const playTrack = async (track: Track) => {
         setCurrentTrack(track)
         setResolvedUrl(null) // Reset URL to prevent playing previous track
@@ -114,12 +118,20 @@ export const MusicProvider = ({ children }: { children: ReactNode }) => {
         // Save to recently played
         addToRecentTracks(track)
 
-        // Resolve URL (Smart Match)
+        // Resolve URL (Priority: Tidal > YouTube > iTunes)
         const url = await audioService.resolveAndPlay(track)
         setResolvedUrl(url)
 
         if (url) {
             audioService.play()
+        } else {
+            // 소스를 찾을 수 없으면 자동으로 다음 곡으로 이동
+            console.warn(`[MusicContext] No source for "${track.title}", skipping to next track`)
+            const currentQueue = queueRef.current
+            const currentIndex = currentQueue.findIndex(t => t.id === track.id)
+            if (currentIndex !== -1 && currentIndex < currentQueue.length - 1) {
+                setTimeout(() => playTrack(currentQueue[currentIndex + 1]), 800)
+            }
         }
     }
 
