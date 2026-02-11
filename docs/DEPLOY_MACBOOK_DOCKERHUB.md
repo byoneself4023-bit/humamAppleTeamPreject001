@@ -8,6 +8,15 @@
 > - 빌드 방식 (`docker-compose.fullstack-local.yml`): 맥북에서 소스를 직접 빌드 (20~40분)
 > - **Docker Hub 방식 (이 문서)**: Docker Hub에서 이미지 Pull → 빌드 불필요, 빠른 시작
 
+> **Compose 파일 안내:**
+> | 파일명 | 용도 | 비고 |
+> |--------|------|------|
+> | `docker-compose.macbook.yml` | **맥북 배포 (이 문서에서 사용)** | Docker Hub Pull, 도메인 설정 포함 |
+> | `docker-compose.macbook-dockerhub.yml` | 맥북 로컬 테스트용 (참고용) | `platform: linux/amd64` 명시, localhost 기반 |
+> | `docker-compose.fullstack-local.yml` | 로컬 소스 빌드 방식 | 소스 직접 빌드 (느림) |
+>
+> → `docker-compose.macbook-dockerhub.yml`은 Apple Silicon에서 `platform` 을 명시적으로 지정한 테스트용 파일입니다. 운영 배포에는 `docker-compose.macbook.yml`을 사용하세요.
+
 ---
 
 ## 목차
@@ -24,7 +33,9 @@
 11. [서비스 실행 및 중지](#11-서비스-실행-및-중지)
 12. [배포 후 검증](#12-배포-후-검증)
 13. [코드 변경 시 업데이트 방법](#13-코드-변경-시-업데이트-방법)
-14. [트러블슈팅](#14-트러블슈팅)
+14. [macOS 자동 시작 설정 (launchd)](#14-macos-자동-시작-설정-launchd)
+15. [트러블슈팅](#15-트러블슈팅)
+16. [아키텍처 다이어그램](#16-아키텍처-다이어그램)
 
 ---
 
@@ -44,11 +55,21 @@ docker compose version    # v2.x 이상
 git --version
 ```
 
+### 맥 아키텍처 확인
+```bash
+uname -m
+# arm64  → Apple Silicon (M1~M4)
+# x86_64 → Intel Mac
+```
+
+> Apple Silicon 맥에서 `x86_64(amd64)` 이미지를 실행하면 Rosetta 2 에뮬레이션으로 동작합니다.
+> Docker Desktop 4.25+ 에서는 자동으로 처리되지만, 성능이 10~20% 하락할 수 있습니다.
+
 ---
 
 ## 2. 이미지 Push 준비 (개발 PC에서)
 
-> **맥북에서 직접 배포한다면 이 단계 건너뜀.**
+> **맥북에서 직접 빌드한다면 이 단계 건너뜀.**
 > Docker Hub에 최신 이미지가 이미 올라가 있다면 바로 [3단계](#3-맥북-소스-코드-준비)로.
 
 ### 2-1. Docker Hub 로그인 (개발 PC)
@@ -58,39 +79,72 @@ docker login
 # Password: Docker Hub 비밀번호 입력
 ```
 
-### 2-2. 이미지 빌드 및 Push
+### 2-2. 크로스 플랫폼 이미지 빌드
 
+> **⚠️ 개발 PC와 맥북의 CPU 아키텍처가 다를 경우 반드시 크로스 빌드 필요!**
+>
+> | 개발 PC | 맥북 | 크로스 빌드 필요? |
+> |---------|------|------------------|
+> | Windows x86_64 | Apple Silicon (arm64) | ⚠️ 필요 — `--platform linux/arm64` |
+> | Windows x86_64 | Intel Mac (x86_64) | ✅ 불필요 — 같은 아키텍처 |
+> | Apple Silicon (arm64) | Apple Silicon (arm64) | ✅ 불필요 |
+
+#### 방법 A: 기본 빌드 (동일 아키텍처)
 ```bash
 cd ~/humamAppleTeamPreject001   # 또는 본인 경로
 ```
 
-#### 프론트엔드 (React + nginx)
+##### 프론트엔드 (React + nginx)
 ```bash
 docker build -t johae201/music_space_place:frontend .
 docker push johae201/music_space_place:frontend
 ```
 
-#### Spring Boot 백엔드
+##### Spring Boot 백엔드
 ```bash
 docker build -t johae201/music_space_place:spring-backend ../2TeamFinalProject-BE
 docker push johae201/music_space_place:spring-backend
 ```
 
-#### FastAPI AI/ML 서버
+##### FastAPI AI/ML 서버
 ```bash
 docker build -t johae201/music_space_place:fastapi ../FAST_API
 docker push johae201/music_space_place:fastapi
 ```
 
-#### Node.js 백엔드
+##### Node.js 백엔드
 ```bash
 docker build -t johae201/music_space_place:node-backend ./server
 docker push johae201/music_space_place:node-backend
 ```
 
-#### 전체 한 번에 빌드 + Push
+#### 방법 B: 크로스 플랫폼 빌드 (아키텍처가 다를 때)
+
+> Docker Buildx를 사용하여 멀티 아키텍처 이미지를 빌드합니다.
+
 ```bash
-# 아래 스크립트를 push_images.sh로 저장 후 실행
+# 1) Buildx 빌더 생성 (최초 1회)
+docker buildx create --name multiarch --use
+docker buildx inspect --bootstrap
+
+# 2) 멀티 아키텍처 빌드 + Push (linux/amd64 + linux/arm64 동시)
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t johae201/music_space_place:frontend --push .
+
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t johae201/music_space_place:spring-backend --push ../2TeamFinalProject-BE
+
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t johae201/music_space_place:fastapi --push ../FAST_API
+
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t johae201/music_space_place:node-backend --push ./server
+```
+
+> **멀티 아키텍처의 장점:** 한 번 빌드하면 Intel/Apple Silicon 맥 모두에서 네이티브 성능으로 실행됩니다.
+
+#### 전체 한 번에 빌드 + Push (기본 빌드)
+```bash
 docker build -t johae201/music_space_place:frontend . && \
 docker build -t johae201/music_space_place:spring-backend ../2TeamFinalProject-BE && \
 docker build -t johae201/music_space_place:fastapi ../FAST_API && \
@@ -100,9 +154,6 @@ docker push johae201/music_space_place:spring-backend && \
 docker push johae201/music_space_place:fastapi && \
 docker push johae201/music_space_place:node-backend
 ```
-
-> **Apple Silicon 맥북에 배포한다면:** 빌드 시 `--platform linux/amd64` 추가 필요할 수 있음.
-> 맥북과 개발 PC 아키텍처가 같다면 불필요.
 
 ---
 
@@ -130,13 +181,8 @@ git clone https://github.com/imorangepie20/humamAppleTeamPreject001.git
 ```bash
 cd ~/humamAppleTeamPreject001
 
-# 템플릿 복사
-cp .env.docker .env
-```
-
-`.env` 파일 열어 수정:
-
-```env
+# .env 파일 직접 생성
+cat > .env << 'EOF'
 # Database (기본값 그대로 사용 가능)
 DB_ROOT_PASSWORD=musicspace123
 DB_NAME=music_space_db
@@ -145,11 +191,11 @@ DB_PASSWORD=musicspace123
 
 # JWT Secret — 반드시 변경!
 JWT_SECRET=여기에_랜덤값_입력
-# 생성: openssl rand -base64 32
 
 # Tidal API (없으면 빈칸)
 TIDAL_CLIENT_ID=
 TIDAL_CLIENT_SECRET=
+TIDAL_REDIRECT_URI=http://imapplepie20.tplinkdns.com/tidal-callback
 
 # Spotify API
 SPOTIFY_CLIENT_ID=
@@ -157,10 +203,21 @@ SPOTIFY_CLIENT_SECRET=
 
 # YouTube API
 YOUTUBE_KEY=
+YOUTUBE_CLIENT_ID=
+YOUTUBE_CLIENT_SECRET=
 
 # Last.fm API
 LASTFM_API_KEY=
+EOF
 ```
+
+JWT_SECRET 생성:
+```bash
+openssl rand -base64 32
+# 출력값을 .env 파일의 JWT_SECRET에 붙여넣기
+```
+
+> **⚠️ `.env` 파일은 Git에 커밋하지 마세요!** `.gitignore`에 포함되어 있는지 확인하세요.
 
 ---
 
@@ -178,6 +235,9 @@ Docker Desktop 실행 → **Settings(톱니바퀴)**:
 **General 탭:**
 - "Start Docker Desktop when you log in" 체크 → 맥 재시작 후 자동 실행
 
+> **Apple Silicon 참고:** Docker Desktop 4.25+ 에서 Rosetta 에뮬레이션이 기본 활성화됩니다.
+> Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon" 체크 확인.
+
 ---
 
 ## 6. 공유기 포트포워딩 설정
@@ -187,7 +247,7 @@ TP-Link 공유기 관리 페이지 (`192.168.0.1` 또는 `192.168.1.1`) 접속:
 **고급 설정 → NAT 포워딩 → 가상 서버:**
 
 | 이름 | 외부 포트 | 내부 포트 | 내부 IP | 프로토콜 |
-|------|----------|---------|--------|---------|
+|------|----------|---------|--------|---------| 
 | MusicSpace | 80 | 80 | 맥북 IP | TCP |
 
 맥북 IP 확인:
@@ -243,7 +303,14 @@ mkdir -p public/images
 mkdir -p public/uploads
 ```
 
-### 9-2. Docker Hub 이미지 Pull
+### 9-2. Docker Hub 로그인 (맥북)
+```bash
+docker login
+# Username: johae201
+# Password: 입력
+```
+
+### 9-3. Docker Hub 이미지 Pull
 ```bash
 docker compose -f docker-compose.macbook.yml pull
 ```
@@ -251,12 +318,12 @@ docker compose -f docker-compose.macbook.yml pull
 > 최초 Pull 시 이미지 크기: 약 3~5GB (FastAPI 포함)
 > 네트워크 속도에 따라 5~15분 소요
 
-### 9-3. 서비스 시작
+### 9-4. 서비스 시작
 ```bash
 docker compose -f docker-compose.macbook.yml up -d
 ```
 
-### 9-4. 기동 확인
+### 9-5. 기동 확인
 ```bash
 # 컨테이너 상태 확인 (모두 Up이어야 함)
 docker ps --format "table {{.Names}}\t{{.Status}}"
@@ -271,6 +338,14 @@ musicspace-fastapi          Up (healthy)
 musicspace-backend          Up
 musicspace-redis            Up (healthy)
 musicspace-db               Up (healthy)
+```
+
+### 9-6. 헬스체크 한 번에 확인
+```bash
+echo "=== Frontend ===" && curl -s -o /dev/null -w "%{http_code}" http://localhost/ && echo ""
+echo "=== Spring Boot ===" && curl -s http://localhost/swagger-ui/index.html | head -1
+echo "=== FastAPI ===" && curl -s http://localhost/api/fastapi/health
+echo "=== Node.js ===" && curl -s http://localhost/api/health
 ```
 
 ---
@@ -305,6 +380,11 @@ docker exec -i musicspace-db mariadb -u musicspace -pmusicspace123 music_space_d
 ```
 
 > **004, 006은 적용 불필요** (코드에서 사용 안 함)
+
+### 마이그레이션 확인
+```bash
+docker exec -i musicspace-db mariadb -u musicspace -pmusicspace123 music_space_db -e "SHOW TABLES;"
+```
 
 ---
 
@@ -362,6 +442,12 @@ docker logs musicspace-frontend --tail 50
 | `http://localhost/` | MusicSpace 메인 페이지 |
 | `http://localhost/api/m1/health` | M1 모델 상태 |
 
+### 외부 접근 테스트 (맥북이 아닌 다른 기기에서)
+```bash
+curl -I http://imapplepie20.tplinkdns.com/
+# HTTP/1.1 200 OK 가 나와야 함
+```
+
 ---
 
 ## 13. 코드 변경 시 업데이트 방법
@@ -398,9 +484,110 @@ git pull
 docker exec musicspace-frontend nginx -s reload
 ```
 
+### 이미지 정리 (디스크 공간 확보)
+```bash
+# 사용하지 않는 이전 이미지 삭제
+docker image prune -a --filter "until=48h"
+```
+
 ---
 
-## 14. 트러블슈팅
+## 14. macOS 자동 시작 설정 (launchd)
+
+> 맥 재시작 후 Docker Desktop만 실행되고, MusicSpace 컨테이너는 자동 시작되지 않을 수 있습니다.
+> `launchd`를 사용하면 로그인 시 자동으로 서비스를 올릴 수 있습니다.
+
+### 14-1. 자동 시작 스크립트 생성
+
+```bash
+cat > ~/musicspace-start.sh << 'SCRIPT'
+#!/bin/bash
+# MusicSpace 자동 시작 스크립트
+LOG_FILE="$HOME/musicspace-autostart.log"
+PROJECT_DIR="$HOME/humamAppleTeamPreject001"
+
+echo "$(date): MusicSpace 자동 시작 시작..." >> "$LOG_FILE"
+
+# Docker Desktop 준비 대기 (최대 120초)
+WAIT_COUNT=0
+while ! docker info > /dev/null 2>&1; do
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+  if [ $WAIT_COUNT -ge 24 ]; then
+    echo "$(date): Docker 시작 타임아웃 (120초)" >> "$LOG_FILE"
+    exit 1
+  fi
+  sleep 5
+done
+
+echo "$(date): Docker 준비 완료. 컨테이너 시작..." >> "$LOG_FILE"
+
+cd "$PROJECT_DIR"
+docker compose -f docker-compose.macbook.yml up -d >> "$LOG_FILE" 2>&1
+
+echo "$(date): MusicSpace 시작 완료." >> "$LOG_FILE"
+SCRIPT
+
+chmod +x ~/musicspace-start.sh
+```
+
+### 14-2. launchd plist 등록
+
+```bash
+cat > ~/Library/LaunchAgents/com.musicspace.autostart.plist << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.musicspace.autostart</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>HOMEDIR/musicspace-start.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>0</integer>
+  <key>StandardOutPath</key>
+  <string>HOMEDIR/musicspace-launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>HOMEDIR/musicspace-launchd-error.log</string>
+</dict>
+</plist>
+PLIST
+
+# HOME 경로를 실제 경로로 치환
+sed -i '' "s|HOMEDIR|$HOME|g" ~/Library/LaunchAgents/com.musicspace.autostart.plist
+```
+
+### 14-3. 등록 및 활성화
+
+```bash
+# 로드 (등록)
+launchctl load ~/Library/LaunchAgents/com.musicspace.autostart.plist
+
+# 상태 확인
+launchctl list | grep musicspace
+
+# 수동 실행 테스트
+launchctl start com.musicspace.autostart
+
+# 로그 확인
+cat ~/musicspace-autostart.log
+```
+
+### 14-4. 자동 시작 해제 (필요 시)
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.musicspace.autostart.plist
+rm ~/Library/LaunchAgents/com.musicspace.autostart.plist
+```
+
+---
+
+## 15. 트러블슈팅
 
 ### 도메인 접속 불가
 ```bash
@@ -421,6 +608,18 @@ docker login
 
 # 이미지 이름 확인
 docker pull johae201/music_space_place:frontend
+
+# 아키텍처 불일치 시 manifest 확인
+docker manifest inspect johae201/music_space_place:frontend
+```
+
+### Apple Silicon에서 아키텍처 경고/에러
+```bash
+# 현재 실행 중인 컨테이너 아키텍처 확인
+docker inspect musicspace-spring-backend | grep Architecture
+
+# "platform: linux/amd64" 관련 에러 시 → Docker Desktop Rosetta 활성화
+# Settings → General → "Use Rosetta for x86_64/amd64 emulation on Apple Silicon" 체크
 ```
 
 ### Spring Boot 기동 실패
@@ -446,11 +645,54 @@ sudo lsof -i :80
 sudo apachectl stop
 ```
 
+### 컨테이너 전체 상태 빠른 점검
+```bash
+echo "=== 컨테이너 상태 ==="
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo ""
+echo "=== 리소스 사용량 ==="
+docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+```
+
 ### DB 완전 초기화 (최후 수단, 모든 데이터 삭제)
 ```bash
 docker compose -f docker-compose.macbook.yml down -v
 docker compose -f docker-compose.macbook.yml up -d
 # 이후 마이그레이션 재적용 필요
+```
+
+---
+
+## 16. 아키텍처 다이어그램
+
+```
+                  ┌──────────────────────────────────────┐
+                  │         Docker Hub (johae201)         │
+                  │   ┌──────────┐  ┌──────────────────┐ │
+                  │   │ frontend │  │ spring-backend   │ │
+                  │   │ fastapi  │  │ node-backend     │ │
+                  │   └──────────┘  └──────────────────┘ │
+                  └──────────────┬───────────────────────┘
+                       docker pull │
+              ┌────────────────────▼─────────────────────┐
+              │            맥북 (Docker Desktop)          │
+              │                                          │
+              │  ┌─────────────────────────────────────┐ │
+              │  │  docker-compose.macbook.yml          │ │
+              │  │                                     │ │
+              │  │  ┌─────────┐    ┌────────────────┐  │ │
+  :80 ────────┼──┼─►│ nginx   │───►│ Spring Boot    │  │ │
+  (외부)      │  │  │ frontend│    │ :8080          │  │ │
+              │  │  │         │───►│ FastAPI :8000  │  │ │
+              │  │  │         │───►│ Node.js :3001  │  │ │
+              │  │  └─────────┘    └───────┬────────┘  │ │
+              │  │                         │           │ │
+              │  │  ┌──────────┐  ┌────────▼────────┐  │ │
+              │  │  │ Redis    │  │ MariaDB         │  │ │
+              │  │  │ :6379    │  │ :3306           │  │ │
+              │  │  └──────────┘  └─────────────────┘  │ │
+              │  └─────────────────────────────────────┘ │
+              └──────────────────────────────────────────┘
 ```
 
 ---
@@ -466,3 +708,5 @@ docker compose -f docker-compose.macbook.yml up -d
 | DB 접속 | `docker exec -it musicspace-db mariadb -u musicspace -pmusicspace123 music_space_db` |
 | nginx 리로드 | `docker exec musicspace-frontend nginx -s reload` |
 | 빌드 방식 가이드 | `docs/DEPLOY_MACBOOK.md` |
+| 자동 시작 로그 | `~/musicspace-autostart.log` |
+| launchd 설정 | `~/Library/LaunchAgents/com.musicspace.autostart.plist` |
