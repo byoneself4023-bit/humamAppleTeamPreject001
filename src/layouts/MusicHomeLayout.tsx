@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { LogIn, LogOut, User, UserPlus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import Footer from '../components/layout/Footer'
 
 const MusicHomeLayout = () => {
     const { user, isAuthenticated, logout } = useAuth()
@@ -70,8 +71,11 @@ const MusicHomeLayout = () => {
                     </nav>
                 </div>
             </header>
-            <main className="pb-16 overflow-y-auto flex-1 min-h-0">
-                <Outlet />
+            <main className="overflow-y-auto flex-1 min-h-0 flex flex-col">
+                <div className="flex-1">
+                    <Outlet />
+                </div>
+                <Footer />
             </main>
         </div>
     )

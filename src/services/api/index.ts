@@ -56,6 +56,14 @@ export async function patch<T>(endpoint: string, data?: unknown): Promise<T> {
     })
 }
 
+// PUT request
+export async function put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return apiRequest<T>(endpoint, {
+        method: 'PUT',
+        body: data ? JSON.stringify(data) : undefined,
+    })
+}
+
 // DELETE request
 export async function del<T>(endpoint: string): Promise<T> {
     return apiRequest<T>(endpoint, { method: 'DELETE' })

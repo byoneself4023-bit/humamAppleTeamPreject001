@@ -141,6 +141,19 @@ CREATE TABLE IF NOT EXISTS playlists (
 ) ENGINE=InnoDB COMMENT='플레이리스트 정보 (PMS, EMS, GMS 통합 관리)';
 
 -- =====================================================
+-- 7-1. 사용자별 재생목록 재import 차단 목록
+-- 사용자가 삭제한 외부 플레이리스트를 기록하여 재연동 시 중복 import 방지
+-- =====================================================
+CREATE TABLE IF NOT EXISTS user_dismissed_playlists (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    external_id VARCHAR(255) NOT NULL COMMENT 'youtube:PLxxx, tidal:uuid, spotify:id',
+    dismissed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_user_external (user_id, external_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='사용자별 재생목록 재import 차단 목록';
+
+-- =====================================================
 -- 8. 트랙(음원) 정보 테이블 (tracks)
 -- base + migration 002(일부), 003 컬럼 통합
 -- NOTE: youtube_id 컬럼 없음 (migration 004 미적용)
@@ -484,3 +497,12 @@ CREATE USER IF NOT EXISTS 'musicspace'@'175.195.36.16' IDENTIFIED BY 'musicspace
 GRANT ALL PRIVILEGES ON music_space_db.* TO 'musicspace'@'175.195.36.16';
 
 FLUSH PRIVILEGES;
+
+-- 시스템 전역 설정 테이블 (관리자 테마 등)
+CREATE TABLE IF NOT EXISTS system_settings (
+    setting_key VARCHAR(100) PRIMARY KEY,
+    setting_value VARCHAR(255) NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='시스템 전역 설정';
+
+INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('theme', 'default');
