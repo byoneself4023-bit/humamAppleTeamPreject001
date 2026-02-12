@@ -150,7 +150,8 @@ export default defineConfig({
         }
     },
     build: {
-        target: 'esnext' // Allow top-level await
+        target: 'esnext', // Allow top-level await
+        emptyOutDir: false,
     },
     esbuild: {
         target: 'esnext' // Allow top-level await

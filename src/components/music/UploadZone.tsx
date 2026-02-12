@@ -1,4 +1,4 @@
-import { Cloud, File, Link as LinkIcon } from 'lucide-react'
+import { Cloud, File } from 'lucide-react'
 import { useState } from 'react'
 
 interface UploadZoneProps {
@@ -6,7 +6,7 @@ interface UploadZoneProps {
     onUrlSubmit?: (url: string) => void
 }
 
-const UploadZone = ({ onFilesSelected, onUrlSubmit }: UploadZoneProps) => {
+const UploadZone = ({ onFilesSelected }: UploadZoneProps) => {
     const [isDragOver, setIsDragOver] = useState(false)
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -27,15 +27,11 @@ const UploadZone = ({ onFilesSelected, onUrlSubmit }: UploadZoneProps) => {
     }
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('[UploadZone] onChange fired, files:', e.target.files?.length, e.target.files)
         if (e.target.files && onFilesSelected) {
             onFilesSelected(e.target.files)
-        }
-    }
-
-    const handleUrlInput = () => {
-        const url = prompt('플레이리스트 URL을 입력하세요:\n(Spotify, YouTube Music, Apple Music 등)')
-        if (url && url.trim() && onUrlSubmit) {
-            onUrlSubmit(url.trim())
+        } else {
+            console.warn('[UploadZone] onFilesSelected missing or no files', { files: e.target.files, onFilesSelected: !!onFilesSelected })
         }
     }
 
@@ -55,7 +51,7 @@ const UploadZone = ({ onFilesSelected, onUrlSubmit }: UploadZoneProps) => {
 
                 <h3 className="text-xl font-bold text-hud-text-primary mb-2">플레이리스트 파일을 드래그하여 업로드</h3>
                 <p className="text-hud-text-muted mb-6">
-                    CSV, JSON, M3U, PLS 파일 지원 • 또는 플레이리스트 URL 입력
+                    CSV, JSON, M3U, PLS 파일 지원
                 </p>
 
                 <div className="flex items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
@@ -65,14 +61,6 @@ const UploadZone = ({ onFilesSelected, onUrlSubmit }: UploadZoneProps) => {
                     >
                         <File className="w-4 h-4" />
                         파일 선택
-                    </button>
-
-                    <button
-                        onClick={handleUrlInput}
-                        className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all"
-                    >
-                        <LinkIcon className="w-4 h-4" />
-                        URL 입력
                     </button>
                 </div>
 

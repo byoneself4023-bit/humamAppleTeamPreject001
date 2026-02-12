@@ -8,7 +8,6 @@ import {
     User,
     Calendar,
     Settings,
-    HelpCircle,
     Sparkles,
     UtensilsCrossed,
     ChevronDown,
@@ -21,7 +20,10 @@ import {
     ShoppingBag,
     DollarSign,
     Image,
+    Shield,
+    Palette,
 } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface SidebarProps {
     collapsed: boolean
@@ -113,8 +115,16 @@ const menuItems: MenuItem[] = [
     { title: 'Settings', icon: <Settings size={20} />, path: '/settings' },
 ]
 
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+const masterMenuItems = [
+    { title: 'Settings', icon: <Settings size={20} />, path: '/admin/settings' },
+    { title: 'Admin Portal', icon: <Shield size={20} />, path: '/admin/portal' },
+    { title: 'Theme Config', icon: <Palette size={20} />, path: '/admin/theme' },
+]
+
+const Sidebar = ({ collapsed }: SidebarProps) => {
     const location = useLocation()
+    const { user } = useAuth()
+    const isMaster = user?.role === 'MASTER'
     const [expandedMenus, setExpandedMenus] = useState<string[]>([])
 
     const toggleMenu = (title: string) => {
@@ -153,8 +163,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             </div>
 
             {/* Navigation */}
-            <nav className="py-4 overflow-y-auto h-[calc(100%-4rem)]">
-                <ul className="space-y-1 px-3">
+            <nav className="py-4 overflow-y-auto h-[calc(100%-4rem)] flex flex-col">
+                <ul className="space-y-1 px-3 flex-1">
                     {menuItems.map((item) => (
                         <li key={item.title}>
                             {item.children ? (
@@ -215,6 +225,37 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                         </li>
                     ))}
                 </ul>
+
+                {/* MASTER-only section */}
+                {isMaster && (
+                    <div className="px-3 mt-2 mb-2">
+                        {!collapsed && (
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-hud-text-muted px-3 mb-1">
+                                Master
+                            </p>
+                        )}
+                        <ul className="space-y-1">
+                            {masterMenuItems.map((item) => (
+                                <li key={item.path}>
+                                    <Link
+                                        to={item.path}
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-hud ${
+                                            location.pathname === item.path
+                                                ? 'bg-red-500/10 text-red-400'
+                                                : 'text-red-400/60 hover:bg-red-500/10 hover:text-red-400'
+                                        }`}
+                                    >
+                                        {item.icon}
+                                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                        {!collapsed && (
+                            <div className="border-t border-red-500/20 mt-2" />
+                        )}
+                    </div>
+                )}
             </nav>
         </aside>
     )

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { User, getStoredUser, getToken, logout as apiLogout, getCurrentUser } from '../services/api/auth'
+import { User, getStoredUser, setStoredUser, getToken, logout as apiLogout, getCurrentUser } from '../services/api/auth'
 
 interface AuthContextType {
     user: User | null
@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (token) {
                 try {
                     const { user } = await getCurrentUser()
+                    setStoredUser(user)
                     setUser(user)
                 } catch {
                     // Token invalid, clear it

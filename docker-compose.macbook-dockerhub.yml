@@ -1,11 +1,10 @@
-# MusicSpace MacBook 로컬 배포 (Docker Hub)
-# 맥북 로컬에서 Docker Hub 이미지를 pull해서 실행 (HTTP, no SSL)
+# MusicSpace MacBook 로컬 빌드 배포
+# 사용법: docker compose -f docker-compose.macbook-dockerhub.yml up -d --build
 
 services:
   # MariaDB 데이터베이스
   db:
     image: mariadb:10.11
-    platform: linux/amd64  # Apple Silicon (M1/M2/M3) Rosetta 에뮬레이션
     container_name: musicspace-db
     restart: unless-stopped
     environment:
@@ -23,7 +22,8 @@ services:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - musicspace-network
 
@@ -45,10 +45,11 @@ services:
     networks:
       - musicspace-network
 
-  # Spring Boot 백엔드 (Docker Hub)
+  # Spring Boot 백엔드 (로컬 빌드)
   spring-backend:
-    image: johae201/music_space_place:spring-backend
-    platform: linux/amd64
+    build:
+      context: ../2TeamFinalProject-BE
+      dockerfile: Dockerfile
     container_name: musicspace-spring-backend
     restart: unless-stopped
     environment:
@@ -82,10 +83,11 @@ services:
     networks:
       - musicspace-network
 
-  # FastAPI AI/ML 서버 (Docker Hub)
+  # FastAPI AI/ML 서버 (로컬 빌드)
   fastapi:
-    image: johae201/music_space_place:fastapi
-    platform: linux/amd64
+    build:
+      context: ../FAST_API
+      dockerfile: Dockerfile
     container_name: musicspace-fastapi
     restart: unless-stopped
     environment:
@@ -105,20 +107,28 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - fastapi_models:/app/M1/user_models
+      - ../FAST_API/main.py:/app/main.py
+      - ../FAST_API/database.py:/app/database.py
+      - ../FAST_API/init_user_models.py:/app/init_user_models.py
+      - ../FAST_API/audio_enrichment.py:/app/audio_enrichment.py
+      - ../FAST_API/M1:/app/M1
+      - ../FAST_API/M2:/app/M2
+      - ../FAST_API/M3:/app/M3
+      - ../FAST_API/LLM:/app/LLM
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 60s
     networks:
       - musicspace-network
 
-  # Node.js 백엔드 (Docker Hub)
+  # Node.js 백엔드 (로컬 빌드)
   backend:
-    image: johae201/music_space_place:node-backend
-    platform: linux/amd64
+    build:
+      context: ./server
+      dockerfile: Dockerfile
     container_name: musicspace-backend
     restart: unless-stopped
     environment:
@@ -148,29 +158,33 @@ services:
     networks:
       - musicspace-network
 
-  # React 프론트엔드 (Docker Hub) - HTTP 직접 노출 (SSL 없음)
+  # React 프론트엔드 (로컬 빌드)
   frontend:
-    image: johae201/music_space_place:frontend
-    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: musicspace-frontend
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+      - "8443:8443"
     depends_on:
       - spring-backend
       - fastapi
       - backend
     volumes:
-      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro  # HTTP 설정 (SSL 없음)
+      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
       - ./public/images:/usr/share/nginx/html/images
       - ./public/uploads:/usr/share/nginx/html/uploads
+      - ./public/webroot:/webroot
+      - ./ssl:/etc/nginx/ssl:ro
     networks:
       - musicspace-network
 
 volumes:
   mariadb_data:
   redis_data:
-  fastapi_models:
 
 networks:
   musicspace-network:

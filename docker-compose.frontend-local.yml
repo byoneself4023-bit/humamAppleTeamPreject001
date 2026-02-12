@@ -9,10 +9,14 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+      - "8443:8443"
     volumes:
       - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
       - ./public/images:/usr/share/nginx/html/images
       - ./public/uploads:/usr/share/nginx/html/uploads
+      - ./public/webroot:/webroot
+      - ./ssl:/etc/nginx/ssl:ro
     networks:
       - musicspace-network
 

@@ -1,13 +1,16 @@
-import { Music, Home, Beaker, Warehouse, Heart, Clock, Settings, Plug, Menu, X, LayoutDashboard, Sparkles, Headphones, ScanSearch } from 'lucide-react'
+import { Music, Home, Beaker, Warehouse, Heart, Clock, Plug, Menu, X, LayoutDashboard, Sparkles, Headphones, ScanSearch, Settings } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { LLMModal } from './LLMModal'
+import { useAuth } from '../../contexts/AuthContext'
 
 const MusicSidebar = () => {
     const location = useLocation()
     const isActive = (path: string) => location.pathname === path
     const [isOpen, setIsOpen] = useState(false)
     const [isLLMModalOpen, setIsLLMModalOpen] = useState(false)
+    const { user } = useAuth()
+    const isMaster = user?.role === 'MASTER'
 
     return (
         <>
@@ -166,42 +169,45 @@ const MusicSidebar = () => {
                             <Plug className="w-5 h-5" />
                             <span>Connections</span>
                         </Link>
-                        <Link
-                            to="/music/settings"
-                            onClick={() => setIsOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/settings')
-                                ? 'menu-active text-hud-accent-primary'
-                                : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
-                                }`}
-                        >
-                            <Settings className="w-5 h-5" />
-                            <span>Settings</span>
-                        </Link>
+                        {isMaster && (
+                            <>
+                                <Link
+                                    to="/music/settings"
+                                    onClick={() => setIsOpen(false)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/music/settings')
+                                        ? 'menu-active text-hud-accent-primary'
+                                        : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
+                                        }`}
+                                >
+                                    <Settings className="w-5 h-5" />
+                                    <span>Settings</span>
+                                </Link>
+                                <Link
+                                    to="/admin"
+                                    onClick={() => setIsOpen(false)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/admin')
+                                        ? 'menu-active text-hud-accent-primary'
+                                        : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
+                                        }`}
+                                >
+                                    <LayoutDashboard className="w-5 h-5" />
+                                    <span>Admin Portal</span>
+                                </Link>
 
-                        <Link
-                            to="/admin"
-                            onClick={() => setIsOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive('/admin')
-                                ? 'menu-active text-hud-accent-primary'
-                                : 'text-hud-text-secondary hover:bg-hud-accent-primary/10 hover:text-hud-text-primary'
-                                }`}
-                        >
-                            <LayoutDashboard className="w-5 h-5" />
-                            <span>Admin Portal</span>
-                        </Link>
-
-                        {/* Admin / Theme Config */}
-                        <Link
-                            to="/music/theme-config"
-                            onClick={() => setIsOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all mt-6 border-t border-hud-border-secondary pt-4 ${isActive('/music/theme-config')
-                                ? 'text-hud-accent-warning'
-                                : 'text-hud-text-muted hover:text-hud-accent-warning'
-                                }`}
-                        >
-                            <span className="text-lg">🎨</span>
-                            <span>Theme Config</span>
-                        </Link>
+                                {/* Admin / Theme Config */}
+                                <Link
+                                    to="/music/theme-config"
+                                    onClick={() => setIsOpen(false)}
+                                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all mt-6 border-t border-hud-border-secondary pt-4 ${isActive('/music/theme-config')
+                                        ? 'text-hud-accent-warning'
+                                        : 'text-hud-text-muted hover:text-hud-accent-warning'
+                                        }`}
+                                >
+                                    <span className="text-lg">🎨</span>
+                                    <span>Theme Config</span>
+                                </Link>
+                            </>
+                        )}
                     </nav>
                 </div>
             </aside>

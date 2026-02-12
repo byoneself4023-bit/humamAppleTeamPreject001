@@ -9,8 +9,8 @@ import {
     EMSPlaylistTable,
     EMSCartDrawer
 } from '../../components/music/ems'
-import { Filter, Sparkles, Plus, Link as LinkIcon, Play } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { Sparkles, Plus, Link as LinkIcon, Play } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { playlistsApi, Playlist as ApiPlaylist, Track } from '../../services/api/playlists'
 import { fastapiService } from '../../services/api/fastapi'
@@ -105,8 +105,8 @@ const ExternalMusicSpace = () => {
     // Modal State
     const [isModalLoading, setIsModalLoading] = useState(false)
 
-    const [seedAttempted, setSeedAttempted] = useState(false)
-    const [tidalSyncDone, setTidalSyncDone] = useState(false)
+    const seedAttempted = useRef(false)
+    const tidalSyncDone = useRef(false)
 
     // Music playback
     const { playTrack } = useMusic()
@@ -148,8 +148,8 @@ const ExternalMusicSpace = () => {
             setLoading(true)
             setError(null)
 
-            if (!skipSeed && !seedAttempted) {
-                setSeedAttempted(true)
+            if (!skipSeed && !seedAttempted.current) {
+                seedAttempted.current = true
                 try {
                     const seedResult = await playlistsApi.seedPlaylists()
                     if (seedResult?.imported && seedResult.imported > 0) {
@@ -161,9 +161,7 @@ const ExternalMusicSpace = () => {
             }
 
             const response = await playlistsApi.getPlaylists('EMS')
-            console.log('[EMS] API Response:', response)
             const playlists = response?.playlists || []
-            console.log('[EMS] Playlists with trackCount:', playlists.map(p => ({ id: p.id, title: p.title, trackCount: p.trackCount })))
             setPlaylists(playlists.map(mapApiPlaylist))
         } catch (err) {
             console.error('Failed to fetch playlists:', err)
@@ -172,7 +170,7 @@ const ExternalMusicSpace = () => {
         } finally {
             setLoading(false)
         }
-    }, [seedAttempted])
+    }, [])
 
     const checkConnections = useCallback(async () => {
         try {
@@ -242,90 +240,17 @@ const ExternalMusicSpace = () => {
         fetchSpotifySpecial()
     }, [])
 
-    // Load Apple Music New Releases AND Auto-Import to DB
+    // Load Apple Music New Releases (display only, no auto-import)
     useEffect(() => {
-        const loadAndImportAppleNew = async () => {
+        const loadAppleNew = async () => {
             try {
                 const data = await appleMusicApi.getNewReleases()
                 setNewReleases(data as any)
-
-                if (data.songs.length > 0 || data.playlists.length > 0) {
-                    setIsAutoImporting(true)
-                    showToast('Apple Music 데이터를 DB에 자동 저장 중...', 'success')
-
-                    let importedCount = 0
-
-                    for (const playlist of data.playlists) {
-                        try {
-                            const createResult = await playlistsApi.importPlaylist({
-                                platformPlaylistId: playlist.id,
-                                title: playlist.attributes.name,
-                                description: playlist.attributes.editorialNotes?.short || 'Apple Music Auto-Import',
-                                coverImage: playlist.attributes.artwork?.url.replace('{w}', '600').replace('{h}', '600').replace('{c}', 'bb').replace('{f}', 'jpg'),
-                                platform: 'Apple Music'
-                            })
-                            importedCount++
-
-                            try {
-                                const tracksData = await appleMusicApi.getTracks(playlist.id, 'playlists')
-                                for (const t of tracksData) {
-                                    if (t.type === 'songs') {
-                                        await playlistsApi.addTrack(createResult.playlist.id, {
-                                            title: t.attributes.name,
-                                            artist: t.attributes.artistName,
-                                            album: t.attributes.albumName || '',
-                                            artwork: t.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg'),
-                                            externalMetadata: {
-                                                appleMusicId: t.id,
-                                                previewUrl: (t.attributes.previews && t.attributes.previews[0]) ? t.attributes.previews[0].url : undefined
-                                            }
-                                        })
-                                    }
-                                }
-                            } catch (e) { console.warn('Track import failed for playlist', playlist.id) }
-                        } catch (e) { /* Ignore duplicates */ }
-                    }
-
-                    if (data.songs.length > 0) {
-                        try {
-                            const today = new Date().toLocaleDateString('ko-KR')
-                            const chartPlaylist = await playlistsApi.create({
-                                title: `Apple Music Top 40 (${today})`,
-                                description: 'Auto-imported Top Charts',
-                                sourceType: 'Platform',
-                                spaceType: 'EMS',
-                                status: 'PTP',
-                                coverImage: data.songs[0].attributes.artwork?.url.replace('{w}', '600').replace('{h}', '600').replace('{c}', 'bb').replace('{f}', 'jpg')
-                            })
-
-                            for (const song of data.songs) {
-                                await playlistsApi.addTrack(chartPlaylist.id, {
-                                    title: song.attributes.name,
-                                    artist: song.attributes.artistName,
-                                    album: song.attributes.albumName,
-                                    artwork: song.attributes.artwork?.url.replace('{w}', '300').replace('{h}', '300').replace('{c}', 'bb').replace('{f}', 'jpg'),
-                                    externalMetadata: {
-                                        appleMusicId: song.id,
-                                        previewUrl: (song.attributes.previews && song.attributes.previews[0]) ? song.attributes.previews[0].url : undefined
-                                    }
-                                })
-                            }
-                            importedCount++
-                        } catch (e) { console.warn('Chart playlist creation failed', e) }
-                    }
-
-                    if (importedCount > 0) {
-                        showToast(`Apple Music 데이터 ${importedCount}개 세트 DB 저장 완료`, 'success')
-                        fetchPlaylists(true)
-                    }
-                    setIsAutoImporting(false)
-                }
             } catch (e) {
-                console.error('Failed to load/import Apple Music:', e)
-                setIsAutoImporting(false)
+                console.error('Failed to load Apple Music new releases:', e)
             }
         }
-        loadAndImportAppleNew()
+        loadAppleNew()
     }, [])
 
     // Load Recommendations
@@ -385,16 +310,16 @@ const ExternalMusicSpace = () => {
 
     useEffect(() => {
         const syncAndTrain = async () => {
-            if (tidalConnected && !syncing && !tidalSyncDone) {
-                setTidalSyncDone(true)
+            if (tidalConnected && !syncing && !tidalSyncDone.current) {
+                tidalSyncDone.current = true
                 await handleTidalSync()
                 await trainModel()
             }
         }
-        if (tidalUserLoggedIn && !tidalSyncDone) {
+        if (tidalUserLoggedIn && !tidalSyncDone.current) {
             syncAndTrain()
         }
-    }, [tidalUserLoggedIn, tidalConnected, syncing, tidalSyncDone])
+    }, [tidalUserLoggedIn, tidalConnected, syncing])
 
     // Handlers
     const handleSelectAll = (checked: boolean) => {
@@ -741,73 +666,198 @@ const ExternalMusicSpace = () => {
     }
 
     // File Upload
-    const handleFileUpload = async (files: FileList) => {
-        if (files.length === 0) return
-        const file = files[0]
-        const reader = new FileReader()
+    const parseTracksFromFile = (text: string, fileName: string): { title: string, artist: string, album?: string, duration?: number }[] => {
+        const ext = fileName.split('.').pop()?.toLowerCase()
 
-        reader.onload = async (e) => {
-            const text = e.target?.result as string
-            if (!text) return
-
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
-            const tracksToImport: { title: string, artist: string }[] = []
-
-            lines.forEach(line => {
-                if (line.toLowerCase().includes('track name') || line.toLowerCase().includes('artist name')) return
-                let artist = 'Unknown Artist'
-                let title = line
-                if (line.includes(',')) {
-                    const parts = line.split(',')
-                    if (parts.length >= 2) {
-                        title = parts[0].trim().replace(/^"|"$/g, '')
-                        artist = parts[1].trim().replace(/^"|"$/g, '')
-                    }
-                } else if (line.includes(' - ')) {
-                    const parts = line.split(' - ')
-                    artist = parts[0].trim()
-                    title = parts.slice(1).join(' - ').trim()
-                }
-                if (title) tracksToImport.push({ title, artist })
-            })
-
-            if (tracksToImport.length === 0) {
-                showToast('파일에서 트랙을 찾을 수 없습니다.', 'error')
-                return
-            }
-
+        // JSON 파싱
+        if (ext === 'json') {
             try {
-                showToast(`${tracksToImport.length}곡을 포함한 플레이리스트 생성 중...`, 'success')
-                const playlistName = file.name.replace(/\.[^/.]+$/, "")
-                const createResult = await playlistsApi.create({
-                    title: playlistName,
-                    description: `Imported from file: ${file.name}`,
-                    sourceType: 'Upload',
-                    spaceType: 'EMS',
-                    status: 'PTP'
-                })
-
-                let successCount = 0
-                for (const track of tracksToImport) {
-                    try {
-                        await playlistsApi.addTrack(createResult.id, {
-                            title: track.title,
-                            artist: track.artist,
-                            album: 'Imported',
-                            duration: 0
-                        })
-                        successCount++
-                    } catch (err) { console.warn('Failed to add track:', track, err) }
-                }
-
-                showToast(`'${playlistName}' 생성 완료 (${successCount}/${tracksToImport.length}곡)`, 'success')
-                fetchPlaylists(true)
-            } catch (err) {
-                console.error('File import failed:', err)
-                showToast('파일 가져오기 실패', 'error')
+                const data = JSON.parse(text)
+                const items = Array.isArray(data) ? data : (data.tracks || data.items || data.songs || [])
+                return items.map((item: any) => ({
+                    title: item.title || item.name || item.track || item.trackName || '',
+                    artist: item.artist || item.artistName || item.creator || 'Unknown Artist',
+                    album: item.album || item.albumName || '',
+                    duration: item.duration || item.duration_ms ? Math.round((item.duration_ms || item.duration) / 1000) : 0
+                })).filter((t: any) => t.title)
+            } catch {
+                showToast('JSON 파일 파싱 실패', 'error')
+                return []
             }
         }
-        reader.readAsText(file)
+
+        // M3U/M3U8 파싱
+        if (ext === 'm3u' || ext === 'm3u8') {
+            const tracks: { title: string, artist: string, duration?: number }[] = []
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+            let pendingInfo: { title: string, artist: string, duration?: number } | null = null
+
+            lines.forEach(line => {
+                if (line.startsWith('#EXTINF:')) {
+                    // #EXTINF:duration,Artist - Title
+                    const info = line.slice(8)
+                    const commaIdx = info.indexOf(',')
+                    const duration = commaIdx > 0 ? parseInt(info.slice(0, commaIdx)) : 0
+                    const displayName = commaIdx > 0 ? info.slice(commaIdx + 1).trim() : ''
+                    if (displayName.includes(' - ')) {
+                        const parts = displayName.split(' - ')
+                        pendingInfo = { artist: parts[0].trim(), title: parts.slice(1).join(' - ').trim(), duration }
+                    } else {
+                        pendingInfo = { artist: 'Unknown Artist', title: displayName, duration }
+                    }
+                } else if (!line.startsWith('#') && pendingInfo) {
+                    tracks.push(pendingInfo)
+                    pendingInfo = null
+                } else if (!line.startsWith('#') && line.includes(' - ')) {
+                    const parts = line.split(' - ')
+                    tracks.push({ artist: parts[0].trim(), title: parts.slice(1).join(' - ').trim() })
+                }
+            })
+            if (pendingInfo) tracks.push(pendingInfo)
+            return tracks
+        }
+
+        // PLS 파싱
+        if (ext === 'pls') {
+            const lines = text.split('\n').map(l => l.trim())
+            const titleMap: Record<string, string> = {}
+            const lengthMap: Record<string, number> = {}
+
+            lines.forEach(line => {
+                const titleMatch = line.match(/^Title(\d+)=(.+)/i)
+                if (titleMatch) titleMap[titleMatch[1]] = titleMatch[2].trim()
+                const lenMatch = line.match(/^Length(\d+)=(-?\d+)/i)
+                if (lenMatch) lengthMap[lenMatch[1]] = parseInt(lenMatch[2])
+            })
+
+            return Object.entries(titleMap).map(([idx, displayName]) => {
+                const duration = lengthMap[idx] > 0 ? lengthMap[idx] : 0
+                if (displayName.includes(' - ')) {
+                    const parts = displayName.split(' - ')
+                    return { artist: parts[0].trim(), title: parts.slice(1).join(' - ').trim(), duration }
+                }
+                return { artist: 'Unknown Artist', title: displayName, duration }
+            }).filter(t => t.title)
+        }
+
+        // CSV 파싱 (기본)
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+        const tracks: { title: string, artist: string, album?: string }[] = []
+
+        // 헤더 행 감지
+        const headerLine = lines[0]?.toLowerCase() || ''
+        const startIdx = (headerLine.includes('track') || headerLine.includes('title') || headerLine.includes('artist')) ? 1 : 0
+        const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase())
+        const titleIdx = headers.indexOf('track name') !== -1 ? headers.indexOf('track name')
+            : headers.indexOf('title') !== -1 ? headers.indexOf('title')
+            : headers.indexOf('name') !== -1 ? headers.indexOf('name') : 0
+        const artistIdx = headers.indexOf('artist name') !== -1 ? headers.indexOf('artist name')
+            : headers.indexOf('artist') !== -1 ? headers.indexOf('artist') : 1
+        const albumIdx = headers.indexOf('album name') !== -1 ? headers.indexOf('album name')
+            : headers.indexOf('album') !== -1 ? headers.indexOf('album') : -1
+
+        lines.slice(startIdx).forEach(line => {
+            if (!line) return
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+            let title = cols[titleIdx] || ''
+            let artist = cols[artistIdx] || 'Unknown Artist'
+            const album = albumIdx >= 0 ? cols[albumIdx] || '' : ''
+
+            // CSV 헤더가 없는 경우 "Artist - Title" 형식 시도
+            if (!title && line.includes(' - ')) {
+                const parts = line.split(' - ')
+                artist = parts[0].trim()
+                title = parts.slice(1).join(' - ').trim()
+            }
+            if (title) tracks.push({ title, artist, album })
+        })
+        return tracks
+    }
+
+    const enrichUploadedTracks = async (trackIds: number[]) => {
+        if (trackIds.length === 0) return
+        try {
+            const res = await fetch('/api/enrich-tracks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ track_ids: trackIds })
+            })
+            if (res.ok) {
+                const data = await res.json()
+                if (data.enriched_count > 0) {
+                    showToast(`오디오 특성 추론 완료 (${data.enriched_count}곡)`, 'success')
+                }
+            }
+        } catch (err) {
+            console.warn('Audio feature enrichment failed:', err)
+        }
+    }
+
+    const handleFileUpload = async (files: FileList) => {
+        console.log('[handleFileUpload] called, files:', files.length, Array.from(files).map(f => f.name))
+        if (files.length === 0) {
+            console.warn('[handleFileUpload] files.length is 0, returning')
+            return
+        }
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+            const reader = new FileReader()
+
+            reader.onload = async (e) => {
+                console.log('[handleFileUpload] reader.onload fired for:', file.name, 'result length:', (e.target?.result as string)?.length)
+                const text = e.target?.result as string
+                if (!text) {
+                    console.warn('[handleFileUpload] text is empty for:', file.name)
+                    return
+                }
+
+                const tracksToImport = parseTracksFromFile(text, file.name)
+
+                if (tracksToImport.length === 0) {
+                    showToast(`'${file.name}': 트랙을 찾을 수 없습니다.`, 'error')
+                    return
+                }
+
+                try {
+                    const playlistName = file.name.replace(/\.[^/.]+$/, "")
+                    showToast(`'${playlistName}' (${tracksToImport.length}곡) 저장 중...`, 'info')
+
+                    const createResult = await playlistsApi.create({
+                        title: playlistName,
+                        description: `Imported from file: ${file.name}`,
+                        sourceType: 'Upload',
+                        spaceType: 'GMS',
+                        status: 'PTP'
+                    })
+
+                    let successCount = 0
+                    const addedTrackIds: number[] = []
+                    for (const track of tracksToImport) {
+                        try {
+                            const result = await playlistsApi.addTrack(createResult.id, {
+                                title: track.title,
+                                artist: track.artist,
+                                album: track.album || 'Imported',
+                                duration: track.duration || 0
+                            })
+                            if (result?.trackId) addedTrackIds.push(result.trackId)
+                            successCount++
+                        } catch (err) { console.warn('Failed to add track:', track, err) }
+                    }
+
+                    showToast(`'${playlistName}' 완료 (${successCount}/${tracksToImport.length}곡) — 오디오 특성 추론 중...`, 'success')
+                    fetchPlaylists(true)
+
+                    // 오디오 특성 추론 (백그라운드)
+                    enrichUploadedTracks(addedTrackIds)
+                } catch (err) {
+                    console.error('File import failed:', err)
+                    showToast(`'${file.name}' 가져오기 실패`, 'error')
+                }
+            }
+            reader.readAsText(file)
+        }
     }
 
     return (
@@ -818,10 +868,6 @@ const ExternalMusicSpace = () => {
                 <p className="text-hud-text-secondary mb-6">외부에서 가져온 검증되지 않은 플레이리스트를 수집하고 관리합니다</p>
 
                 <div className="flex gap-3">
-                    <button className="bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-primary px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-hud-bg-hover transition-all">
-                        <Filter className="w-4 h-4" />
-                        Advanced Filter
-                    </button>
                     <button
                         onClick={() => document.getElementById('fileInput')?.click()}
                         className="bg-hud-accent-warning text-hud-bg-primary px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-hud-accent-warning/90 transition-all">
@@ -832,6 +878,28 @@ const ExternalMusicSpace = () => {
             </header>
 
             <UploadZone onFilesSelected={handleFileUpload} />
+
+            {/* File Upload Guide */}
+            <div className="hud-card hud-card-bottom rounded-xl p-5 mb-6 mt-4">
+                <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-hud-accent-primary/15 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                        <Sparkles className="w-5 h-5 text-hud-accent-primary" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-hud-text-primary mb-1">파일 업로드 → GMS 자동 등록</h3>
+                        <p className="text-sm text-hud-text-secondary leading-relaxed">
+                            업로드한 파일의 트랙은 <span className="text-hud-accent-primary font-medium">GMS (AI 추천 공간)</span>에 바로 저장됩니다.
+                            저장 완료 후 AI가 각 곡의 오디오 특성(댄서빌리티·에너지·템포 등 9가지)을 자동으로 추론하여 채워넣습니다.
+                        </p>
+                        <div className="flex flex-wrap gap-3 mt-3">
+                            <span className="text-xs bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-muted px-2.5 py-1 rounded-full">CSV — 헤더 자동 감지</span>
+                            <span className="text-xs bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-muted px-2.5 py-1 rounded-full">JSON — tracks / items / songs 배열</span>
+                            <span className="text-xs bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-muted px-2.5 py-1 rounded-full">M3U — #EXTINF 태그 파싱</span>
+                            <span className="text-xs bg-hud-bg-secondary border border-hud-border-secondary text-hud-text-muted px-2.5 py-1 rounded-full">PLS — Title / Length 키 파싱</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             {/* Analysis Progress Overlay */}
             {isAnalyzing && (
@@ -977,7 +1045,7 @@ const ExternalMusicSpace = () => {
             />
 
             {/* Playlist Table */}
-            <EMSPlaylistTable
+            {/* <EMSPlaylistTable
                 playlists={playlists}
                 selectedIds={selectedIds}
                 searchTerm={searchTerm}
@@ -985,7 +1053,7 @@ const ExternalMusicSpace = () => {
                 onSelectRow={handleSelectRow}
                 onViewDetail={setSelectedDetailId}
                 onAddToCart={addPlaylistToCart}
-            />
+            /> */}
 
             {/* Cart Drawer */}
             <EMSCartDrawer
@@ -1035,6 +1103,19 @@ const ExternalMusicSpace = () => {
                     }}
                     cartTrackIds={new Set(cartTracks.map(t => t.id))}
                 />
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border transition-all duration-300 max-w-sm
+                    ${toast.type === 'success' ? 'bg-hud-bg-secondary border-green-500/40 text-green-400' :
+                      toast.type === 'error' ? 'bg-hud-bg-secondary border-red-500/40 text-red-400' :
+                      'bg-hud-bg-secondary border-hud-accent-primary/40 text-hud-accent-primary'}`}>
+                    <span className="text-lg">
+                        {toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}
+                    </span>
+                    <span className="text-sm font-medium text-hud-text-primary">{toast.message}</span>
+                </div>
             )}
         </div>
     )
