@@ -271,7 +271,7 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                             </button>
                         </div>
                     ) : (
-                        <table className="w-full text-left border-collapse">
+                        <table className="w-full text-left border-collapse table-fixed">
                             <thead className={`sticky top-0 z-10 backdrop-blur-md ${theme === 'jazz'
                                 ? 'bg-hud-bg-primary/60 border-b border-hud-accent-primary/20'
                                 : theme === 'soul'
@@ -280,9 +280,9 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                                 }`}>
                                 <tr>
                                     <th className={`px-4 py-3 w-12 text-center text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>#</th>
-                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Title</th>
-                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider hidden md:table-cell ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Artist</th>
-                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider hidden lg:table-cell ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Album</th>
+                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider w-[35%] ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Title</th>
+                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider w-[25%] hidden md:table-cell ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Artist</th>
+                                    <th className={`px-4 py-3 text-xs font-black uppercase tracking-wider w-[20%] hidden lg:table-cell ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>Album</th>
                                     <th className={`px-4 py-3 w-24 text-right text-xs font-black uppercase tracking-wider ${theme === 'jazz' || theme === 'soul' ? 'text-hud-accent-secondary' : 'text-hud-text-muted'}`}>
                                         <Clock className="w-3.5 h-3.5 ml-auto" />
                                     </th>
@@ -322,14 +322,14 @@ const PlaylistDetailModal = ({ isOpen, onClose, playlistId, onAddToCart, cartTra
                                                     <Play className="w-3.5 h-3.5 text-hud-accent-primary hidden group-hover:block" fill="currentColor" />
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 overflow-hidden">
                                                 <div className={`text-sm font-medium transition-colors truncate ${theme === 'jazz'
                                                     ? 'text-hud-text-primary group-hover:text-hud-accent-primary font-serif tracking-wide'
                                                     : 'text-hud-text-primary group-hover:text-hud-accent-primary'
                                                     }`}>{track.title}</div>
                                                 <div className={`text-xs md:hidden ${theme === 'jazz' ? 'text-hud-text-muted' : 'text-hud-text-secondary'}`}>{track.artist}</div>
                                             </td>
-                                            <td className={`px-4 py-3 text-sm hidden md:table-cell transition-colors ${theme === 'jazz' ? 'text-hud-text-primary/70 group-hover:text-hud-text-primary' : 'text-hud-text-secondary group-hover:text-hud-text-primary'
+                                            <td className={`px-4 py-3 text-sm hidden md:table-cell transition-colors overflow-hidden truncate ${theme === 'jazz' ? 'text-hud-text-primary/70 group-hover:text-hud-text-primary' : 'text-hud-text-secondary group-hover:text-hud-text-primary'
                                                 }`}>
                                                 {track.artist}
                                             </td>

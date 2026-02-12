@@ -68,8 +68,7 @@ function getVisitorId(): string {
     return visitorId
 }
 
-// Redirect URI 설정 (환경변수 우선, 없으면 기본값)
-const REDIRECT_URI = import.meta.env.VITE_YOUTUBE_REDIRECT_URI || 'http://localhost/youtube-callback'
+const REDIRECT_URI = 'https://imapplepie20.tplinkdns.com:8443/youtube-callback'
 
 // YouTube Music API Service
 export const youtubeMusicApi = {

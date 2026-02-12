@@ -133,7 +133,7 @@ const GatewayMusicSpace = () => {
         }, 600)
 
         try {
-            const result = await fastapiService.getRecommendations(user.id, selectedModel, 20, emsTrackLimit)
+            const result = await fastapiService.getRecommendations(user.id, selectedModel, 30, emsTrackLimit)
             
             clearInterval(progressInterval)
             setProgress(100)

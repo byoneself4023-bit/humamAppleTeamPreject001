@@ -1,5 +1,20 @@
+# ============================================================
+# MusicSpace 풀스택 로컬 빌드 (MacBook)
+# 사용법: docker compose -f docker-compose.fullstack-local.yml up -d
+# ============================================================
+#
+# [서비스별 수정 반영 방법]
+#   프론트엔드(.tsx): npm run build → 자동 반영 (dist/ 볼륨 마운트)
+#   FastAPI(.py):     docker restart musicspace-fastapi (소스 볼륨 마운트)
+#   Spring Boot:      docker compose -f docker-compose.fullstack-local.yml up -d --no-deps --build spring-backend
+#   Node.js:          docker compose -f docker-compose.fullstack-local.yml up -d --no-deps --build backend
+#
+# [주의] 프론트/FastAPI는 --build 불필요. Spring/Node만 --build 필요.
+# ============================================================
+
 services:
-  # MariaDB 데이터베이스
+
+  # ── DB ──────────────────────────────────────────────────────
   db:
     image: mariadb:10.11
     container_name: musicspace-db
@@ -23,7 +38,7 @@ services:
     networks:
       - musicspace-network
 
-  # Redis (for JWT refresh tokens)
+  # ── Redis ───────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: musicspace-redis
@@ -41,7 +56,8 @@ services:
     networks:
       - musicspace-network
 
-  # Spring Boot 백엔드 (Java) - 메인 API
+  # ── Spring Boot (Java) ─────────────────────────────────────
+  # 수정 반영: --build 필요 (Gradle 빌드)
   spring-backend:
     build:
       context: ../2TeamFinalProject-BE
@@ -79,7 +95,8 @@ services:
     networks:
       - musicspace-network
 
-  # FastAPI AI/ML 서버 (Python)
+  # ── FastAPI AI/ML (Python) ─────────────────────────────────
+  # 수정 반영: docker restart musicspace-fastapi (소스 볼륨 마운트됨)
   fastapi:
     build:
       context: ../FAST_API
@@ -103,12 +120,14 @@ services:
       db:
         condition: service_healthy
     volumes:
+      - ../FAST_API/main.py:/app/main.py
+      - ../FAST_API/database.py:/app/database.py
+      - ../FAST_API/init_user_models.py:/app/init_user_models.py
+      - ../FAST_API/audio_enrichment.py:/app/audio_enrichment.py
       - ../FAST_API/M1:/app/M1
       - ../FAST_API/M2:/app/M2
       - ../FAST_API/M3:/app/M3
       - ../FAST_API/LLM:/app/LLM
-      - ../FAST_API/main.py:/app/main.py
-      - ../FAST_API/database.py:/app/database.py
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -118,7 +137,8 @@ services:
     networks:
       - musicspace-network
 
-  # Node.js 백엔드 (Spotify Browser Playwright만 사용)
+  # ── Node.js (Spotify Playwright) ───────────────────────────
+  # 수정 반영: --build 필요
   backend:
     build:
       context: ./server
@@ -152,7 +172,8 @@ services:
     networks:
       - musicspace-network
 
-  # Nginx 프론트엔드
+  # ── Frontend (React + Nginx) ───────────────────────────────
+  # 수정 반영: npm run build → dist/ 마운트로 자동 반영 (--build 불필요)
   frontend:
     build:
       context: .
@@ -169,6 +190,7 @@ services:
       - backend
     volumes:
       - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ./dist:/usr/share/nginx/html                    # Vite 빌드 결과물 마운트
       - ./public/images:/usr/share/nginx/html/images
       - ./public/uploads:/usr/share/nginx/html/uploads
       - ./public/webroot:/webroot
@@ -179,7 +201,6 @@ services:
 volumes:
   mariadb_data:
   redis_data:
-
 
 networks:
   musicspace-network:
