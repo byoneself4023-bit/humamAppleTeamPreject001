@@ -28,8 +28,19 @@ sudo apt-get install -y git
 ```bash
 # 프로젝트 폴더 생성 및 클론
 cd /var/www
-sudo git clone https://github.com/imorangepie20/humamAppleTeamPreject001.git alpha-team
-cd alpha-team
+
+# 저장소 클론 (레포명과 폴더명이 다른 경우 반드시 폴더명 변경 필요)
+# | 저장소 URL                                                        | 클론 후 폴더명              |
+# |------------------------------------------------------------------|---------------------------|
+# | https://github.com/imorangepie20/humamAppleTeamPreject001.git    | humamAppleTeamPreject001  (그대로) |
+# | https://github.com/imorangepie20/2TeamFinalProject-PB.git        | 2TeamFinalProject-BE      (변경)   |
+# | https://github.com/imorangepie20/FAST_API-PB.git                 | FAST_API                  (변경)   |
+
+sudo git clone https://github.com/imorangepie20/humamAppleTeamPreject001.git
+sudo git clone https://github.com/imorangepie20/2TeamFinalProject-PB.git      2TeamFinalProject-BE
+sudo git clone https://github.com/imorangepie20/FAST_API-PB.git               FAST_API
+
+cd humamAppleTeamPreject001
 
 # 의존성 설치 및 빌드
 sudo npm install

@@ -10,7 +10,7 @@
 
 ## 1. 아키텍처 및 디렉토리 구조 (필수)
 
-이 프로젝트는 **두 개의 Git 저장소**가 형제(Sibling) 폴더 구조로 위치해야 Docker 빌드가 가능합니다.
+이 프로젝트는 **세 개의 Git 저장소**가 형제(Sibling) 폴더 구조로 위치해야 Docker 빌드가 가능합니다.
 
 **서버 디렉토리 구조 예시:**
 ```
@@ -19,13 +19,16 @@
 │   ├── docker-compose.yml         <-- 실행 설정 파일
 │   ├── nginx.conf
 │   └── ...
-└── 2TeamFinalProject-BE/          <-- [Spring Boot Backend] (Git Repo 2)
-    ├── src/
-    ├── build.gradle
+├── 2TeamFinalProject-BE/          <-- [Spring Boot Backend] (Git Repo 2)
+│   ├── src/
+│   ├── build.gradle
+│   └── ...
+└── FAST_API/                      <-- [FastAPI AI Server] (Git Repo 3)
+    ├── main.py
     └── ...
 ```
 
-> **주의:** `docker-compose.yml` 파일이 상위 폴더의 `../2TeamFinalProject-BE`를 참조하므로 이 구조를 반드시 지켜야 합니다.
+> **주의:** `docker-compose.yml` 파일이 상위 폴더의 `../2TeamFinalProject-BE`, `../FAST_API`를 참조하므로 이 구조를 반드시 지켜야 합니다.
 
 ---
 
@@ -66,8 +69,11 @@ cd ~/music_space
 # 1. 프론트엔드 (설정 포함) 클론
 git clone https://github.com/imorangepie20/humamAppleTeamPreject001.git
 
-# 2. 백엔드 (Spring Boot) 클론
-git clone https://github.com/imorangepie20/2TeamFinalProject-BE.git
+# 2. 백엔드 (Spring Boot) 클론 — 폴더명 2TeamFinalProject-BE 로 변경
+git clone https://github.com/imorangepie20/2TeamFinalProject-PB.git 2TeamFinalProject-BE
+
+# 3. AI 서버 (FastAPI) 클론 — 폴더명 FAST_API 로 변경
+git clone https://github.com/imorangepie20/FAST_API-PB.git FAST_API
 ```
 
 ### 3.2 환경 변수 설정 (도메인 적용)
