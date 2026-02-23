@@ -10,17 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tidal-music/player": "^0.11.3",
-    "chart.js": "^4.4.1",
     "framer-motion": "^12.34.0",
     "hls.js": "^1.6.15",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",
     "react-player": "^2.16.0",
-    "react-router-dom": "^6.22.0",
-    "recharts": "^2.12.0"
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
